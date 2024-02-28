@@ -42,8 +42,6 @@ gem 'devise_token_auth'
 
 gem 'devise-i18n'
 
-gem 'omniauth', '>= 1.0.0'
-
 gem 'carrierwave'
 
 gem 'mini_magick'
