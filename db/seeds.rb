@@ -1,3 +1,9 @@
+# Only run seeds in development environment
+unless Rails.env.development?
+  puts "Seeds are only available in development environment. Current environment: #{Rails.env}" # rubocop:disable Rails/Output
+  exit
+end
+
 seed_type = ENV.fetch('SEED_TYPE', nil)
 Rails.logger.debug { "Seed type: #{seed_type}" }
 
@@ -233,50 +239,147 @@ baseballcategories7 = [
   { name: 'その他', hiragana: 'そのた', katakana: 'ソノタ', alphabet: 'Sonota' }
 ]
 
-Position.create(positions) if seed_type == 'positions'
-
-selected_prefectures = case seed_type
-                       when 'prefectures1'
-                         prefectures1
-                       when 'prefectures2'
-                         prefectures2
-                       when 'prefectures3'
-                         prefectures3
-                       else
-                         raise ArgumentError, "Invalid seed type: #{seed_type}"
-                       end
-
-selected_prefectures.each do |pref|
-  Prefecture.find_or_create_by!(name: pref[:name]) do |p|
-    p.hiragana = pref[:hiragana]
-    p.katakana = pref[:katakana]
-    p.alphabet = pref[:alphabet]
+case seed_type
+when 'positions'
+  positions.each do |position|
+    Position.find_or_create_by!(name: position[:name])
   end
-end
-
-selected_categories = case seed_type
-                      when 'baseballcategories1'
-                        baseballcategories1
-                      when 'baseballcategories2'
-                        baseballcategories2
-                      when 'baseballcategories3'
-                        baseballcategories3
-                      when 'baseballcategories4'
-                        baseballcategories4
-                      when 'baseballcategories5'
-                        baseballcategories5
-                      when 'baseballcategories6'
-                        baseballcategories6
-                      when 'baseballcategories7'
-                        baseballcategories7
-                      else
-                        raise ArgumentError, "Invalid seed type: #{seed_type}"
-                      end
-
-selected_categories.each do |category|
-  BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
-    cat.hiragana = category[:hiragana]
-    cat.katakana = category[:katakana]
-    cat.alphabet = category[:alphabet]
+when 'prefectures1'
+  prefectures1.each do |pref|
+    Prefecture.find_or_create_by!(name: pref[:name]) do |p|
+      p.hiragana = pref[:hiragana]
+      p.katakana = pref[:katakana]
+      p.alphabet = pref[:alphabet]
+    end
   end
+when 'prefectures2'
+  prefectures2.each do |pref|
+    Prefecture.find_or_create_by!(name: pref[:name]) do |p|
+      p.hiragana = pref[:hiragana]
+      p.katakana = pref[:katakana]
+      p.alphabet = pref[:alphabet]
+    end
+  end
+when 'prefectures3'
+  prefectures3.each do |pref|
+    Prefecture.find_or_create_by!(name: pref[:name]) do |p|
+      p.hiragana = pref[:hiragana]
+      p.katakana = pref[:katakana]
+      p.alphabet = pref[:alphabet]
+    end
+  end
+when 'baseballcategories1'
+  baseballcategories1.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories2'
+  baseballcategories2.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories3'
+  baseballcategories3.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories4'
+  baseballcategories4.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories5'
+  baseballcategories5.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories6'
+  baseballcategories6.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'baseballcategories7'
+  baseballcategories7.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'development'
+  # 開発環境用：基本的なデータのみ作成
+  positions.each do |position|
+    Position.find_or_create_by!(name: position[:name])
+  end
+  prefectures1.each do |pref|
+    Prefecture.find_or_create_by!(name: pref[:name]) do |p|
+      p.hiragana = pref[:hiragana]
+      p.katakana = pref[:katakana]
+      p.alphabet = pref[:alphabet]
+    end
+  end
+  baseballcategories1.each do |category|
+    BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+      cat.hiragana = category[:hiragana]
+      cat.katakana = category[:katakana]
+      cat.alphabet = category[:alphabet]
+    end
+  end
+when 'all'
+  # 全てのデータを一括作成
+  Rails.logger.debug 'Creating all seed data...'
+
+  # Positions
+  positions.each do |position|
+    Position.find_or_create_by!(name: position[:name])
+  end
+  Rails.logger.debug { "Created #{Position.count} positions" }
+
+  # All Prefectures
+  [prefectures1, prefectures2, prefectures3].each do |prefecture_group|
+    prefecture_group.each do |pref|
+      Prefecture.find_or_create_by!(name: pref[:name]) do |p|
+        p.hiragana = pref[:hiragana]
+        p.katakana = pref[:katakana]
+        p.alphabet = pref[:alphabet]
+      end
+    end
+  end
+  Rails.logger.debug { "Created #{Prefecture.count} prefectures" }
+
+  # All Baseball Categories
+  [baseballcategories1, baseballcategories2, baseballcategories3, baseballcategories4,
+   baseballcategories5, baseballcategories6, baseballcategories7].each do |category_group|
+    category_group.each do |category|
+      BaseballCategory.find_or_create_by!(name: category[:name]) do |cat|
+        cat.hiragana = category[:hiragana]
+        cat.katakana = category[:katakana]
+        cat.alphabet = category[:alphabet]
+      end
+    end
+  end
+  Rails.logger.debug { "Created #{BaseballCategory.count} baseball categories" }
+
+  Rails.logger.debug 'All seed data creation completed!'
+else
+  Rails.logger.debug { "No seed type specified or invalid seed type: #{seed_type}" }
+  Rails.logger.debug 'Available seed types: positions, prefectures1-3, baseballcategories1-7, development, all'
 end
