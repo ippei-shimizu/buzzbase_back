@@ -1,7 +1,8 @@
 module Api
   module V1
     class UsersController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[update show_current]
+      before_action :authenticate_api_v1_user!, only: %i[update show_current destroy]
+      skip_after_action :update_auth_header, only: [:destroy]
       before_action :set_user, only: %i[show_current_user_id following_users followers_users]
 
       def show_current
@@ -90,6 +91,17 @@ module Api
         query = params[:query]
         users = User.where('name LIKE ? OR user_id LIKE ?', "%#{query}%", "%#{query}%")
         render json: users
+      end
+
+      def destroy
+        current_api_v1_user.destroy!
+        render json: { success: true, message: 'アカウントが削除されました' }
+      rescue StandardError => e
+        Rails.logger.error "Account deletion failed: #{e.message}"
+        render json: {
+          success: false,
+          error: 'アカウントの削除に失敗しました。しばらく時間をおいてから再度お試しください。'
+        }, status: :internal_server_error
       end
 
       private
