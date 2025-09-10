@@ -34,5 +34,5 @@ Metrics/ClassLength:
   Max: 150 
 
 Metrics/BlockLength:
-  ExcludedMethods: ['describe', 'context', 'rails_application_routes'] 
+  AllowedMethods: ['describe', 'context', 'rails_application_routes'] 
   Max: 150 
