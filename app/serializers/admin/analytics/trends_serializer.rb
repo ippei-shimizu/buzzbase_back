@@ -6,7 +6,7 @@ module Admin
           {
             user_growth: UserGrowthSerializer.serialize(daily_stats),
             activity_trends: ActivityTrendsSerializer.serialize(daily_stats),
-            content_breakdown: content_breakdown,
+            content_breakdown:,
             summary: build_summary_data(daily_stats)
           }
         end

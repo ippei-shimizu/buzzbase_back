@@ -5,10 +5,10 @@ module Admin
         def serialize(stats_data, granularity = 'daily')
           stats_data.map do |stat|
             {
-              date: format_date(stat.date, granularity),
-              new_users: stat.new_users || 0,
-              total_users: stat.total_users || 0,
-              active_users: stat.active_users || 0
+              date: format_date(stat[:date], granularity),
+              new_users: stat[:new_users] || 0,
+              total_users: stat[:total_users] || 0,
+              active_users: stat[:active_users] || 0
             }
           end
         end

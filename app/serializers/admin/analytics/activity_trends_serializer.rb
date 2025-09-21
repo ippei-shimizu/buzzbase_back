@@ -5,11 +5,11 @@ module Admin
         def serialize(stats_data, granularity = 'daily')
           stats_data.map do |stat|
             {
-              date: format_date(stat.date, granularity),
-              games: stat.total_games || 0,
-              batting_records: stat.total_batting_records || 0,
-              pitching_records: stat.total_pitching_records || 0,
-              total_posts: stat.total_posts || 0
+              date: format_date(stat[:date], granularity),
+              games: stat[:total_games] || 0,
+              batting_records: stat[:total_batting_records] || 0,
+              pitching_records: stat[:total_pitching_records] || 0,
+              total_posts: stat[:total_posts] || 0
             }
           end
         end

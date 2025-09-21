@@ -119,7 +119,6 @@ namespace :analytics do
     end
   end
 
-
   # === Job-based Tasks ===
   desc '昨日分の日次統計Jobを実行'
   task daily_job: :environment do
@@ -128,7 +127,7 @@ namespace :analytics do
 
     begin
       result = Admin::Analytics::DailyStatisticsJob.new.perform(target_date)
-      puts "Job completed successfully!"
+      puts 'Job completed successfully!'
       puts "Date: #{result[:date]}"
       puts "Total Users: #{result[:stats].total_users}"
       puts "Active Users: #{result[:stats].active_users}"
@@ -146,7 +145,7 @@ namespace :analytics do
 
     begin
       result = Admin::Analytics::DailyStatisticsJob.new.perform(target_date)
-      puts "Job completed successfully!"
+      puts 'Job completed successfully!'
       puts "Date: #{result[:date]}"
       puts "Total Users: #{result[:stats].total_users}"
       puts "Active Users: #{result[:stats].active_users}"
@@ -166,11 +165,11 @@ namespace :analytics do
 
     begin
       result = Admin::Analytics::DailyStatisticsJob.perform_batch(start_date, end_date)
-      puts "Batch job completed!"
+      puts 'Batch job completed!'
       puts "Successful: #{result[:success_count]}"
       puts "Failed: #{result[:error_count]}"
 
-      if result[:error_count] > 0
+      if (result[:error_count]).positive?
         puts "\nErrors:"
         result[:errors].each do |error|
           puts "  #{error[:date]}: #{error[:error]}"
@@ -190,8 +189,8 @@ namespace :analytics do
     begin
       result = Admin::Analytics::DailyStatisticsJob.backfill_missing_data(days_back)
 
-      if result[:missing_count] == 0
-        puts "No missing data found!"
+      if (result[:missing_count]).zero?
+        puts 'No missing data found!'
       else
         puts "Found #{result[:missing_count]} missing dates"
         puts "Successfully backfilled: #{result[:backfilled].count}"
@@ -215,7 +214,7 @@ namespace :analytics do
 
     begin
       job = Admin::Analytics::DailyStatisticsJob.perform_later(target_date)
-      puts "Job queued successfully!"
+      puts 'Job queued successfully!'
       puts "Job ID: #{job.job_id}" if job.respond_to?(:job_id)
       puts "Target Date: #{target_date}"
       puts "Queue: #{job.queue_name}"

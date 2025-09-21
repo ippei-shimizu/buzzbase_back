@@ -6,20 +6,20 @@ module Api
           period = analytics_params[:period]&.to_i || 30
           granularity = analytics_params[:granularity] || 'daily'
 
-          case granularity
-          when 'weekly'
-            stats_data = get_weekly_stats(period)
-          when 'monthly'
-            stats_data = get_monthly_stats(period)
-          else
-            stats_data = ::Admin::DailyStatistic.recent(period)
-          end
+          stats_data = case granularity
+                       when 'weekly'
+                         get_weekly_stats(period)
+                       when 'monthly'
+                         get_monthly_stats(period)
+                       else
+                         ::Admin::DailyStatistic.recent(period)
+                       end
 
-          if stats_data.empty?
-            dashboard_data = build_realtime_dashboard_data
-          else
-            dashboard_data = ::Admin::Analytics::DashboardSerializer.serialize(stats_data, granularity)
-          end
+          dashboard_data = if stats_data.empty?
+                             build_realtime_dashboard_data
+                           else
+                             ::Admin::Analytics::DashboardSerializer.serialize(stats_data, granularity)
+                           end
 
           render json: dashboard_data
         end
@@ -51,21 +51,29 @@ module Api
 
         def build_realtime_daily_stats
           (6.days.ago.to_date..Date.current).map do |date|
-            OpenStruct.new(
-              date: date,
-              new_users: ::User.where(created_at: date.all_day).count,
-              total_users: ::User.where('created_at <= ?', date.end_of_day).count,
-              active_users: ::Admin::DailyStatistic.send(:calculate_active_users, date),
-              total_games: ::GameResult.where(created_at: date.all_day).count,
-              total_batting_records: ::BattingAverage.where(created_at: date.all_day).count,
-              total_pitching_records: ::PitchingResult.where(created_at: date.all_day).count,
-              total_posts: [
-                ::BattingAverage.where(created_at: date.all_day).count,
-                ::PitchingResult.where(created_at: date.all_day).count,
-                ::BaseballNote.where(created_at: date.all_day).count
-              ].sum
-            )
+            build_daily_stat_hash(date)
           end
+        end
+
+        def build_daily_stat_hash(date)
+          {
+            date:,
+            new_users: ::User.where(created_at: date.all_day).count,
+            total_users: ::User.where('created_at <= ?', date.end_of_day).count,
+            active_users: ::Admin::DailyStatistic.send(:calculate_active_users, date),
+            total_games: ::GameResult.where(created_at: date.all_day).count,
+            total_batting_records: ::BattingAverage.where(created_at: date.all_day).count,
+            total_pitching_records: ::PitchingResult.where(created_at: date.all_day).count,
+            total_posts: calculate_total_posts(date)
+          }
+        end
+
+        def calculate_total_posts(date)
+          [
+            ::BattingAverage.where(created_at: date.all_day).count,
+            ::PitchingResult.where(created_at: date.all_day).count,
+            ::BaseballNote.where(created_at: date.all_day).count
+          ].sum
         end
 
         def trends
@@ -97,8 +105,6 @@ module Api
           render json: { retention: retention_data }
         end
 
-        private
-
         def get_weekly_stats(weeks_count)
           start_date = weeks_count.weeks.ago.beginning_of_week
           end_date = Date.current.end_of_week
@@ -124,19 +130,27 @@ module Api
         end
 
         def aggregate_stats_for_period(stats, period_start, period_type)
-          last_stat = stats.max_by(&:date)
+          last_stat = find_latest_stat(stats)
 
-          OpenStruct.new(
+          {
             date: period_start,
-            total_users: last_stat&.total_users || 0,
-            active_users: stats.sum(&:active_users),
-            new_users: stats.sum(&:new_users),
-            total_games: stats.sum(&:total_games),
-            total_batting_records: stats.sum(&:total_batting_records),
-            total_pitching_records: stats.sum(&:total_pitching_records),
-            total_posts: stats.sum(&:total_posts),
-            period_type: period_type
-          )
+            total_users: last_stat&.fetch(:total_users, 0) || 0,
+            active_users: sum_stat_values(stats, :active_users),
+            new_users: sum_stat_values(stats, :new_users),
+            total_games: sum_stat_values(stats, :total_games),
+            total_batting_records: sum_stat_values(stats, :total_batting_records),
+            total_pitching_records: sum_stat_values(stats, :total_pitching_records),
+            total_posts: sum_stat_values(stats, :total_posts),
+            period_type:
+          }
+        end
+
+        def find_latest_stat(stats)
+          stats.max_by { |stat| stat[:date] }
+        end
+
+        def sum_stat_values(stats, key)
+          stats.sum { |stat| stat[key] || 0 }
         end
 
         def analytics_params

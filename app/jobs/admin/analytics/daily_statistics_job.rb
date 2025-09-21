@@ -13,7 +13,7 @@ module Admin
           Rails.logger.info "Stats: Users=#{daily_stat.total_users}, DAU=#{daily_stat.active_users}, New=#{daily_stat.new_users}"
 
           { success: true, date: target_date, stats: daily_stat }
-        rescue => e
+        rescue StandardError => e
           Rails.logger.error "Daily statistics calculation failed for #{target_date}: #{e.message}"
           Rails.logger.error e.backtrace.join("\n")
 
@@ -28,14 +28,12 @@ module Admin
         errors = []
 
         (start_date..end_date).each do |date|
-          begin
-            job_result = new.perform(date)
-            results << job_result
-          rescue => e
-            error_info = { date: date, error: e.message }
-            errors << error_info
-            Rails.logger.error "Failed to calculate stats for #{date}: #{e.message}"
-          end
+          job_result = new.perform(date)
+          results << job_result
+        rescue StandardError => e
+          error_info = { date:, error: e.message }
+          errors << error_info
+          Rails.logger.error "Failed to calculate stats for #{date}: #{e.message}"
         end
 
         Rails.logger.info "Batch calculation completed. Success: #{results.count}, Errors: #{errors.count}"
@@ -43,8 +41,8 @@ module Admin
         {
           success_count: results.count,
           error_count: errors.count,
-          results: results,
-          errors: errors
+          results:,
+          errors:
         }
       end
 
@@ -56,7 +54,7 @@ module Admin
         missing_dates = (start_date..end_date).to_a - existing_dates
 
         if missing_dates.empty?
-          Rails.logger.info "No missing daily statistics data found"
+          Rails.logger.info 'No missing daily statistics data found'
           return { missing_count: 0, backfilled: [] }
         end
 
@@ -64,20 +62,18 @@ module Admin
 
         backfilled = []
         missing_dates.each do |date|
-          begin
-            new.perform(date)
-            backfilled << date
-            Rails.logger.info "Backfilled data for #{date}"
-          rescue => e
-            Rails.logger.error "Failed to backfill data for #{date}: #{e.message}"
-          end
+          new.perform(date)
+          backfilled << date
+          Rails.logger.info "Backfilled data for #{date}"
+        rescue StandardError => e
+          Rails.logger.error "Failed to backfill data for #{date}: #{e.message}"
         end
 
         Rails.logger.info "Backfill completed. Processed: #{backfilled.count}/#{missing_dates.count}"
 
         {
           missing_count: missing_dates.count,
-          backfilled: backfilled,
+          backfilled:,
           failed: missing_dates - backfilled
         }
       end
