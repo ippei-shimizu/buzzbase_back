@@ -18,8 +18,8 @@ module Admin
       def calculate_for_date(date = Date.current)
         stats = find_or_initialize_by(date:)
 
-        stats.total_users = User.where('created_at <= ?', date.end_of_day).count
-        stats.new_users = User.where(created_at: date.all_day).count
+        stats.total_users = ::User.where('created_at <= ?', date.end_of_day).count
+        stats.new_users = ::User.where(created_at: date.all_day).count
         stats.active_users = calculate_active_users(date)
         stats.total_games = GameResult.where(created_at: date.all_day).count
         stats.total_batting_records = BattingAverage.where(created_at: date.all_day).count
@@ -54,7 +54,7 @@ module Admin
       end
 
       def retention_rate(cohort_date, period_days = DEFAULT_RETENTION_PERIOD_DAYS)
-        cohort_users = User.where(created_at: cohort_date.all_day)
+        cohort_users = ::User.where(created_at: cohort_date.all_day)
         return 0 if cohort_users.count.zero?
 
         retention_date = cohort_date + period_days.days
@@ -72,7 +72,7 @@ module Admin
       end
 
       def calculate_active_user_ids(date)
-        login_user_ids = User.where(last_login_at: date.all_day).pluck(:id)
+        login_user_ids = ::User.where(last_login_at: date.all_day).pluck(:id)
 
         content_user_ids = []
         content_user_ids += GameResult.where(created_at: date.all_day).pluck(:user_id)
