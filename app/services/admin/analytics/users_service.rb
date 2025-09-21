@@ -5,12 +5,11 @@ module Admin
         @page = params[:page]&.to_i || 1
         @per_page = params[:per_page]&.to_i || 20
         @search_term = params[:search]
-        @stats_factory = Admin::Analytics::StatsFactory
       end
 
       def call
         {
-          users: @stats_factory.build_user_list(paginated_users),
+          users: Admin::Analytics::UsersSerializer.serialize(paginated_users),
           pagination: pagination_info,
           total_count: filtered_users.count
         }
