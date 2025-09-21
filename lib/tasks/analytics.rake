@@ -1,5 +1,5 @@
 namespace :analytics do
-  desc 'Calculate daily statistics for a specific date'
+  desc '指定日の日次統計データを計算'
   task :calculate_daily, [:date] => :environment do |_task, args|
     date = args[:date] ? Date.parse(args[:date]) : Date.current
 
@@ -19,7 +19,7 @@ namespace :analytics do
     end
   end
 
-  desc 'Calculate daily statistics for a date range'
+  desc '期間指定で日次統計データを一括計算'
   task :calculate_batch, %i[start_date end_date] => :environment do |_task, args|
     start_date = args[:start_date] ? Date.parse(args[:start_date]) : 7.days.ago.to_date
     end_date = args[:end_date] ? Date.parse(args[:end_date]) : Date.current
@@ -35,22 +35,7 @@ namespace :analytics do
     end
   end
 
-  desc 'Clean up old user activities (older than 90 days)'
-  task cleanup_activities: :environment do
-    cutoff_date = 90.days.ago
-
-    puts "Cleaning up user activities older than #{cutoff_date}..."
-
-    begin
-      # 古いアクティビティの削除は不要（user_activitiesテーブルを使用しないため）
-      puts 'Activity cleanup not required - using direct table aggregation'
-    rescue StandardError => e
-      puts "Error during cleanup: #{e.message}"
-      raise e
-    end
-  end
-
-  desc 'Calculate weekly statistics for a specific date'
+  desc '指定日の週次統計データを計算'
   task :calculate_weekly, [:date] => :environment do |_task, args|
     date = args[:date] ? Date.parse(args[:date]) : Date.current
 
@@ -75,7 +60,7 @@ namespace :analytics do
     end
   end
 
-  desc 'Calculate monthly statistics for a specific date'
+  desc '指定日の月次統計データを計算'
   task :calculate_monthly, [:date] => :environment do |_task, args|
     date = args[:date] ? Date.parse(args[:date]) : Date.current
 
@@ -102,7 +87,7 @@ namespace :analytics do
     end
   end
 
-  desc 'Calculate weekly statistics for a date range'
+  desc '期間指定で週次統計データを一括計算'
   task :calculate_weekly_batch, %i[start_date end_date] => :environment do |_task, args|
     start_date = args[:start_date] ? Date.parse(args[:start_date]) : 4.weeks.ago.to_date
     end_date = args[:end_date] ? Date.parse(args[:end_date]) : Date.current
@@ -118,7 +103,7 @@ namespace :analytics do
     end
   end
 
-  desc 'Calculate monthly statistics for a date range'
+  desc '期間指定で月次統計データを一括計算'
   task :calculate_monthly_batch, %i[start_date end_date] => :environment do |_task, args|
     start_date = args[:start_date] ? Date.parse(args[:start_date]) : 6.months.ago.to_date
     end_date = args[:end_date] ? Date.parse(args[:end_date]) : Date.current
@@ -134,77 +119,108 @@ namespace :analytics do
     end
   end
 
-  desc 'Generate analytics report for the last 30 days'
-  task generate_report: :environment do
-    puts 'Generating analytics report for the last 30 days...'
 
-    end_date = Date.current
-    start_date = 30.days.ago.to_date
-
-    stats = Admin::DailyStatistic.by_date_range(start_date, end_date)
-
-    puts "\n=== BuzzBase Analytics Report (#{start_date} to #{end_date}) ==="
-    puts "Total Users: #{stats.last&.total_users || 0}"
-    puts "Average Daily Active Users: #{stats.average(:active_users).to_f.round(2)}"
-    puts "Total New Users: #{stats.sum(:new_users)}"
-    puts "Total Games: #{stats.sum(:total_games)}"
-    puts "Total Batting Records: #{stats.sum(:total_batting_records)}"
-    puts "Total Pitching Records: #{stats.sum(:total_pitching_records)}"
-    puts "Total Posts: #{stats.sum(:total_posts)}"
-
-    puts "\nGrowth Rates (7-day comparison):"
-    puts "  Users: #{Admin::DailyStatistic.growth_rate(:total_users, 7)}%"
-    puts "  Active Users: #{Admin::DailyStatistic.growth_rate(:active_users, 7)}%"
-    puts "  Games: #{Admin::DailyStatistic.growth_rate(:total_games, 7)}%"
-    puts "  Batting Records: #{Admin::DailyStatistic.growth_rate(:total_batting_records, 7)}%"
-    puts "  Pitching Records: #{Admin::DailyStatistic.growth_rate(:total_pitching_records, 7)}%"
-    puts "  Posts: #{Admin::DailyStatistic.growth_rate(:total_posts, 7)}%"
-
-    puts "\nRetention Rates (7-day cohort):"
-    cohort_date = 7.days.ago.to_date
-    [1, 3, 7].each do |period|
-      rate = Admin::DailyStatistic.retention_rate(cohort_date, period)
-      puts "  #{period} day: #{rate}%"
-    end
-
-    puts "\nTop Activities:"
-    activity_summary = {
-      games: GameResult.where(created_at: start_date.beginning_of_day..end_date.end_of_day).count,
-      batting_records: BattingAverage.where(created_at: start_date.beginning_of_day..end_date.end_of_day).count,
-      pitching_records: PitchingResult.where(created_at: start_date.beginning_of_day..end_date.end_of_day).count
-    }
-    activity_summary.sort_by { |_, count| -count }.first(5).each do |activity, count|
-      puts "  #{activity}: #{count}"
-    end
-
-    puts "\n=== End of Report ==="
-  end
-
-  desc 'Create initial admin user'
-  task create_admin: :environment do
-    email = ENV['ADMIN_EMAIL'] || 'admin@buzzbase.com'
-    password = ENV['ADMIN_PASSWORD'] || SecureRandom.hex(8)
-    name = ENV['ADMIN_NAME'] || 'System Administrator'
+  # === Job-based Tasks ===
+  desc '昨日分の日次統計Jobを実行'
+  task daily_job: :environment do
+    target_date = Date.current - 1.day
+    puts "Running daily statistics job for #{target_date}..."
 
     begin
-      admin = Admin::User.create!(
-        email:,
-        name:,
-        password:,
-        password_confirmation: password,
-        role: :super_admin,
-        permissions_list: %w[analytics manage_users manage_admins]
-      )
-
-      puts 'Admin user created successfully!'
-      puts "Email: #{admin.email}"
-      puts "Password: #{password}"
-      puts "Role: #{admin.role}"
-      puts "\nPlease save these credentials securely and change the password after first login."
-    rescue ActiveRecord::RecordInvalid => e
-      puts "Error creating admin user: #{e.record.errors.full_messages.join(', ')}"
+      result = Admin::Analytics::DailyStatisticsJob.new.perform(target_date)
+      puts "Job completed successfully!"
+      puts "Date: #{result[:date]}"
+      puts "Total Users: #{result[:stats].total_users}"
+      puts "Active Users: #{result[:stats].active_users}"
+      puts "New Users: #{result[:stats].new_users}"
     rescue StandardError => e
-      puts "Unexpected error: #{e.message}"
+      puts "Job failed: #{e.message}"
+      raise e
+    end
+  end
+
+  desc '指定日の日次統計Jobを実行'
+  task :daily_job_for_date, [:date] => :environment do |_task, args|
+    target_date = args[:date] ? Date.parse(args[:date]) : Date.current - 1.day
+    puts "Running daily statistics job for #{target_date}..."
+
+    begin
+      result = Admin::Analytics::DailyStatisticsJob.new.perform(target_date)
+      puts "Job completed successfully!"
+      puts "Date: #{result[:date]}"
+      puts "Total Users: #{result[:stats].total_users}"
+      puts "Active Users: #{result[:stats].active_users}"
+      puts "New Users: #{result[:stats].new_users}"
+    rescue StandardError => e
+      puts "Job failed: #{e.message}"
+      raise e
+    end
+  end
+
+  desc '期間指定で日次統計Jobを一括実行'
+  task :daily_job_batch, %i[start_date end_date] => :environment do |_task, args|
+    start_date = args[:start_date] ? Date.parse(args[:start_date]) : 7.days.ago.to_date
+    end_date = args[:end_date] ? Date.parse(args[:end_date]) : Date.current - 1.day
+
+    puts "Running batch daily statistics job from #{start_date} to #{end_date}..."
+
+    begin
+      result = Admin::Analytics::DailyStatisticsJob.perform_batch(start_date, end_date)
+      puts "Batch job completed!"
+      puts "Successful: #{result[:success_count]}"
+      puts "Failed: #{result[:error_count]}"
+
+      if result[:error_count] > 0
+        puts "\nErrors:"
+        result[:errors].each do |error|
+          puts "  #{error[:date]}: #{error[:error]}"
+        end
+      end
+    rescue StandardError => e
+      puts "Batch job failed: #{e.message}"
+      raise e
+    end
+  end
+
+  desc '欠損した日次統計データを補完'
+  task :backfill_daily_stats, [:days_back] => :environment do |_task, args|
+    days_back = args[:days_back] ? args[:days_back].to_i : 30
+    puts "Backfilling missing daily statistics data for the last #{days_back} days..."
+
+    begin
+      result = Admin::Analytics::DailyStatisticsJob.backfill_missing_data(days_back)
+
+      if result[:missing_count] == 0
+        puts "No missing data found!"
+      else
+        puts "Found #{result[:missing_count]} missing dates"
+        puts "Successfully backfilled: #{result[:backfilled].count}"
+        puts "Failed to backfill: #{result[:failed].count}"
+
+        if result[:failed].any?
+          puts "\nFailed dates:"
+          result[:failed].each { |date| puts "  #{date}" }
+        end
+      end
+    rescue StandardError => e
+      puts "Backfill failed: #{e.message}"
+      raise e
+    end
+  end
+
+  desc '日次統計Jobをキューに追加（バックグラウンド処理）'
+  task :queue_daily_job, [:date] => :environment do |_task, args|
+    target_date = args[:date] ? Date.parse(args[:date]) : Date.current - 1.day
+    puts "Queueing daily statistics job for #{target_date}..."
+
+    begin
+      job = Admin::Analytics::DailyStatisticsJob.perform_later(target_date)
+      puts "Job queued successfully!"
+      puts "Job ID: #{job.job_id}" if job.respond_to?(:job_id)
+      puts "Target Date: #{target_date}"
+      puts "Queue: #{job.queue_name}"
+    rescue StandardError => e
+      puts "Failed to queue job: #{e.message}"
       raise e
     end
   end
