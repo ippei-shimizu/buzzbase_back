@@ -15,6 +15,9 @@ gem 'puma', '~> 5.0'
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 # gem "jbuilder"
 
+# JSON serialization for APIs
+gem 'active_model_serializers', '~> 0.10.14'
+
 # Use Redis adapter to run Action Cable in production
 # gem "redis", "~> 4.0"
 
@@ -45,6 +48,9 @@ gem 'devise-i18n'
 gem 'omniauth', '>= 1.0.0'
 
 gem 'carrierwave'
+
+# JWT for server-to-server authentication
+gem 'jwt'
 
 gem 'mini_magick'
 
