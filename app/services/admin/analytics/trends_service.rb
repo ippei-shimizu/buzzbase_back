@@ -4,11 +4,10 @@ module Admin
       def initialize(start_date, end_date)
         @start_date = start_date
         @end_date = end_date
-        @stats_factory = Admin::Analytics::StatsFactory
       end
 
       def call
-        @stats_factory.build_trends_data(daily_stats, content_breakdown)
+        Admin::Analytics::TrendsSerializer.serialize(daily_stats, content_breakdown)
       end
 
       private
