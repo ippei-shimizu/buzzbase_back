@@ -10,9 +10,74 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2024_03_17_135305) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_21_023735) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "admin_daily_statistics", force: :cascade do |t|
+    t.date "date", null: false
+    t.integer "total_users", default: 0, null: false
+    t.integer "active_users", default: 0, null: false
+    t.integer "new_users", default: 0, null: false
+    t.integer "total_games", default: 0, null: false
+    t.integer "total_posts", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "total_batting_records", default: 0, null: false
+    t.integer "total_pitching_records", default: 0, null: false
+    t.index ["date"], name: "index_admin_daily_statistics_on_date", unique: true
+  end
+
+  create_table "admin_monthly_statistics", force: :cascade do |t|
+    t.integer "year", null: false
+    t.integer "month", null: false
+    t.date "month_start_date", null: false
+    t.date "month_end_date", null: false
+    t.integer "total_users", default: 0, null: false
+    t.decimal "avg_daily_active_users", precision: 8, scale: 2, default: "0.0", null: false
+    t.integer "peak_daily_active_users", default: 0, null: false
+    t.decimal "avg_weekly_active_users", precision: 8, scale: 2, default: "0.0", null: false
+    t.integer "new_users", default: 0, null: false
+    t.integer "total_games", default: 0, null: false
+    t.integer "total_posts", default: 0, null: false
+    t.integer "total_batting_records", default: 0, null: false
+    t.integer "total_pitching_records", default: 0, null: false
+    t.decimal "monthly_retention_rate", precision: 5, scale: 2
+    t.decimal "user_growth_rate", precision: 5, scale: 2
+    t.decimal "engagement_score", precision: 5, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["month_start_date"], name: "index_admin_monthly_statistics_on_month_start_date"
+    t.index ["year", "month"], name: "index_admin_monthly_statistics_on_year_and_month", unique: true
+  end
+
+  create_table "admin_users", force: :cascade do |t|
+    t.string "email", null: false
+    t.string "name", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "password_digest"
+    t.index ["email"], name: "index_admin_users_on_email", unique: true
+  end
+
+  create_table "admin_weekly_statistics", force: :cascade do |t|
+    t.date "week_start_date", null: false
+    t.date "week_end_date", null: false
+    t.integer "total_users", default: 0, null: false
+    t.decimal "avg_daily_active_users", precision: 8, scale: 2, default: "0.0", null: false
+    t.integer "peak_daily_active_users", default: 0, null: false
+    t.integer "new_users", default: 0, null: false
+    t.integer "total_games", default: 0, null: false
+    t.integer "total_posts", default: 0, null: false
+    t.integer "total_batting_records", default: 0, null: false
+    t.integer "total_pitching_records", default: 0, null: false
+    t.decimal "weekly_retention_rate", precision: 5, scale: 2
+    t.decimal "user_growth_rate", precision: 5, scale: 2
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["week_end_date"], name: "index_admin_weekly_statistics_on_week_end_date"
+    t.index ["week_start_date"], name: "index_admin_weekly_statistics_on_week_start_date", unique: true
+  end
 
   create_table "awards", force: :cascade do |t|
     t.string "title", null: false
@@ -262,8 +327,10 @@ ActiveRecord::Schema[7.0].define(version: 2024_03_17_135305) do
     t.text "introduction"
     t.text "positions"
     t.integer "team_id"
+    t.datetime "last_login_at"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["last_login_at"], name: "index_users_on_last_login_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
