@@ -127,8 +127,7 @@ Rails.application.routes.draw do
 
         resources :admin_users, only: %i[index create show update destroy] do
           member do
-            patch :update_permissions
-            patch :update_role
+            patch :reset_password
           end
         end
       end
