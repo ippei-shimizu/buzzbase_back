@@ -86,7 +86,7 @@ module Admin
         cohort_start = week_start - 1.week
         cohort_end = cohort_start.end_of_week(:monday)
 
-        new_users_previous_week = User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
+        new_users_previous_week = ::User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
         return 0.0 if new_users_previous_week.count.zero?
 
         active_in_current_week = new_users_previous_week.joins(:game_results, :batting_averages, :pitching_results)

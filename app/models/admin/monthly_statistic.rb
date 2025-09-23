@@ -107,7 +107,7 @@ module Admin
         check_start = cohort_end + 1.day
         check_end = check_start + period_days.days - 1.day
 
-        new_users_in_cohort = User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
+        new_users_in_cohort = ::User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
         return 0.0 if new_users_in_cohort.count.zero?
 
         active_in_period = new_users_in_cohort.joins(:game_results, :batting_averages, :pitching_results)
@@ -128,7 +128,7 @@ module Admin
         cohort_start = month_start - 1.month
         cohort_end = cohort_start.end_of_month
 
-        new_users_previous_month = User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
+        new_users_previous_month = ::User.where(created_at: cohort_start.beginning_of_day..cohort_end.end_of_day)
         return 0.0 if new_users_previous_month.count.zero?
 
         active_in_current_month = new_users_previous_month.joins(:game_results, :batting_averages, :pitching_results)
