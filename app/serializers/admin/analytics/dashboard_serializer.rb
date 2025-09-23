@@ -7,9 +7,9 @@ module Admin
           previous_stat = stats_data[-2] if stats_data.length > 1
 
           {
-            total_users: latest_stat&.dig(:total_users) || 0,
-            daily_active_users: latest_stat&.dig(:active_users) || 0,
-            new_registrations: latest_stat&.dig(:new_users) || 0,
+            total_users: extract_stat_value(latest_stat, :total_users),
+            daily_active_users: extract_stat_value(latest_stat, :active_users),
+            new_registrations: extract_stat_value(latest_stat, :new_users),
             monthly_active_users: calculate_mau(stats_data),
             user_growth_data: ::Admin::Analytics::UserGrowthSerializer.serialize(stats_data, granularity),
             activity_data: ::Admin::Analytics::ActivityTrendsSerializer.serialize(stats_data, granularity),
@@ -19,12 +19,26 @@ module Admin
           }
         end
 
+        def extract_stat_value(stat, key)
+          return 0 unless stat
+
+          if stat.respond_to?(key)
+            stat.send(key) || 0
+          else
+            stat&.dig(key) || 0
+          end
+        end
+
         private
 
         def calculate_mau(daily_stats)
           return 0 if daily_stats.empty?
 
-          latest_date = daily_stats.last&.dig(:date) || Date.current
+          latest_date = if daily_stats.last.respond_to?(:date)
+                          daily_stats.last&.date || Date.current
+                        else
+                          daily_stats.last&.dig(:date) || Date.current
+                        end
           start_date = latest_date - 29.days
 
           calculate_actual_mau(start_date, latest_date)
@@ -47,10 +61,26 @@ module Admin
           return {} unless latest_stat && previous_stat
 
           {
-            users: calculate_growth_rate(latest_stat[:total_users], previous_stat[:total_users]),
-            dau: calculate_growth_rate(latest_stat[:active_users], previous_stat[:active_users]),
-            new_users: calculate_growth_rate(latest_stat[:new_users], previous_stat[:new_users])
+            users: calculate_growth_for_metric(latest_stat, previous_stat, :total_users),
+            dau: calculate_growth_for_metric(latest_stat, previous_stat, :active_users),
+            new_users: calculate_growth_for_metric(latest_stat, previous_stat, :new_users)
           }
+        end
+
+        def calculate_growth_for_metric(latest_stat, previous_stat, metric)
+          current_value = extract_metric_value(latest_stat, metric)
+          previous_value = extract_metric_value(previous_stat, metric)
+          calculate_growth_rate(current_value, previous_value)
+        end
+
+        def extract_metric_value(stat, metric)
+          return nil unless stat
+
+          if stat.respond_to?(metric)
+            stat.send(metric)
+          else
+            stat&.dig(metric)
+          end
         end
 
         def calculate_growth_rate(current, previous)

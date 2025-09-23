@@ -111,10 +111,11 @@ module Api
 
           daily_stats = ::Admin::DailyStatistic.where(date: start_date..end_date)
 
-          daily_stats.group_by { |stat| stat.date.beginning_of_week }
-                     .map do |week_start, stats|
+          weekly_stats = daily_stats.group_by { |stat| stat.date.beginning_of_week }
+                                    .map do |week_start, stats|
             aggregate_stats_for_period(stats, week_start, 'week')
-          end.sort_by(&:date)
+          end
+          weekly_stats.sort_by { |stat| stat[:date] }
         end
 
         def get_monthly_stats(months_count)
@@ -123,10 +124,11 @@ module Api
 
           daily_stats = ::Admin::DailyStatistic.where(date: start_date..end_date)
 
-          daily_stats.group_by { |stat| stat.date.beginning_of_month }
-                     .map do |month_start, stats|
+          monthly_stats = daily_stats.group_by { |stat| stat.date.beginning_of_month }
+                                     .map do |month_start, stats|
             aggregate_stats_for_period(stats, month_start, 'month')
-          end.sort_by(&:date)
+          end
+          monthly_stats.sort_by { |stat| stat[:date] }
         end
 
         def aggregate_stats_for_period(stats, period_start, period_type)
@@ -134,7 +136,7 @@ module Api
 
           {
             date: period_start,
-            total_users: last_stat&.fetch(:total_users, 0) || 0,
+            total_users: last_stat&.total_users || 0,
             active_users: sum_stat_values(stats, :active_users),
             new_users: sum_stat_values(stats, :new_users),
             total_games: sum_stat_values(stats, :total_games),
@@ -146,11 +148,11 @@ module Api
         end
 
         def find_latest_stat(stats)
-          stats.max_by { |stat| stat[:date] }
+          stats.max_by { |stat| stat.respond_to?(:date) ? stat.date : stat[:date] }
         end
 
         def sum_stat_values(stats, key)
-          stats.sum { |stat| stat[key] || 0 }
+          stats.sum { |stat| stat.respond_to?(key) ? stat.send(key) || 0 : stat[key] || 0 }
         end
 
         def analytics_params
