@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_09_21_023735) do
+ActiveRecord::Schema[7.0].define(version: 2025_09_23_152247) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -49,6 +49,19 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_21_023735) do
     t.datetime "updated_at", null: false
     t.index ["month_start_date"], name: "index_admin_monthly_statistics_on_month_start_date"
     t.index ["year", "month"], name: "index_admin_monthly_statistics_on_year_and_month", unique: true
+  end
+
+  create_table "admin_refresh_tokens", force: :cascade do |t|
+    t.bigint "admin_user_id", null: false
+    t.string "jti", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "revoked_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_user_id", "expires_at"], name: "index_admin_refresh_tokens_on_admin_user_id_and_expires_at"
+    t.index ["admin_user_id"], name: "index_admin_refresh_tokens_on_admin_user_id"
+    t.index ["expires_at"], name: "index_admin_refresh_tokens_on_expires_at"
+    t.index ["jti"], name: "index_admin_refresh_tokens_on_jti", unique: true
   end
 
   create_table "admin_users", force: :cascade do |t|
@@ -336,6 +349,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_09_21_023735) do
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
 
+  add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
   add_foreign_key "game_results", "batting_averages"

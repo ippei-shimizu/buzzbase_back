@@ -8,6 +8,7 @@ Rails.application.routes.draw do
         post 'sign_in', to: 'sessions#create'
         delete 'sign_out', to: 'sessions#destroy'
         get 'validate', to: 'sessions#validate'
+        post 'refresh', to: 'sessions#refresh'
       end
 
       namespace :auth do

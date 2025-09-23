@@ -28,7 +28,7 @@ module Api
           end
 
           # NOTE: middlewareでセットされたクッキーからJWTを取得して認証
-          token = cookies['admin-jwt']
+          token = cookies['admin-access-token']
           return nil unless token
 
           InternalJwtService.authenticate_admin_user(token)
