@@ -1,0 +1,94 @@
+module Admin
+  module Analytics
+    class DashboardSerializer
+      class << self
+        def serialize(stats_data, granularity = 'daily')
+          latest_stat = stats_data.last
+          previous_stat = stats_data[-2] if stats_data.length > 1
+
+          {
+            total_users: extract_stat_value(latest_stat, :total_users),
+            daily_active_users: extract_stat_value(latest_stat, :active_users),
+            new_registrations: extract_stat_value(latest_stat, :new_users),
+            monthly_active_users: calculate_mau(stats_data),
+            user_growth_data: ::Admin::Analytics::UserGrowthSerializer.serialize(stats_data, granularity),
+            activity_data: ::Admin::Analytics::ActivityTrendsSerializer.serialize(stats_data, granularity),
+            growth_rates: build_growth_rates(latest_stat, previous_stat),
+            granularity:,
+            period_count: stats_data.length
+          }
+        end
+
+        def extract_stat_value(stat, key)
+          return 0 unless stat
+
+          if stat.respond_to?(key)
+            stat.send(key) || 0
+          else
+            stat&.dig(key) || 0
+          end
+        end
+
+        private
+
+        def calculate_mau(daily_stats)
+          return 0 if daily_stats.empty?
+
+          latest_date = if daily_stats.last.respond_to?(:date)
+                          daily_stats.last&.date || Date.current
+                        else
+                          daily_stats.last&.dig(:date) || Date.current
+                        end
+          start_date = latest_date - 29.days
+
+          calculate_actual_mau(start_date, latest_date)
+        end
+
+        def calculate_actual_mau(start_date, end_date)
+          login_user_ids = ::User.where(last_login_at: start_date.beginning_of_day..end_date.end_of_day).pluck(:id)
+
+          content_user_ids = []
+          content_user_ids += ::GameResult.where(created_at: start_date.beginning_of_day..end_date.end_of_day).pluck(:user_id)
+          content_user_ids += ::BattingAverage.where(created_at: start_date.beginning_of_day..end_date.end_of_day).pluck(:user_id)
+          content_user_ids += ::PitchingResult.where(created_at: start_date.beginning_of_day..end_date.end_of_day).pluck(:user_id)
+
+          content_user_ids += ::BaseballNote.where(created_at: start_date.beginning_of_day..end_date.end_of_day).pluck(:user_id) if defined?(::BaseballNote)
+
+          (login_user_ids + content_user_ids).uniq.count
+        end
+
+        def build_growth_rates(latest_stat, previous_stat)
+          return {} unless latest_stat && previous_stat
+
+          {
+            users: calculate_growth_for_metric(latest_stat, previous_stat, :total_users),
+            dau: calculate_growth_for_metric(latest_stat, previous_stat, :active_users),
+            new_users: calculate_growth_for_metric(latest_stat, previous_stat, :new_users)
+          }
+        end
+
+        def calculate_growth_for_metric(latest_stat, previous_stat, metric)
+          current_value = extract_metric_value(latest_stat, metric)
+          previous_value = extract_metric_value(previous_stat, metric)
+          calculate_growth_rate(current_value, previous_value)
+        end
+
+        def extract_metric_value(stat, metric)
+          return nil unless stat
+
+          if stat.respond_to?(metric)
+            stat.send(metric)
+          else
+            stat&.dig(metric)
+          end
+        end
+
+        def calculate_growth_rate(current, previous)
+          return 0 if previous.nil? || previous.zero?
+
+          ((current.to_f - previous) / previous * 100).round(2)
+        end
+      end
+    end
+  end
+end
