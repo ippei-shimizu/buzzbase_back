@@ -32,57 +32,50 @@ BUZZ BASE管理画面の統計データを集計するためのバッチ処理�
 
 ```bash
 # 昨日分のデータを集計
-bundle exec rake analytics:daily_job
+docker compose exec back bundle exec rake "analytics:daily_job"
 
 # 特定の日付を指定
-bundle exec rake analytics:daily_job_for_date[2024-09-20]
+   docker compose exec back bundle exec rake "analytics:daily_job_for_date[2025-09-20]"
 
 # 期間指定でバッチ実行
-bundle exec rake analytics:daily_job_batch[2024-09-15,2024-09-20]
+docker compose exec back bundle exec rake "analytics:daily_job_batch[2024-09-15,2024-09-20]"
 
 # 欠損データの補完
-bundle exec rake analytics:backfill_daily_stats[30]
+docker compose exec back bundle exec rake "analytics:backfill_daily_stats[30]"
 ```
 
 #### 週次・月次統計データ
 
 ```bash
 # 今週の週次統計
-bundle exec rake analytics:calculate_weekly
+docker compose exec back bundle exec rake "analytics:calculate_weekly"
 
 # 今月の月次統計
-bundle exec rake analytics:calculate_monthly
+docker compose exec back bundle exec rake "analytics:calculate_monthly"
 
 # 期間指定
-bundle exec rake analytics:calculate_weekly_batch[2024-09-01,2024-09-30]
-bundle exec rake analytics:calculate_monthly_batch[2024-07-01,2024-09-30]
-```
-
-#### レポート生成
-
-```bash
-# 過去30日のレポート生成
-bundle exec rake analytics:generate_report
+docker compose exec back bundle exec rake "analytics:calculate_weekly_batch[2024-09-01,2024-09-30]"
+docker compose exec back bundle exec rake "analytics:calculate_monthly_batch[2024-07-01,2024-09-30]"
 ```
 
 ### Background Job実行
 
 ```bash
 # Jobキューに追加（バックグラウンド実行）
-bundle exec rake analytics:queue_daily_job[2024-09-20]
+docker compose exec back bundle exec rake "analytics:queue_daily_job[2024-09-20]"
 ```
 
 ### 自動実行（Cron）
 
 ```bash
 # whenever gemを使用してcrontabを更新
-bundle exec whenever --update-crontab
+docker compose exec back bundle exec whenever --update-crontab
 
 # crontabの確認
-bundle exec whenever --crontab
+docker compose exec back bundle exec whenever --crontab
 
 # crontabの削除
-bundle exec whenever --clear-crontab
+docker compose exec back bundle exec whenever --clear-crontab
 ```
 
 ## スケジュール
