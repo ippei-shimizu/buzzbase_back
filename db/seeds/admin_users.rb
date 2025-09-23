@@ -3,7 +3,7 @@
 Rails.logger.info 'Creating admin users...'
 
 # 初期管理者ユーザー
-admin_user = Admin::User.find_or_create_by!(email: 'admin@example.com') do |admin|
+admin_user = Admin::User.find_or_create_by!(email: 'admin_2@example.com') do |admin|
   admin.name = 'Admin User'
   admin.password = 'password123'
 end
