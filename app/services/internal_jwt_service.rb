@@ -78,11 +78,6 @@ class InternalJwtService
         Admin::User.find_by(id: admin_user_id)
       when 'refresh'
         authenticate_from_refresh_token(payload)
-      else
-        admin_user_id = payload['admin_user_id']
-        return nil unless admin_user_id
-
-        Admin::User.find_by(id: admin_user_id)
       end
     end
 
