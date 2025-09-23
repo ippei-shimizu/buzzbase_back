@@ -3,7 +3,7 @@ class InternalJwtService
 
   SECRET_KEY = ENV['JWT_SECRET'] || 'fallback-secret-key-for-development'
   ALGORITHM = 'HS256'.freeze
-  EXPIRATION_TIME = 5.minutes
+  EXPIRATION_TIME = 1.hour
 
   class << self
     def encode_token(admin_user_id)
