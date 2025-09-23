@@ -2,7 +2,7 @@ module Api
   module V1
     module Admin
       class SessionsController < Api::V1::Admin::BaseController
-        skip_before_action :authenticate_admin_user!, only: [:create, :validate]
+        skip_before_action :authenticate_admin_user!, only: %i[create validate]
 
         def create
           admin_user = ::Admin::User.find_by(email: params[:email])
