@@ -4,6 +4,12 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       mount_devise_token_auth_for 'User', at: 'auth', controllers: {}
+      namespace :admin do
+        post 'sign_in', to: 'sessions#create'
+        delete 'sign_out', to: 'sessions#destroy'
+        get 'validate', to: 'sessions#validate'
+        post 'refresh', to: 'sessions#refresh'
+      end
 
       namespace :auth do
         resources :sessions, only: [:index]
@@ -108,6 +114,24 @@ Rails.application.routes.draw do
       end
 
       resources :baseball_notes, only: %i[index create show update destroy]
+
+      namespace :admin do
+        resources :analytics, only: [] do
+          collection do
+            get :dashboard
+            get :trends
+            get :features
+            get :users
+            get :retention
+          end
+        end
+
+        resources :admin_users, only: %i[index create show update destroy] do
+          member do
+            patch :reset_password
+          end
+        end
+      end
 
       get 'users/current', to: 'users#show_current'
       get 'search', to: 'batting_averages#search'

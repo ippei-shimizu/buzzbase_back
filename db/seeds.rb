@@ -324,8 +324,14 @@ when 'baseballcategories7'
       cat.alphabet = category[:alphabet]
     end
   end
+when 'admin_users'
+  load Rails.root.join('db/seeds/admin_users.rb')
+when 'production_like_seed_data'
+  load Rails.root.join('db/seeds/production_like_seed_data.rb')
 when 'development'
   # 開発環境用：基本的なデータのみ作成
+  load Rails.root.join('db/seeds/admin_users.rb')
+
   positions.each do |position|
     Position.find_or_create_by!(name: position[:name])
   end
@@ -343,9 +349,13 @@ when 'development'
       cat.alphabet = category[:alphabet]
     end
   end
+when 'group_ranking_test'
+  load Rails.root.join('db/seeds/group_ranking_test_data.rb')
 when 'all'
   # 全てのデータを一括作成
   Rails.logger.debug 'Creating all seed data...'
+
+  load Rails.root.join('db/seeds/admin_users.rb')
 
   # Positions
   positions.each do |position|
@@ -381,5 +391,5 @@ when 'all'
   Rails.logger.debug 'All seed data creation completed!'
 else
   Rails.logger.debug { "No seed type specified or invalid seed type: #{seed_type}" }
-  Rails.logger.debug 'Available seed types: positions, prefectures1-3, baseballcategories1-7, development, all'
+  Rails.logger.debug 'Available seed types: admin_users, analytics_test_data, positions, prefectures1-3, baseballcategories1-7, development, all, group_ranking_test'
 end

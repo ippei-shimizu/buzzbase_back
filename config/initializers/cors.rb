@@ -7,7 +7,7 @@
 
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins 'localhost:8000', '127.0.0.1:8000', 'buzzbase.jp', 'www.buzzbase.jp'
+    origins 'localhost:8000', '127.0.0.1:8000', 'buzzbase.jp', 'www.buzzbase.jp', 'localhost:3000', 'back:3000'
 
     resource '*',
              headers: :any,

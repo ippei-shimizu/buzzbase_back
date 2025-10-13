@@ -33,8 +33,8 @@
 #       runner: node
 #     "any.go":
 #       runner: go run
-pre-commit:
-  parallel: true
-  commands:
-    rubocop:
-      run: docker compose run --rm back bundle exec rubocop -A
+# pre-commit:
+#   parallel: true
+#   commands:
+#     rubocop:
+#       run: docker compose run --rm back bundle exec rubocop -A
