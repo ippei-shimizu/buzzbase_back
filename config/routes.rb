@@ -8,6 +8,7 @@ Rails.application.routes.draw do
         post 'sign_in', to: 'sessions#create'
         delete 'sign_out', to: 'sessions#destroy'
         get 'validate', to: 'sessions#validate'
+        post 'refresh', to: 'sessions#refresh'
       end
 
       namespace :auth do
@@ -127,8 +128,7 @@ Rails.application.routes.draw do
 
         resources :admin_users, only: %i[index create show update destroy] do
           member do
-            patch :update_permissions
-            patch :update_role
+            patch :reset_password
           end
         end
       end
