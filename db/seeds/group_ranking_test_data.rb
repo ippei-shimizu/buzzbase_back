@@ -1,23 +1,23 @@
 # グループランキング検証用シードデータ
 # 既存の全Userを10人ずつのグループに分割し、各Userが最低1つのグループに所属する状態を作成
 
-puts 'Creating group ranking test data...'
+Rails.logger.debug 'Creating group ranking test data...'
 
 users = User.all.to_a
 total_users = users.count
 
 if total_users.zero?
-  puts 'No users found. Please create users first.'
+  Rails.logger.debug 'No users found. Please create users first.'
   exit
 end
 
-puts "Found #{total_users} users"
+Rails.logger.debug { "Found #{total_users} users" }
 
 # 10人ずつグループに分割
 group_size = 10
 groups_count = (total_users.to_f / group_size).ceil
 
-puts "Creating #{groups_count} groups with up to #{group_size} members each..."
+Rails.logger.debug { "Creating #{groups_count} groups with up to #{group_size} members each..." }
 
 groups_count.times do |i|
   group_number = i + 1
@@ -32,7 +32,7 @@ groups_count.times do |i|
     name: "ランキングテストグループ#{group_number}"
   )
 
-  puts "Created group: #{group.name} with #{group_users.count} members"
+  Rails.logger.debug { "Created group: #{group.name} with #{group_users.count} members" }
 
   # グループの作成者（最初のユーザー）
   creator = group_users.first
@@ -54,8 +54,8 @@ groups_count.times do |i|
     )
   end
 
-  puts "  - Added #{group_users.count} members to #{group.name}"
+  Rails.logger.debug { "  - Added #{group_users.count} members to #{group.name}" }
 end
 
-puts "Group ranking test data creation completed!"
-puts "Created #{groups_count} groups with a total of #{total_users} members"
+Rails.logger.debug 'Group ranking test data creation completed!'
+Rails.logger.debug { "Created #{groups_count} groups with a total of #{total_users} members" }
