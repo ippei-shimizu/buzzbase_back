@@ -57,5 +57,5 @@ groups_count.times do |i|
   puts "  - Added #{group_users.count} members to #{group.name}"
 end
 
-puts "Group ranking test data creation completed!"
+puts 'Group ranking test data creation completed!'
 puts "Created #{groups_count} groups with a total of #{total_users} members"
