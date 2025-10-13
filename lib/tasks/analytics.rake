@@ -122,8 +122,10 @@ namespace :analytics do
   # === Job-based Tasks ===
   desc '昨日分の日次統計Jobを実行'
   task daily_job: :environment do
-    target_date = Date.current - 1.day
-    puts "Running daily statistics job for #{target_date}..."
+    # 日本時間での「昨日」を取得
+    jst_today = Time.current.in_time_zone('Tokyo').to_date
+    target_date = jst_today - 1.day
+    puts "Running daily statistics job for #{target_date} (JST)..."
 
     begin
       result = Admin::Analytics::DailyStatisticsJob.new.perform(target_date)
@@ -140,7 +142,8 @@ namespace :analytics do
 
   desc '指定日の日次統計Jobを実行'
   task :daily_job_for_date, [:date] => :environment do |_task, args|
-    target_date = args[:date] ? Date.parse(args[:date]) : Date.current - 1.day
+    jst_today = Time.current.in_time_zone('Tokyo').to_date
+    target_date = args[:date] ? Date.parse(args[:date]) : jst_today - 1.day
     puts "Running daily statistics job for #{target_date}..."
 
     begin
@@ -158,8 +161,9 @@ namespace :analytics do
 
   desc '期間指定で日次統計Jobを一括実行'
   task :daily_job_batch, %i[start_date end_date] => :environment do |_task, args|
-    start_date = args[:start_date] ? Date.parse(args[:start_date]) : 7.days.ago.to_date
-    end_date = args[:end_date] ? Date.parse(args[:end_date]) : Date.current - 1.day
+    jst_today = Time.current.in_time_zone('Tokyo').to_date
+    start_date = args[:start_date] ? Date.parse(args[:start_date]) : jst_today - 7.days
+    end_date = args[:end_date] ? Date.parse(args[:end_date]) : jst_today - 1.day
 
     puts "Running batch daily statistics job from #{start_date} to #{end_date}..."
 
@@ -209,7 +213,8 @@ namespace :analytics do
 
   desc '日次統計Jobをキューに追加（バックグラウンド処理）'
   task :queue_daily_job, [:date] => :environment do |_task, args|
-    target_date = args[:date] ? Date.parse(args[:date]) : Date.current - 1.day
+    jst_today = Time.current.in_time_zone('Tokyo').to_date
+    target_date = args[:date] ? Date.parse(args[:date]) : jst_today - 1.day
     puts "Queueing daily statistics job for #{target_date}..."
 
     begin
