@@ -3,7 +3,9 @@ Rails.application.routes.draw do
 
   namespace :api do
     namespace :v1 do
-      mount_devise_token_auth_for 'User', at: 'auth', controllers: {}
+      mount_devise_token_auth_for 'User', at: 'auth', controllers: {
+        confirmations: 'custom_confirmations'
+      }
       namespace :admin do
         post 'sign_in', to: 'sessions#create'
         delete 'sign_out', to: 'sessions#destroy'
