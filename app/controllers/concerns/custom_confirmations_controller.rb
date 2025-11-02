@@ -4,16 +4,29 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
 
     if @resource.errors.empty?
       redirect_url = your_custom_path(@resource)
-      render json: { message: 'Confirmation successful.', redirect_url: }, status: :ok
+      # 確認成功パラメータを追加
+      redirect_url_with_params = add_query_param(redirect_url, 'account_confirmation_success', 'true')
+      redirect_to redirect_url_with_params, allow_other_host: true
     else
-      render json: { message: @resource.errors.full_messages.join(', ') }, status: :unprocessable_entity
+      # エラーの場合はリダイレクト先にエラーパラメータを付けて遷移
+      redirect_url = your_custom_path(@resource)
+      error_message = @resource.errors.full_messages.join(', ')
+      redirect_url_with_params = add_query_param(redirect_url, 'account_confirmation_success', 'false')
+      redirect_url_with_params = add_query_param(redirect_url_with_params, 'error', error_message)
+      redirect_to redirect_url_with_params, allow_other_host: true
     end
   end
 
   private
 
   def your_custom_path(_resource)
-    token = params[:confirmation_token]
-    "#{ENV.fetch('CONFIRM_SUCCESS_URL', nil)}?confirmation_token=#{token}"
+    params[:redirect_url] || ENV.fetch('CONFIRM_SUCCESS_URL', nil)
+  end
+
+  def add_query_param(url, key, value)
+    uri = URI.parse(url)
+    params = URI.decode_www_form(uri.query || '') << [key, value]
+    uri.query = URI.encode_www_form(params)
+    uri.to_s
   end
 end
