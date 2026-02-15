@@ -1,0 +1,60 @@
+name: Create Release PR
+
+on:
+  push:
+    branches:
+      - stg
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-release-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DATE=$(TZ=Asia/Tokyo date '+%Y/%m/%d')
+          PR_TITLE="リリース: ${DATE} stg → main"
+
+          COMMITS=$(git log origin/main..origin/stg --oneline --no-merges --format="- %s (%h)" 2>/dev/null || echo "")
+
+          if [ -z "$COMMITS" ]; then
+            echo "No new commits to release. Skipping."
+            exit 0
+          fi
+
+          COMMIT_COUNT=$(echo "$COMMITS" | wc -l | tr -d ' ')
+
+          PR_BODY=$(cat <<EOF
+          ## リリース内容
+
+          stg ブランチの変更を main ブランチにマージするためのPRです。
+
+          ### 含まれる変更 (${COMMIT_COUNT}件)
+
+          ${COMMITS}
+
+          ---
+          *このPRは GitHub Actions によって自動生成されました。*
+          EOF
+          )
+          PR_BODY=$(echo "$PR_BODY" | sed 's/^          //')
+
+          EXISTING_PR=$(gh pr list --base main --head stg --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_PR" ] && [ "$EXISTING_PR" != "null" ]; then
+            echo "Updating existing PR #${EXISTING_PR}"
+            gh pr edit "$EXISTING_PR" --title "$PR_TITLE" --body "$PR_BODY"
+          else
+            echo "Creating new release PR"
+            gh pr create --base main --head stg --title "$PR_TITLE" --body "$PR_BODY"
+          fi
