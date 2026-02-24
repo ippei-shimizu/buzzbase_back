@@ -4,6 +4,12 @@ module Api
       class BaseController < ActionController::API
         include ActionController::Cookies
         before_action :authenticate_admin_user!
+        before_action :set_admin_sentry_context
+
+        rescue_from StandardError do |exception|
+          Sentry.capture_exception(exception) if defined?(Sentry)
+          render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
+        end
 
         private
 
@@ -32,6 +38,19 @@ module Api
           return nil unless token
 
           InternalJwtService.authenticate_admin_user(token)
+        end
+
+        def set_admin_sentry_context
+          return unless defined?(Sentry)
+
+          if current_admin_user
+            Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email)
+          end
+          Sentry.set_extras(
+            request_id: request.request_id,
+            user_agent: request.user_agent,
+            admin_controller: true
+          )
         end
       end
     end
