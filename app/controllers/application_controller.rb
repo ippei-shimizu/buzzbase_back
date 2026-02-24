@@ -9,8 +9,12 @@ class ApplicationController < ActionController::API
   before_action :set_sentry_context
   after_action :update_last_login_at, if: :user_signed_in?
 
+  rescue_from ActionController::ParameterMissing do |exception|
+    render json: { errors: [exception.message] }, status: :bad_request
+  end
+
   rescue_from StandardError do |exception|
-    Sentry.capture_exception(exception) if defined?(Sentry)
+    Sentry.capture_exception(exception) if Sentry.initialized?
     render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
   end
 
@@ -28,7 +32,7 @@ class ApplicationController < ActionController::API
   end
 
   def set_sentry_context
-    return unless defined?(Sentry)
+    return unless Sentry.initialized?
 
     Sentry.set_user(id: current_user.id) if current_user
     Sentry.set_extras(

@@ -6,8 +6,12 @@ module Api
         before_action :authenticate_admin_user!
         before_action :set_admin_sentry_context
 
+        rescue_from ActionController::ParameterMissing do |exception|
+          render json: { errors: [exception.message] }, status: :bad_request
+        end
+
         rescue_from StandardError do |exception|
-          Sentry.capture_exception(exception) if defined?(Sentry)
+          Sentry.capture_exception(exception) if Sentry.initialized?
           render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
         end
 
@@ -41,7 +45,7 @@ module Api
         end
 
         def set_admin_sentry_context
-          return unless defined?(Sentry)
+          return unless Sentry.initialized?
 
           if current_admin_user
             Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email)
