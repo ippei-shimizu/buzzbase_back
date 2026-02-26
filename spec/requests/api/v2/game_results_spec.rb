@@ -13,9 +13,9 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
         get '/api/v2/game_results', headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
-        json = JSON.parse(response.body)
+        json = response.parsed_body
         expect(json).to be_an(Array)
-        game_result_ids = json.map { |r| r['game_result_id'] }
+        game_result_ids = json.pluck('game_result_id')
         expect(game_result_ids).to include(user_game.id)
         expect(game_result_ids).not_to include(other_user_game.id)
       end
@@ -35,16 +35,16 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       get '/api/v2/game_results/all'
 
       expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
+      json = response.parsed_body
       expect(json).to be_an(Array)
-      game_result_ids = json.map { |r| r['game_result_id'] }
+      game_result_ids = json.pluck('game_result_id')
       expect(game_result_ids).to include(user_game.id, other_user_game.id)
     end
 
     it 'includes user information in each result' do
       get '/api/v2/game_results/all'
 
-      json = JSON.parse(response.body)
+      json = response.parsed_body
       first_result = json.first
       expect(first_result).to have_key('user_id')
       expect(first_result).to have_key('user_name')
@@ -72,8 +72,8 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
-        json = JSON.parse(response.body)
-        game_result_ids = json.map { |r| r['game_result_id'] }
+        json = response.parsed_body
+        game_result_ids = json.pluck('game_result_id')
         expect(game_result_ids).to include(game_2024_regular.id)
         expect(game_result_ids).not_to include(game_2024_open.id)
       end
@@ -84,8 +84,8 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
-        json = JSON.parse(response.body)
-        game_result_ids = json.map { |r| r['game_result_id'] }
+        json = response.parsed_body
+        game_result_ids = json.pluck('game_result_id')
         expect(game_result_ids).to include(user_game.id, game_2024_regular.id, game_2024_open.id)
       end
     end
@@ -104,9 +104,9 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       get "/api/v2/game_results/user/#{other_user.id}"
 
       expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
+      json = response.parsed_body
       expect(json).to be_an(Array)
-      game_result_ids = json.map { |r| r['game_result_id'] }
+      game_result_ids = json.pluck('game_result_id')
       expect(game_result_ids).to include(other_user_game.id)
       expect(game_result_ids).not_to include(user_game.id)
     end
@@ -129,8 +129,8 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
           params: { year: '2024', match_type: 'オープン戦' }
 
       expect(response).to have_http_status(:ok)
-      json = JSON.parse(response.body)
-      game_result_ids = json.map { |r| r['game_result_id'] }
+      json = response.parsed_body
+      game_result_ids = json.pluck('game_result_id')
       expect(game_result_ids).to include(target_game_open.id)
       expect(game_result_ids).not_to include(target_game_regular.id)
     end
