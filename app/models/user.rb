@@ -31,6 +31,30 @@ class User < ActiveRecord::Base
   validates :user_id, uniqueness: true, allow_blank: true
   validates :introduction, length: { maximum: 100 }
 
+  scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
+  scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
+  scope :soft_deleted, -> { where.not(deleted_at: nil) }
+  scope :not_deleted, -> { where(deleted_at: nil) }
+
+  def account_status
+    return 'deleted' if deleted_at.present?
+    return 'suspended' if suspended_at.present?
+
+    'active'
+  end
+
+  def suspend!(reason = nil)
+    update!(suspended_at: Time.current, suspended_reason: reason)
+  end
+
+  def restore!
+    update!(suspended_at: nil, suspended_reason: nil)
+  end
+
+  def soft_delete!
+    update!(deleted_at: Time.current)
+  end
+
   def following?(other_user)
     following.include?(other_user)
   end

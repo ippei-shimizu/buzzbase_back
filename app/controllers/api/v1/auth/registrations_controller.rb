@@ -7,6 +7,7 @@ class Api::V1::Auth::RegistrationsController < DeviseTokenAuth::RegistrationsCon
 
   def render_create_success
     EmailAuthenticationMailer.send_when_signup(@resource.email, @resource.name).deliver_now
+    SlackNotificationService.notify_new_user(@resource)
     super
   end
 end
