@@ -151,6 +151,17 @@ Rails.application.routes.draw do
       get 'user_plate_search', to: 'plate_appearances#user_plate_search'
       get 'current_plate_search_user_id', to: 'plate_appearances#current_plate_search_user_id'
     end
+
+    namespace :v2 do
+      resources :game_results, only: [:index] do
+        collection do
+          get :all
+          get :filtered_index
+          get 'user/:user_id', action: :show_user
+          get 'filtered_user/:user_id', action: :filtered_show_user
+        end
+      end
+    end
   end
 
   devise_for :users, controllers: {
