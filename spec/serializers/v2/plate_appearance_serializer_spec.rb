@@ -2,11 +2,11 @@ require 'rails_helper'
 
 RSpec.describe V2::PlateAppearanceSerializer, type: :serializer do
   let(:user) { create(:user) }
-  let(:game_result) { create(:game_result, user: user) }
+  let(:game_result) { create(:game_result, user:) }
   let(:plate_appearance) do
     create(:plate_appearance,
-           game_result: game_result,
-           user: user,
+           game_result:,
+           user:,
            batter_box_number: 3,
            batting_result: 'ツーベースヒット')
   end

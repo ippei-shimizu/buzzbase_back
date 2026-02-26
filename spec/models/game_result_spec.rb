@@ -13,9 +13,9 @@ RSpec.describe GameResult, type: :model do
     let(:user) { create(:user) }
     let(:other_user) { create(:user) }
 
-    let!(:game_result_with_match) { create(:game_result, user: user) }
+    let!(:game_result_with_match) { create(:game_result, user:) }
     let!(:game_result_without_match) do
-      gr = GameResult.create!(user: user)
+      gr = GameResult.create!(user:)
       # match_result_id is nil by default, skip after(:create) callback
       gr
     end
@@ -32,7 +32,7 @@ RSpec.describe GameResult, type: :model do
     end
 
     it 'returns results in descending order by date_and_time' do
-      old_game = create(:game_result, user: user)
+      old_game = create(:game_result, user:)
       old_game.match_result.update!(date_and_time: 1.month.ago)
 
       results = described_class.v2_game_associated_data_user(user)
@@ -50,19 +50,19 @@ RSpec.describe GameResult, type: :model do
     let(:user) { create(:user) }
 
     let!(:game_2024_regular) do
-      gr = create(:game_result, user: user)
+      gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), match_type: 'regular')
       gr
     end
 
     let!(:game_2024_open) do
-      gr = create(:game_result, user: user)
+      gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 20), match_type: 'open')
       gr
     end
 
     let!(:game_2023_regular) do
-      gr = create(:game_result, user: user)
+      gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2023, 5, 10), match_type: 'regular')
       gr
     end

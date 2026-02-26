@@ -2,9 +2,9 @@ require 'rails_helper'
 
 RSpec.describe V2::AllGameResultSerializer, type: :serializer do
   let(:user) { create(:user, name: 'テストユーザー', user_id: 'test_user_1') }
-  let(:game_result) { create(:game_result, user: user) }
-  let!(:plate_appearance) { create(:plate_appearance, game_result: game_result, user: user) }
-  let!(:pitching_result) { create(:pitching_result, game_result: game_result, user: user) }
+  let(:game_result) { create(:game_result, user:) }
+  let!(:plate_appearance) { create(:plate_appearance, game_result:, user:) }
+  let!(:pitching_result) { create(:pitching_result, game_result:, user:) }
 
   let(:serializer) { described_class.new(game_result) }
   let(:serialization) { ActiveModelSerializers::Adapter.create(serializer).as_json }

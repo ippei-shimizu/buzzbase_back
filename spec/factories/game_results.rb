@@ -7,10 +7,10 @@ FactoryBot.define do
         my_team = create(:team)
         opponent_team = create(:team)
         match_result = create(:match_result,
-                              game_result: game_result,
+                              game_result:,
                               user: game_result.user,
-                              my_team: my_team,
-                              opponent_team: opponent_team)
+                              my_team:,
+                              opponent_team:)
         game_result.update!(match_result_id: match_result.id)
       end
     end

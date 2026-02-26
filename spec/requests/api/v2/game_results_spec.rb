@@ -4,7 +4,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
   let(:user) { create(:user) }
   let(:other_user) { create(:user) }
 
-  let!(:user_game) { create(:game_result, user: user) }
+  let!(:user_game) { create(:game_result, user:) }
   let!(:other_user_game) { create(:game_result, user: other_user) }
 
   describe 'GET /api/v2/game_results' do
@@ -55,12 +55,12 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
   describe 'GET /api/v2/game_results/filtered_index' do
     let!(:game_2024_regular) do
-      gr = create(:game_result, user: user)
+      gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), match_type: 'regular')
       gr
     end
     let!(:game_2024_open) do
-      gr = create(:game_result, user: user)
+      gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 20), match_type: 'open')
       gr
     end
