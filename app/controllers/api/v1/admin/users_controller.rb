@@ -37,7 +37,7 @@ module Api
         end
 
         def restore
-          unless @user.suspended_at.present?
+          if @user.suspended_at.blank?
             render json: { errors: ['停止中でないユーザーは復帰できません'] }, status: :unprocessable_entity
             return
           end
