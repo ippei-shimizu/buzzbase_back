@@ -81,4 +81,49 @@ class GameResult < ApplicationRecord
       }
     end
   end
+
+  # === v2 API メソッド ===
+  # v1との違い: .mapでハッシュに変換せず、ActiveRecord::Relationのまま返す。
+  # シリアライザー(V2::GameResultSerializer等)に整形を委譲することで、
+  # opponent_team_name, tournament_name, plate_appearances を1リクエストで返却可能にする。
+
+  # 特定ユーザーの試合一覧を関連データ付きで取得する（認証ユーザー向け）
+  # match_result -> opponent_team, tournament と plate_appearances, batting_average, pitching_result を eager-load し、
+  # N+1クエリを防止する
+  # @param user [User, Integer] Userオブジェクトまたはuser_id
+  # @return [ActiveRecord::Relation<GameResult>] 日付降順の試合結果リレーション
+  def self.v2_game_associated_data_user(user)
+    includes(
+      match_result: %i[opponent_team tournament],
+      plate_appearances: [],
+      batting_average: [],
+      pitching_result: []
+    ).where(user: user).where.not(match_result_id: nil)
+     .joins(:match_result).order('match_results.date_and_time DESC')
+  end
+
+  # 特定ユーザーの試合一覧を年度・試合種別でフィルタリングして取得する
+  # @param user [User, Integer] Userオブジェクトまたはuser_id
+  # @param year [String, nil] フィルタ対象の年度（"通算"の場合はフィルタなし）
+  # @param match_type [String, nil] フィルタ対象の試合種別（"全て"の場合はフィルタなし）
+  # @return [ActiveRecord::Relation<GameResult>] フィルタ済みの試合結果リレーション
+  def self.v2_filtered_game_associated_data_user(user, year, match_type)
+    game_results = v2_game_associated_data_user(user)
+    game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
+    game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
+    game_results
+  end
+
+  # 全ユーザーの試合一覧を関連データ付きで取得する（タイムライン表示向け）
+  # ユーザー情報も含めてeager-loadする
+  # @return [ActiveRecord::Relation<GameResult>] 日付降順の全ユーザー試合結果リレーション
+  def self.v2_all_game_associated_data
+    includes(
+      :user,
+      match_result: %i[opponent_team tournament],
+      plate_appearances: [],
+      pitching_result: []
+    ).where.not(match_result_id: nil)
+     .joins(:match_result).order('match_results.date_and_time DESC')
+  end
 end
