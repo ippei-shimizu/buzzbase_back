@@ -7,7 +7,7 @@ if ENV['SENTRY_DSN']
     config.traces_sample_rate = ENV.fetch('SENTRY_TRACES_SAMPLE_RATE', 0.1).to_f
 
     config.environment = Rails.env
-    config.release = ENV['HEROKU_RELEASE_VERSION'] || ENV['SENTRY_RELEASE']
+    config.release = ENV['HEROKU_RELEASE_VERSION'] || ENV.fetch('SENTRY_RELEASE', nil)
     config.enabled_environments = %w[production]
     config.send_default_pii = false
 

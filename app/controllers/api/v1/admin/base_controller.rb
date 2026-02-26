@@ -47,9 +47,7 @@ module Api
         def set_admin_sentry_context
           return unless Sentry.initialized?
 
-          if current_admin_user
-            Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email)
-          end
+          Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email) if current_admin_user
           Sentry.set_extras(
             request_id: request.request_id,
             user_agent: request.user_agent,

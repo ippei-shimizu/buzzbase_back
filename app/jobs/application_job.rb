@@ -8,9 +8,9 @@ class ApplicationJob < ActiveJob::Base
   rescue_from StandardError do |exception|
     if Sentry.initialized?
       Sentry.capture_exception(exception, extra: {
-        job_class: self.class.name,
-        job_id: job_id
-      })
+                                 job_class: self.class.name,
+                                 job_id:
+                               })
     end
     raise exception
   end
