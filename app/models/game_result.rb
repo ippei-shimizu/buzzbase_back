@@ -98,8 +98,8 @@ class GameResult < ApplicationRecord
       plate_appearances: [],
       batting_average: [],
       pitching_result: []
-    ).where(user: user).where.not(match_result_id: nil)
-     .joins(:match_result).order('match_results.date_and_time DESC')
+    ).where(user:).where.not(match_result_id: nil)
+      .joins(:match_result).order('match_results.date_and_time DESC')
   end
 
   # 特定ユーザーの試合一覧を年度・試合種別でフィルタリングして取得する
@@ -124,6 +124,6 @@ class GameResult < ApplicationRecord
       plate_appearances: [],
       pitching_result: []
     ).where.not(match_result_id: nil)
-     .joins(:match_result).order('match_results.date_and_time DESC')
+      .joins(:match_result).order('match_results.date_and_time DESC')
   end
 end
