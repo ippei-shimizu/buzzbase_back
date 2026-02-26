@@ -6,7 +6,17 @@ class ApplicationController < ActionController::API
     I18n.locale = :ja
   end
   before_action :configure_permitted_parameters, if: :devise_controller?
+  before_action :set_sentry_context
   after_action :update_last_login_at, if: :user_signed_in?
+
+  rescue_from ActionController::ParameterMissing do |exception|
+    render json: { errors: [exception.message] }, status: :bad_request
+  end
+
+  rescue_from StandardError do |exception|
+    Sentry.capture_exception(exception) if Sentry.initialized?
+    render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
+  end
 
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name user_id])
@@ -19,5 +29,15 @@ class ApplicationController < ActionController::API
     return if current_user.last_login_at&.> 1.hour.ago
 
     current_user.update!(last_login_at: Time.current)
+  end
+
+  def set_sentry_context
+    return unless Sentry.initialized?
+
+    Sentry.set_user(id: current_user.id) if current_user
+    Sentry.set_extras(
+      request_id: request.request_id,
+      user_agent: request.user_agent
+    )
   end
 end
