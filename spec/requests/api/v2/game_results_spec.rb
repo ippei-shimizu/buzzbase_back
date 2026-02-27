@@ -51,6 +51,20 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       expect(first_result).to have_key('user_image')
       expect(first_result).to have_key('user_user_id')
     end
+
+    context 'when a user is private' do
+      let(:private_user) { create(:user, is_private: true) }
+      let!(:private_user_game) { create(:game_result, user: private_user) }
+
+      it 'excludes private user game results from timeline' do
+        get '/api/v2/game_results/all'
+
+        json = response.parsed_body
+        game_result_ids = json.pluck('game_result_id')
+        expect(game_result_ids).not_to include(private_user_game.id)
+        expect(game_result_ids).to include(user_game.id, other_user_game.id)
+      end
+    end
   end
 
   describe 'GET /api/v2/game_results/filtered_index' do
@@ -110,6 +124,45 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       expect(game_result_ids).to include(other_user_game.id)
       expect(game_result_ids).not_to include(user_game.id)
     end
+
+    context 'when the target user is private' do
+      let(:private_user) { create(:user, is_private: true) }
+      let!(:private_game) { create(:game_result, user: private_user) }
+
+      it 'returns 403 when viewer is not a follower' do
+        get "/api/v2/game_results/user/#{private_user.id}",
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 when not authenticated' do
+        get "/api/v2/game_results/user/#{private_user.id}"
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 200 when viewer is an accepted follower' do
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+
+        get "/api/v2/game_results/user/#{private_user.id}",
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        game_result_ids = json.pluck('game_result_id')
+        expect(game_result_ids).to include(private_game.id)
+      end
+
+      it 'returns 403 when viewer has a pending follow request' do
+        Relationship.create!(follower: user, followed: private_user, status: :pending)
+
+        get "/api/v2/game_results/user/#{private_user.id}",
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
   end
 
   describe 'GET /api/v2/game_results/filtered_user/:user_id' do
@@ -133,6 +186,33 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       game_result_ids = json.pluck('game_result_id')
       expect(game_result_ids).to include(target_game_open.id)
       expect(game_result_ids).not_to include(target_game_regular.id)
+    end
+
+    context 'when the target user is private' do
+      let(:private_user) { create(:user, is_private: true) }
+      let!(:private_game) do
+        gr = create(:game_result, user: private_user)
+        gr.match_result.update!(date_and_time: Time.zone.local(2024, 7, 10), match_type: 'regular')
+        gr
+      end
+
+      it 'returns 403 when viewer is not a follower' do
+        get "/api/v2/game_results/filtered_user/#{private_user.id}",
+            params: { year: '2024', match_type: '公式戦' },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 200 when viewer is an accepted follower' do
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+
+        get "/api/v2/game_results/filtered_user/#{private_user.id}",
+            params: { year: '2024', match_type: '公式戦' },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
     end
   end
 end

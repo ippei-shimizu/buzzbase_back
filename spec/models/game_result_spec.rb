@@ -120,4 +120,27 @@ RSpec.describe GameResult, type: :model do
       expect(results).to be_a(ActiveRecord::Relation)
     end
   end
+
+  describe '.v2_all_game_associated_data_public' do
+    let(:public_user) { create(:user, is_private: false) }
+    let(:private_user) { create(:user, is_private: true) }
+
+    let!(:public_game) { create(:game_result, user: public_user) }
+    let!(:private_game) { create(:game_result, user: private_user) }
+
+    it 'includes game results from public users' do
+      results = described_class.v2_all_game_associated_data_public
+      expect(results.map(&:id)).to include(public_game.id)
+    end
+
+    it 'excludes game results from private users' do
+      results = described_class.v2_all_game_associated_data_public
+      expect(results.map(&:id)).not_to include(private_game.id)
+    end
+
+    it 'returns an ActiveRecord::Relation' do
+      results = described_class.v2_all_game_associated_data_public
+      expect(results).to be_a(ActiveRecord::Relation)
+    end
+  end
 end
