@@ -8,6 +8,7 @@ class GameResult < ApplicationRecord
   def self.all_game_associated_data
     includes(:user, :match_result, :plate_appearances, :pitching_result)
       .where.not(match_result_id: nil)
+      .joins(:user).where(users: { is_private: false })
       .joins(:match_result)
       .order('match_results.date_and_time DESC')
       .map do |game_result|
@@ -125,5 +126,10 @@ class GameResult < ApplicationRecord
       pitching_result: []
     ).where.not(match_result_id: nil)
       .joins(:match_result).order('match_results.date_and_time DESC')
+  end
+
+  def self.v2_all_game_associated_data_public
+    v2_all_game_associated_data
+      .joins(:user).where(users: { is_private: false })
   end
 end
