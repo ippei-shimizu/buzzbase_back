@@ -50,6 +50,11 @@ module Api
 
       def user_pitching_result_search
         if params[:game_result_id].present?
+          game_result = GameResult.find_by(id: params[:game_result_id])
+          if game_result
+            user = game_result.user
+            return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+          end
           pitching_result = PitchingResult.where(game_result_id: params[:game_result_id])
           if pitching_result.present?
             render json: pitching_result

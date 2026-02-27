@@ -58,6 +58,11 @@ module Api
       def user_plate_search
         game_result_id = params[:game_result_id]
         if game_result_id.present?
+          game_result = GameResult.find_by(id: game_result_id)
+          if game_result
+            user = game_result.user
+            return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+          end
           plate_appearance = PlateAppearance.where(game_result_id:)
           if plate_appearance.present?
             render json: plate_appearance
