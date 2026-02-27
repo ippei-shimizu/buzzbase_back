@@ -19,7 +19,7 @@ module Api
       # GET /api/v2/game_results/all
       # 全ユーザーの試合一覧を取得する（タイムライン表示用）
       def all
-        game_results = GameResult.v2_all_game_associated_data
+        game_results = GameResult.v2_all_game_associated_data_public
         render json: game_results, each_serializer: ::V2::AllGameResultSerializer
       end
 
@@ -38,8 +38,10 @@ module Api
       # 指定ユーザーの試合一覧を取得する
       # @param user_id [Integer] 対象ユーザーのID
       def show_user
-        user_id = params[:user_id]
-        game_results = GameResult.v2_game_associated_data_user(user_id)
+        user = User.find(params[:user_id])
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
+        game_results = GameResult.v2_game_associated_data_user(user)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
       end
 
@@ -49,10 +51,12 @@ module Api
       # @param year [String] フィルタ対象の年度
       # @param match_type [String] フィルタ対象の試合種別（"公式戦"/"オープン戦"）
       def filtered_show_user
-        user_id = params[:user_id]
+        user = User.find(params[:user_id])
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.v2_filtered_game_associated_data_user(user_id, year, match_type)
+        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
       end
 

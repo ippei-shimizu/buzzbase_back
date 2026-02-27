@@ -7,8 +7,14 @@ class User < ActiveRecord::Base
   has_many :awards, through: :user_awards
   has_many :active_relationships, class_name: 'Relationship', foreign_key: 'follower_id', dependent: :destroy, inverse_of: :follower
   has_many :passive_relationships, class_name: 'Relationship', foreign_key: 'followed_id', dependent: :destroy, inverse_of: :follower
-  has_many :following, through: :active_relationships, source: :followed
-  has_many :followers, through: :passive_relationships, source: :follower
+  has_many :following, -> { where(relationships: { status: Relationship.statuses[:accepted] }) }, through: :active_relationships,
+                                                                                                  source: :followed
+  has_many :followers, -> { where(relationships: { status: Relationship.statuses[:accepted] }) }, through: :passive_relationships,
+                                                                                                  source: :follower
+  has_many :pending_follow_requests, -> { where(status: :pending) }, class_name: 'Relationship', foreign_key: 'followed_id',
+                                                                     dependent: false, inverse_of: :followed
+  has_many :sent_follow_requests, -> { where(status: :pending) }, class_name: 'Relationship', foreign_key: 'follower_id',
+                                                                  dependent: false, inverse_of: :follower
   has_many :group_users, dependent: :destroy
   has_many :groups, through: :group_users
   has_many :group_invitations, dependent: :destroy
@@ -60,11 +66,40 @@ class User < ActiveRecord::Base
   end
 
   def follow(other_user)
-    active_relationships.create(followed_id: other_user.id)
+    if other_user.is_private?
+      active_relationships.create(followed_id: other_user.id, status: :pending)
+    else
+      active_relationships.create(followed_id: other_user.id, status: :accepted)
+    end
   end
 
   def unfollow(other_user)
-    active_relationships.find_by(followed_id: other_user.id).destroy
+    active_relationships.find_by(followed_id: other_user.id)&.destroy
+  end
+
+  def follow_request_pending?(other_user)
+    active_relationships.pending.exists?(followed_id: other_user.id)
+  end
+
+  def follow_status(other_user)
+    return 'self' if self == other_user
+
+    relationship = active_relationships.find_by(followed_id: other_user.id)
+    return 'none' unless relationship
+
+    relationship.accepted? ? 'following' : 'pending'
+  end
+
+  def profile_visible_to?(viewer)
+    return true unless is_private?
+    return true if viewer == self
+    return false unless viewer
+
+    followers.include?(viewer)
+  end
+
+  def approve_all_pending_requests!
+    pending_follow_requests.update_all(status: :accepted) # rubocop:disable Rails/SkipsModelValidations
   end
 
   delegate :count, to: :following, prefix: true

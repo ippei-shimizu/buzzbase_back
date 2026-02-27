@@ -35,8 +35,10 @@ module Api
       end
 
       def match_index_user_id
-        user_id = params[:user_id]
-        match_results = MatchResult.where(user_id:).includes(:user, :tournament, :my_team, :opponent_team)
+        user = User.find(params[:user_id])
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
+        match_results = MatchResult.where(user_id: user.id).includes(:user, :tournament, :my_team, :opponent_team)
         render json: match_results
       end
 
@@ -64,6 +66,11 @@ module Api
 
       def user_game_result_search
         if params[:game_result_id]
+          game_result = GameResult.find_by(id: params[:game_result_id])
+          if game_result
+            user = game_result.user
+            return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+          end
           match_result = MatchResult.where(game_result_id: params[:game_result_id])
           if match_result.present?
             render json: match_result

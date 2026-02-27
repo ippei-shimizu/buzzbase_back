@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_02_26_160138) do
+ActiveRecord::Schema[7.0].define(version: 2026_02_27_134343) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -271,6 +271,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_26_160138) do
     t.integer "followed_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "status", default: 1, null: false
+    t.index ["followed_id", "status"], name: "index_relationships_on_followed_id_and_status"
     t.index ["followed_id"], name: "index_relationships_on_followed_id"
     t.index ["follower_id"], name: "index_relationships_on_follower_id"
   end
@@ -344,9 +346,11 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_26_160138) do
     t.datetime "suspended_at"
     t.datetime "deleted_at"
     t.string "suspended_reason"
+    t.boolean "is_private", default: false, null: false
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["is_private"], name: "index_users_on_is_private"
     t.index ["last_login_at"], name: "index_users_on_last_login_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["suspended_at"], name: "index_users_on_suspended_at"

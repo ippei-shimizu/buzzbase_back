@@ -2,7 +2,7 @@ module Admin
   class UserManagementSerializer < ActiveModel::Serializer
     attributes :id, :name, :email, :user_id, :image_url, :created_at, :last_login_at,
                :account_status, :activity_status, :game_results_count, :followers_count,
-               :following_count
+               :following_count, :is_private
 
     def image_url
       url = object.image&.url

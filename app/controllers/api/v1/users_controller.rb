@@ -30,11 +30,27 @@ module Api
         user = User.find_by(user_id: params[:user_id])
         return render json: { error: 'ユーザーが存在しません' }, status: :not_found unless user
 
-        is_following = current_api_v1_user ? current_api_v1_user.following?(user) : false
-        if user
-          render json: { user: user.as_json, isFollowing: is_following, following_count: user.following_count, followers_count: user.followers_count }
+        follow_status = current_api_v1_user ? current_api_v1_user.follow_status(user) : 'none'
+        is_following = follow_status == 'following'
+
+        if user.profile_visible_to?(current_api_v1_user)
+          render json: {
+            user: user.as_json,
+            isFollowing: is_following,
+            follow_status:,
+            following_count: user.following_count,
+            followers_count: user.followers_count,
+            is_private: user.is_private?
+          }
         else
-          render json: { error: 'ユーザーが存在しません' }, status: :not_found
+          render json: {
+            user: user.as_json(only: %i[id name user_id image]),
+            isFollowing: false,
+            follow_status:,
+            following_count: nil,
+            followers_count: nil,
+            is_private: user.is_private?
+          }
         end
       end
 
@@ -52,7 +68,9 @@ module Api
       end
 
       def update
+        was_private = current_api_v1_user.is_private?
         if current_api_v1_user.update(user_params)
+          current_api_v1_user.approve_all_pending_requests! if was_private && !current_api_v1_user.is_private?
           render json: { success: true }
         else
           render json: { errors: current_api_v1_user.errors.full_messages }, status: :unprocessable_entity
@@ -60,12 +78,15 @@ module Api
       end
 
       def following_users
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless @user.profile_visible_to?(current_api_v1_user)
+
         @following_users = @user.following.map do |user|
           user_attributes = {
             id: user.id,
             name: user.name,
             user_id: user.user_id,
-            image: { url: user.image.url }
+            image: { url: user.image.url },
+            is_private: user.is_private?
           }
           is_following = current_api_v1_user ? current_api_v1_user.following?(user) : false
           user_attributes.merge(isFollowing: is_following)
@@ -74,12 +95,15 @@ module Api
       end
 
       def followers_users
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless @user.profile_visible_to?(current_api_v1_user)
+
         @followers_users = @user.followers.map do |user|
           user_attributes = {
             id: user.id,
             name: user.name,
             user_id: user.user_id,
-            image: { url: user.image.url }
+            image: { url: user.image.url },
+            is_private: user.is_private?
           }
           is_following = current_api_v1_user ? current_api_v1_user.following?(user) : false
           user_attributes.merge(isFollowing: is_following)
@@ -90,7 +114,9 @@ module Api
       def search
         query = params[:query]
         users = User.where('name LIKE ? OR user_id LIKE ?', "%#{query}%", "%#{query}%")
-        render json: users
+        render json: users.map { |user|
+          user.as_json.merge(is_private: user.is_private?)
+        }
       end
 
       def destroy
@@ -111,7 +137,7 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id)
+        params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id, :is_private)
       end
     end
   end
