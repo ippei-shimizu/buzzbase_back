@@ -166,6 +166,8 @@ Rails.application.routes.draw do
     end
 
     namespace :v2 do
+      resource :dashboard, only: [:show]
+
       resources :game_results, only: [:index] do
         collection do
           get :all
