@@ -15,8 +15,10 @@ module Api
       end
 
       def game_associated_data_index_user_id
-        user_id = params[:user_id]
-        game_results = GameResult.game_associated_data_user(user_id:)
+        user = User.find(params[:user_id])
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
+        game_results = GameResult.game_associated_data_user(user)
         render json: game_results
       end
 
@@ -61,10 +63,12 @@ module Api
       end
 
       def filtered_game_associated_data_user_id
+        user = User.find(params[:user_id])
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        user_id = params[:user_id]
-        game_results = GameResult.filtered_game_associated_data_user(user_id, year, match_type)
+        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type)
         render json: game_results
       end
 

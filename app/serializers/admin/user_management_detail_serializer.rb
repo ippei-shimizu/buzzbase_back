@@ -5,7 +5,7 @@ module Admin
                :suspended_at, :suspended_reason, :deleted_at,
                :game_results_count, :batting_averages_count, :pitching_results_count,
                :baseball_notes_count, :groups_count,
-               :followers_count, :following_count, :team_name
+               :followers_count, :following_count, :team_name, :is_private
 
     def image_url
       url = object.image&.url

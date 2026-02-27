@@ -36,7 +36,12 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :relationships, only: %i[create destroy]
+      resources :relationships, only: %i[create destroy] do
+        member do
+          post :accept_follow_request
+          post :reject_follow_request
+        end
+      end
 
       resources :positions, only: %i[index show]
 
