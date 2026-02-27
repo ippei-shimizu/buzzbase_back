@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_02_27_134343) do
+ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -167,6 +167,21 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_134343) do
     t.datetime "updated_at", null: false
     t.index ["group_id"], name: "index_group_invitations_on_group_id"
     t.index ["user_id"], name: "index_group_invitations_on_user_id"
+  end
+
+  create_table "group_ranking_snapshots", force: :cascade do |t|
+    t.bigint "group_id", null: false
+    t.bigint "user_id", null: false
+    t.string "stat_type", null: false
+    t.integer "rank", null: false
+    t.decimal "value", precision: 10, scale: 3, null: false
+    t.date "snapshot_date", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["group_id", "user_id", "stat_type", "snapshot_date"], name: "idx_group_ranking_snapshots_unique", unique: true
+    t.index ["group_id"], name: "index_group_ranking_snapshots_on_group_id"
+    t.index ["snapshot_date"], name: "index_group_ranking_snapshots_on_snapshot_date"
+    t.index ["user_id"], name: "index_group_ranking_snapshots_on_user_id"
   end
 
   create_table "group_users", force: :cascade do |t|
@@ -367,6 +382,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_134343) do
   add_foreign_key "game_results", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"
+  add_foreign_key "group_ranking_snapshots", "groups"
+  add_foreign_key "group_ranking_snapshots", "users"
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
   add_foreign_key "match_results", "teams", column: "my_team_id"
