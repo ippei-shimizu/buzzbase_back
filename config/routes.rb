@@ -133,6 +133,14 @@ Rails.application.routes.draw do
             patch :reset_password
           end
         end
+
+        resources :users, only: %i[index show] do
+          member do
+            patch :suspend
+            patch :restore
+            patch :soft_delete
+          end
+        end
       end
 
       get 'users/current', to: 'users#show_current'
