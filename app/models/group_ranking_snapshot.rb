@@ -26,12 +26,12 @@ class GroupRankingSnapshot < ApplicationRecord
   validates :rank, numericality: { greater_than: 0 }
   validates :snapshot_date, presence: true
 
-  scope :for_group, ->(group_id) { where(group_id: group_id) }
-  scope :for_user, ->(user_id) { where(user_id: user_id) }
+  scope :for_group, ->(group_id) { where(group_id:) }
+  scope :for_user, ->(user_id) { where(user_id:) }
   scope :for_date, ->(date) { where(snapshot_date: date) }
 
   def self.latest_for(group_id:, user_id:, stat_type:)
-    where(group_id: group_id, user_id: user_id, stat_type: stat_type)
+    where(group_id:, user_id:, stat_type:)
       .order(snapshot_date: :desc)
       .first
   end

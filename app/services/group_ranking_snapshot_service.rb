@@ -75,7 +75,7 @@ class GroupRankingSnapshotService
       value = stats[stat_type.to_sym]
       next unless value
 
-      { user_id: user_id, value: value }
+      { user_id:, value: }
     end
 
     return if entries.empty?
@@ -91,7 +91,7 @@ class GroupRankingSnapshotService
       snapshot = GroupRankingSnapshot.find_or_initialize_by(
         group_id: @group.id,
         user_id: entry[:user_id],
-        stat_type: stat_type,
+        stat_type:,
         snapshot_date: @date
       )
       snapshot.rank = index + 1
