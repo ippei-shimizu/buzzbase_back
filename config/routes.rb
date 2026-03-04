@@ -167,7 +167,10 @@ Rails.application.routes.draw do
     end
 
     namespace :v2 do
-      resource :dashboard, only: [:show]
+      resource :dashboard, only: [:show] do
+        get :batting_stats, on: :member
+        get :pitching_stats, on: :member
+      end
 
       resources :game_results, only: [:index] do
         collection do

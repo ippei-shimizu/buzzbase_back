@@ -231,4 +231,70 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/dashboard/batting_stats' do
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v2/dashboard/batting_stats'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when user has batting data' do
+      before do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.local(2024, 5, 10), match_type: 'regular')
+        create(:batting_average, game_result: gr, user:, hit: 3, at_bats: 4, times_at_bat: 5)
+      end
+
+      it 'returns only batting stats' do
+        get '/api/v2/dashboard/batting_stats', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['aggregate']).to include('hit' => 3)
+        expect(json['calculated']).to include('batting_average')
+        expect(json).not_to have_key('recent_game_results')
+        expect(json).not_to have_key('pitching_stats')
+      end
+
+      it 'filters by year and match_type' do
+        get '/api/v2/dashboard/batting_stats', params: { year: '2024', match_type: 'regular' },
+                                               headers: auth_headers_for(user)
+
+        json = response.parsed_body
+        expect(json['aggregate']['hit']).to eq(3)
+      end
+    end
+  end
+
+  describe 'GET /api/v2/dashboard/pitching_stats' do
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v2/dashboard/pitching_stats'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when user has pitching data' do
+      before do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 15))
+        create(:pitching_result, game_result: gr, user:,
+                                 win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
+                                 base_on_balls: 1, hits_allowed: 4)
+      end
+
+      it 'returns only pitching stats' do
+        get '/api/v2/dashboard/pitching_stats', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['aggregate']).to include('win' => 1, 'strikeouts' => 8)
+        expect(json['calculated']).to include('era', 'whip')
+        expect(json).not_to have_key('recent_game_results')
+        expect(json).not_to have_key('batting_stats')
+      end
+    end
+  end
 end
