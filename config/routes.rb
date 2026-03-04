@@ -4,6 +4,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       mount_devise_token_auth_for 'User', at: 'auth', controllers: {
+        registrations: 'api/v1/auth/registrations',
         confirmations: 'custom_confirmations'
       }
       namespace :admin do
@@ -166,6 +167,11 @@ Rails.application.routes.draw do
     end
 
     namespace :v2 do
+      resource :dashboard, only: [:show] do
+        get :batting_stats, on: :member
+        get :pitching_stats, on: :member
+      end
+
       resources :game_results, only: [:index] do
         collection do
           get :all
