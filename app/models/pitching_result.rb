@@ -34,38 +34,19 @@ class PitchingResult < ApplicationRecord
 
   def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil)
     scope = joins(game_result: :match_result).select(*pitching_aggregate_columns)
-    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
-    scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
+    scope = apply_filters(scope, year, match_type)
     scope.where(pitching_results: { user_id: }).group('pitching_results.user_id')
   end
 
   def self.filtered_pitching_stats_for_user(user_id, year: nil, match_type: nil)
-    scope = joins(game_result: :match_result)
-    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
-    scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
-
-    result = scope.select(*pitching_aggregate_columns).where(pitching_results: { user_id: }).group('pitching_results.user_id').take
+    scope = apply_filters(joins(game_result: :match_result), year, match_type)
+    result = scope.select(*pitching_aggregate_columns)
+                  .where(pitching_results: { user_id: })
+                  .group('pitching_results.user_id').take
 
     return nil unless result
 
-    stats = result.attributes
-    innings_pitched = stats['innings_pitched'].to_f
-    wins = stats['win'].to_i
-    losses = stats['loss'].to_i
-    complete_games = stats['complete_games'].to_i
-    shutouts = stats['shutouts'].to_i
-
-    {
-      user_id:,
-      era: innings_pitched.zero? ? ZERO : (stats['earned_run'].to_f * INNINGS_PER_GAME / innings_pitched).round(2),
-      complete_games:,
-      shutouts:,
-      win_percentage: (wins + losses).zero? ? ZERO : (wins.to_f / (wins + losses)).round(3),
-      k_per_nine: innings_pitched.zero? ? ZERO : (stats['strikeouts'].to_f * 9 / innings_pitched).round(3),
-      whip: innings_pitched.zero? ? ZERO : ((stats['base_on_balls'].to_f + stats['hits_allowed'].to_f) / innings_pitched).round(3),
-      bb_per_nine: innings_pitched.zero? ? ZERO : (stats['base_on_balls'].to_f * 9 / innings_pitched).round(3),
-      k_bb: stats['base_on_balls'].to_i.zero? ? ZERO : (stats['strikeouts'].to_f / stats['base_on_balls']).round(3)
-    }
+    build_pitching_stats_hash(user_id, result.attributes)
   end
 
   def self.pitching_stats_for_user(user_id)
@@ -73,23 +54,34 @@ class PitchingResult < ApplicationRecord
 
     return nil unless result
 
-    stats = result.attributes
-    innings_pitched = stats['innings_pitched'].to_f
+    build_pitching_stats_hash(user_id, result.attributes)
+  end
+
+  def self.apply_filters(scope, year, match_type)
+    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
+    scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
+    scope
+  end
+
+  def self.build_pitching_stats_hash(user_id, stats)
+    ip = stats['innings_pitched'].to_f
     wins = stats['win'].to_i
     losses = stats['loss'].to_i
-    complete_games = stats['complete_games'].to_i
-    shutouts = stats['shutouts'].to_i
 
     {
       user_id:,
-      era: innings_pitched.zero? ? ZERO : (stats['earned_run'].to_f * INNINGS_PER_GAME / innings_pitched).round(2),
-      complete_games:,
-      shutouts:,
-      win_percentage: (wins + losses).zero? ? ZERO : (wins.to_f / (wins + losses)).round(3),
-      k_per_nine: innings_pitched.zero? ? ZERO : (stats['strikeouts'].to_f * 9 / innings_pitched).round(3),
-      whip: innings_pitched.zero? ? ZERO : ((stats['base_on_balls'].to_f + stats['hits_allowed'].to_f) / innings_pitched).round(3),
-      bb_per_nine: innings_pitched.zero? ? ZERO : (stats['base_on_balls'].to_f * 9 / innings_pitched).round(3),
-      k_bb: stats['base_on_balls'].to_i.zero? ? ZERO : (stats['strikeouts'].to_f / stats['base_on_balls']).round(3)
+      era: safe_divide_round(stats['earned_run'].to_f * INNINGS_PER_GAME, ip, 2),
+      complete_games: stats['complete_games'].to_i,
+      shutouts: stats['shutouts'].to_i,
+      win_percentage: safe_divide_round(wins.to_f, wins + losses, 3),
+      k_per_nine: safe_divide_round(stats['strikeouts'].to_f * 9, ip, 3),
+      whip: safe_divide_round(stats['base_on_balls'].to_f + stats['hits_allowed'].to_f, ip, 3),
+      bb_per_nine: safe_divide_round(stats['base_on_balls'].to_f * 9, ip, 3),
+      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3)
     }
+  end
+
+  def self.safe_divide_round(numerator, denominator, precision)
+    denominator.zero? ? ZERO : (numerator / denominator).round(precision)
   end
 end
