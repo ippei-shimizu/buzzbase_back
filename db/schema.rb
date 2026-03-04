@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
+ActiveRecord::Schema[7.0].define(version: 2026_03_04_151106) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -151,9 +151,11 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
     t.datetime "updated_at", null: false
     t.bigint "batting_average_id"
     t.bigint "pitching_result_id"
+    t.bigint "season_id"
     t.index ["batting_average_id"], name: "index_game_results_on_batting_average_id"
     t.index ["match_result_id"], name: "index_game_results_on_match_result_id"
     t.index ["pitching_result_id"], name: "index_game_results_on_pitching_result_id"
+    t.index ["season_id"], name: "index_game_results_on_season_id"
     t.index ["user_id"], name: "index_game_results_on_user_id"
   end
 
@@ -292,6 +294,15 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
     t.index ["follower_id"], name: "index_relationships_on_follower_id"
   end
 
+  create_table "seasons", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name"], name: "index_seasons_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_seasons_on_user_id"
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "category_id"
@@ -379,6 +390,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
   add_foreign_key "game_results", "batting_averages"
   add_foreign_key "game_results", "match_results", on_delete: :cascade
   add_foreign_key "game_results", "pitching_results"
+  add_foreign_key "game_results", "seasons", on_delete: :nullify
   add_foreign_key "game_results", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"
@@ -393,6 +405,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_02_27_200000) do
   add_foreign_key "pitching_results", "users"
   add_foreign_key "plate_appearances", "game_results", on_delete: :cascade
   add_foreign_key "plate_appearances", "users"
+  add_foreign_key "seasons", "users"
   add_foreign_key "teams", "baseball_categories", column: "category_id"
   add_foreign_key "teams", "prefectures"
   add_foreign_key "user_awards", "awards"

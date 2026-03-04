@@ -24,6 +24,7 @@ class User < ActiveRecord::Base
                                  dependent: :destroy, inverse_of: :actor
   has_many :baseball_notes, dependent: :destroy
   has_many :match_results, dependent: :destroy
+  has_many :seasons, dependent: :destroy
   has_many :game_results, dependent: :destroy
   has_many :batting_averages, dependent: :destroy
   has_many :pitching_results, dependent: :destroy

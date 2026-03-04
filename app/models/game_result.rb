@@ -1,5 +1,6 @@
 class GameResult < ApplicationRecord
   belongs_to :user
+  belongs_to :season, optional: true
   has_one :match_result, dependent: :destroy
   has_many :plate_appearances, dependent: :destroy
   has_one :batting_average, dependent: :destroy
@@ -41,10 +42,11 @@ class GameResult < ApplicationRecord
     end
   end
 
-  def self.filtered_game_associated_data_user(user, year, match_type)
+  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil)
     game_results = base_query(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
+    game_results = filter_by_season(game_results, season_id) if season_id.present?
 
     map_game_results(game_results)
   end
@@ -72,6 +74,10 @@ class GameResult < ApplicationRecord
     game_results.where(match_results: { match_type: })
   end
 
+  def self.filter_by_season(game_results, season_id)
+    game_results.where(season_id: season_id)
+  end
+
   def self.map_game_results(game_results)
     game_results.map do |game_result|
       {
@@ -95,6 +101,7 @@ class GameResult < ApplicationRecord
   # @return [ActiveRecord::Relation<GameResult>] 日付降順の試合結果リレーション
   def self.v2_game_associated_data_user(user)
     includes(
+      :season,
       match_result: %i[opponent_team tournament],
       plate_appearances: [],
       batting_average: [],
@@ -108,10 +115,11 @@ class GameResult < ApplicationRecord
   # @param year [String, nil] フィルタ対象の年度（"通算"の場合はフィルタなし）
   # @param match_type [String, nil] フィルタ対象の試合種別（"全て"の場合はフィルタなし）
   # @return [ActiveRecord::Relation<GameResult>] フィルタ済みの試合結果リレーション
-  def self.v2_filtered_game_associated_data_user(user, year, match_type)
+  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil)
     game_results = v2_game_associated_data_user(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
+    game_results = filter_by_season(game_results, season_id) if season_id.present?
     game_results
   end
 
