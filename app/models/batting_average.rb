@@ -8,6 +8,10 @@ class BattingAverage < ApplicationRecord
     aggregate_query.where(user_id:)
   end
 
+  def self.aggregate_for_users(user_ids)
+    aggregate_query.where(user_id: user_ids)
+  end
+
   def self.aggregate_query
     select(*aggregate_columns).group('batting_averages.user_id')
   end
@@ -40,21 +44,32 @@ class BattingAverage < ApplicationRecord
     scope.where(batting_averages: { user_id: }).group('batting_averages.user_id')
   end
 
-  def self.filtered_stats_for_user(user_id, year: nil, match_type: nil)
-    scope = apply_filters(unscoped.joins(game_result: :match_result), year, match_type)
-    result = scope.where(batting_averages: { user_id: }).select(*stats_columns).reorder(nil).take
+  def self.stats_for_user(user_id, year: nil, match_type: nil)
+    if year.present? || match_type.present?
+      scope = apply_filters(unscoped.joins(game_result: :match_result), year, match_type)
+      result = scope.where(batting_averages: { user_id: }).select(*stats_columns).reorder(nil).take
+    else
+      result = unscoped.where(user_id:).select(*stats_columns).reorder(nil).take
+    end
 
     return nil unless result
 
     build_stats_hash(user_id, result.attributes)
   end
 
-  def self.stats_for_user(user_id)
-    result = unscoped.where(user_id:).select(*stats_columns).reorder(nil).take
+  def self.bulk_stats_for_users(user_ids)
+    results = unscoped.where(user_id: user_ids)
+                      .select('batting_averages.user_id', *stats_columns)
+                      .group('batting_averages.user_id')
 
-    return nil unless result
+    results.each_with_object({}) do |result, hash|
+      hash[result.user_id] = build_stats_hash(result.user_id, result.attributes)
+    end
+  end
 
-    build_stats_hash(user_id, result.attributes)
+  # filtered_stats_for_user を stats_for_user に統合（後方互換エイリアス）
+  class << self
+    alias filtered_stats_for_user stats_for_user
   end
 
   def self.apply_filters(scope, year, match_type)

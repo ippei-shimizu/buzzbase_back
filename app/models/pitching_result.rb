@@ -9,6 +9,10 @@ class PitchingResult < ApplicationRecord
     pitching_aggregate_query.where(user_id:)
   end
 
+  def self.pitching_aggregate_for_users(user_ids)
+    pitching_aggregate_query.where(user_id: user_ids)
+  end
+
   def self.pitching_aggregate_query
     select(*pitching_aggregate_columns).group('pitching_results.user_id')
   end
@@ -38,23 +42,32 @@ class PitchingResult < ApplicationRecord
     scope.where(pitching_results: { user_id: }).group('pitching_results.user_id')
   end
 
-  def self.filtered_pitching_stats_for_user(user_id, year: nil, match_type: nil)
-    scope = apply_filters(joins(game_result: :match_result), year, match_type)
-    result = scope.select(*pitching_aggregate_columns)
-                  .where(pitching_results: { user_id: })
-                  .group('pitching_results.user_id').take
+  def self.pitching_stats_for_user(user_id, year: nil, match_type: nil)
+    if year.present? || match_type.present?
+      scope = apply_filters(joins(game_result: :match_result), year, match_type)
+      result = scope.select(*pitching_aggregate_columns)
+                    .where(pitching_results: { user_id: })
+                    .group('pitching_results.user_id').take
+    else
+      result = pitching_aggregate_query.find_by(user_id:)
+    end
 
     return nil unless result
 
     build_pitching_stats_hash(user_id, result.attributes)
   end
 
-  def self.pitching_stats_for_user(user_id)
-    result = pitching_aggregate_query.find_by(user_id:)
+  def self.bulk_pitching_stats_for_users(user_ids)
+    results = pitching_aggregate_query.where(user_id: user_ids)
 
-    return nil unless result
+    results.each_with_object({}) do |result, hash|
+      hash[result.user_id] = build_pitching_stats_hash(result.user_id, result.attributes)
+    end
+  end
 
-    build_pitching_stats_hash(user_id, result.attributes)
+  # filtered_pitching_stats_for_user を pitching_stats_for_user に統合（後方互換エイリアス）
+  class << self
+    alias filtered_pitching_stats_for_user pitching_stats_for_user
   end
 
   def self.apply_filters(scope, year, match_type)

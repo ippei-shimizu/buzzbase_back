@@ -26,16 +26,20 @@ class GroupRankingSnapshotService
   def record_batting_rankings
     member_ids = @members.map(&:id)
 
+    # バルク取得でN+1を解消
+    all_stats = BattingAverage.bulk_stats_for_users(member_ids)
+    all_aggregates = BattingAverage.aggregate_for_users(member_ids).index_by(&:user_id)
+
     batting_stats = member_ids.each_with_object({}) do |user_id, hash|
-      stats = BattingAverage.stats_for_user(user_id)
-      aggregate = BattingAverage.aggregate_for_user(user_id).take
+      stats = all_stats[user_id]
+      aggregate = all_aggregates[user_id]
       next unless stats && aggregate
 
       hash[user_id] = {
         batting_average: stats[:batting_average],
         home_run: aggregate.home_run.to_i,
         runs_batted_in: aggregate.runs_batted_in.to_i,
-        hit: (aggregate.respond_to?(:hit) ? aggregate.hit.to_i : 0),
+        hit: aggregate.hit.to_i,
         stealing_base: aggregate.stealing_base.to_i,
         on_base_percentage: stats[:on_base_percentage]
       }
@@ -49,9 +53,13 @@ class GroupRankingSnapshotService
   def record_pitching_rankings
     member_ids = @members.map(&:id)
 
+    # バルク取得でN+1を解消
+    all_stats = PitchingResult.bulk_pitching_stats_for_users(member_ids)
+    all_aggregates = PitchingResult.pitching_aggregate_for_users(member_ids).index_by(&:user_id)
+
     pitching_stats = member_ids.each_with_object({}) do |user_id, hash|
-      stats = PitchingResult.pitching_stats_for_user(user_id)
-      aggregate = PitchingResult.pitching_aggregate_for_user(user_id).take
+      stats = all_stats[user_id]
+      aggregate = all_aggregates[user_id]
       next unless stats && aggregate
 
       hash[user_id] = {
