@@ -30,7 +30,8 @@ module Api
       def filtered_index
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
       end
 
@@ -56,7 +57,8 @@ module Api
 
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type, season_id)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
       end
 

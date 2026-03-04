@@ -58,7 +58,8 @@ module Api
       def filtered_game_associated_data
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.filtered_game_associated_data_user(current_api_v1_user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id)
         render json: game_results
       end
 
@@ -68,7 +69,8 @@ module Api
 
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type, season_id)
         render json: game_results
       end
 
@@ -98,7 +100,7 @@ module Api
       end
 
       def game_results_params
-        params.require(:game_result).permit(:user_id, :match_result_id, :batting_average_id, :pitching_result_id)
+        params.require(:game_result).permit(:user_id, :match_result_id, :batting_average_id, :pitching_result_id, :season_id)
       end
 
       def batting_average_params

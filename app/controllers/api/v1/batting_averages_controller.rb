@@ -68,13 +68,19 @@ module Api
 
       def personal_batting_average
         user_id = params[:user_id]
-        aggregated_data = BattingAverage.aggregate_for_user(user_id)
+        season_id = params[:season_id]
+        if season_id.present?
+          aggregated_data = BattingAverage.filtered_aggregate_for_user(user_id, season_id:)
+        else
+          aggregated_data = BattingAverage.aggregate_for_user(user_id)
+        end
         render json: aggregated_data
       end
 
       def personal_batting_stats
         user_id = params[:user_id]
-        batting_stats = BattingAverage.stats_for_user(user_id)
+        season_id = params[:season_id]
+        batting_stats = BattingAverage.stats_for_user(user_id, season_id:)
         if batting_stats.present?
           render json: batting_stats
         else

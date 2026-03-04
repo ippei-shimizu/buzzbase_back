@@ -68,13 +68,19 @@ module Api
 
       def personal_pitching_result
         user_id = params[:user_id]
-        pitching_aggregated_data = PitchingResult.pitching_aggregate_for_user(user_id)
+        season_id = params[:season_id]
+        if season_id.present?
+          pitching_aggregated_data = PitchingResult.filtered_pitching_aggregate_for_user(user_id, season_id:)
+        else
+          pitching_aggregated_data = PitchingResult.pitching_aggregate_for_user(user_id)
+        end
         render json: pitching_aggregated_data
       end
 
       def personal_pitching_stats
         user_id = params[:user_id]
-        pitching_stats = PitchingResult.pitching_stats_for_user(user_id)
+        season_id = params[:season_id]
+        pitching_stats = PitchingResult.pitching_stats_for_user(user_id, season_id:)
         if pitching_stats.present?
           render json: pitching_stats
         else
