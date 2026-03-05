@@ -118,12 +118,15 @@ Rails.application.routes.draw do
         end
         collection do
           get :count
+          post :mark_management_notices_read
         end
       end
 
       resources :seasons, only: %i[index create update destroy]
 
       resources :baseball_notes, only: %i[index create show update destroy]
+
+      resources :management_notices, only: %i[index show]
 
       namespace :admin do
         resources :analytics, only: [] do
@@ -149,6 +152,8 @@ Rails.application.routes.draw do
             patch :soft_delete
           end
         end
+
+        resources :management_notices, only: %i[index create show update destroy]
       end
 
       get 'users/current', to: 'users#show_current'
