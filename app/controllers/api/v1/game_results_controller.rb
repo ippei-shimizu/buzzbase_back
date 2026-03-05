@@ -1,6 +1,7 @@
 module Api
   module V1
     class GameResultsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update update_batting_average_id game_associated_data_index destroy]
       before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id destroy]
 
@@ -58,7 +59,8 @@ module Api
       def filtered_game_associated_data
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.filtered_game_associated_data_user(current_api_v1_user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id)
         render json: game_results
       end
 
@@ -68,7 +70,8 @@ module Api
 
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type, season_id)
         render json: game_results
       end
 
@@ -82,23 +85,12 @@ module Api
 
       private
 
-      def convert_match_type(match_type)
-        case match_type
-        when '公式戦'
-          'regular'
-        when 'オープン戦'
-          'open'
-        else
-          match_type
-        end
-      end
-
       def set_game_result
         @game_result = GameResult.find(params[:id])
       end
 
       def game_results_params
-        params.require(:game_result).permit(:user_id, :match_result_id, :batting_average_id, :pitching_result_id)
+        params.require(:game_result).permit(:user_id, :match_result_id, :batting_average_id, :pitching_result_id, :season_id)
       end
 
       def batting_average_params
