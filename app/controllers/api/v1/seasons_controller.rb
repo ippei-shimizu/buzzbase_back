@@ -10,6 +10,8 @@ module Api
                else
                  current_api_v1_user
                end
+        return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+
         seasons = user.seasons.order(created_at: :desc)
         render json: seasons
       end
@@ -24,8 +26,6 @@ module Api
       end
 
       def update
-        return render json: { error: '権限がありません' }, status: :forbidden if @season.user_id != current_api_v1_user.id
-
         if @season.update(season_params)
           render json: @season
         else
@@ -34,8 +34,6 @@ module Api
       end
 
       def destroy
-        return render json: { error: '権限がありません' }, status: :forbidden if @season.user_id != current_api_v1_user.id
-
         @season.destroy
         render json: { message: 'シーズンを削除しました' }, status: :ok
       end
@@ -43,7 +41,7 @@ module Api
       private
 
       def set_season
-        @season = Season.find(params[:id])
+        @season = current_api_v1_user.seasons.find(params[:id])
       end
 
       def season_params
