@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_03_04_151106) do
+ActiveRecord::Schema[7.0].define(version: 2026_03_06_003322) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -202,6 +202,17 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_04_151106) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "management_notices", force: :cascade do |t|
+    t.string "title", null: false
+    t.text "body", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "published_at"
+    t.bigint "created_by_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status", "published_at"], name: "index_management_notices_on_status_and_published_at"
+  end
+
   create_table "match_results", force: :cascade do |t|
     t.integer "game_result_id"
     t.bigint "user_id", null: false
@@ -373,6 +384,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_04_151106) do
     t.datetime "deleted_at"
     t.string "suspended_reason"
     t.boolean "is_private", default: false, null: false
+    t.datetime "last_management_notice_read_at"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true
@@ -398,6 +410,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_04_151106) do
   add_foreign_key "group_ranking_snapshots", "users"
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
+  add_foreign_key "management_notices", "admin_users", column: "created_by_id"
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
