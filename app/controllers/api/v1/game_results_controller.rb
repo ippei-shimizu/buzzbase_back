@@ -1,6 +1,7 @@
 module Api
   module V1
     class GameResultsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update update_batting_average_id game_associated_data_index destroy]
       before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id destroy]
 
@@ -83,17 +84,6 @@ module Api
       end
 
       private
-
-      def convert_match_type(match_type)
-        case match_type
-        when '公式戦'
-          'regular'
-        when 'オープン戦'
-          'open'
-        else
-          match_type
-        end
-      end
 
       def set_game_result
         @game_result = GameResult.find(params[:id])

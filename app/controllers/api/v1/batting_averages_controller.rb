@@ -1,6 +1,7 @@
 module Api
   module V1
     class BattingAveragesController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update search current_batting_average_search]
       before_action :set_batting_average, only: %i[update]
 
@@ -96,14 +97,6 @@ module Api
 
       def set_batting_average
         @batting_average = BattingAverage.find(params[:id])
-      end
-
-      def convert_match_type(match_type)
-        case match_type
-        when '公式戦' then 'regular'
-        when 'オープン戦' then 'open'
-        else match_type
-        end
       end
 
       def batting_average_params

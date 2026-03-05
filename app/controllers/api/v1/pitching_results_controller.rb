@@ -1,6 +1,7 @@
 module Api
   module V1
     class PitchingResultsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update pitching_search current_pitching_result_search]
       before_action :set_pitching_result, only: %i[update]
 
@@ -93,14 +94,6 @@ module Api
       end
 
       private
-
-      def convert_match_type(match_type)
-        case match_type
-        when '公式戦' then 'regular'
-        when 'オープン戦' then 'open'
-        else match_type
-        end
-      end
 
       def set_pitching_result
         @pitching_result = PitchingResult.find(params[:id])
