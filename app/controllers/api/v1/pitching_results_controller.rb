@@ -1,6 +1,7 @@
 module Api
   module V1
     class PitchingResultsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update pitching_search current_pitching_result_search]
       before_action :set_pitching_result, only: %i[update]
 
@@ -68,13 +69,23 @@ module Api
 
       def personal_pitching_result
         user_id = params[:user_id]
-        pitching_aggregated_data = PitchingResult.pitching_aggregate_for_user(user_id)
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
+        season_id = params[:season_id]
+        pitching_aggregated_data = if year.present? || match_type.present? || season_id.present?
+                                     PitchingResult.filtered_pitching_aggregate_for_user(user_id, year:, match_type:, season_id:)
+                                   else
+                                     PitchingResult.pitching_aggregate_for_user(user_id)
+                                   end
         render json: pitching_aggregated_data
       end
 
       def personal_pitching_stats
         user_id = params[:user_id]
-        pitching_stats = PitchingResult.pitching_stats_for_user(user_id)
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
+        season_id = params[:season_id]
+        pitching_stats = PitchingResult.pitching_stats_for_user(user_id, year:, match_type:, season_id:)
         if pitching_stats.present?
           render json: pitching_stats
         else

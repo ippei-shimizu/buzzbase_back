@@ -14,11 +14,12 @@ module Api
         user = current_api_v1_user
         year = params[:year]
         match_type = params[:match_type]
+        season_id = params[:season_id]
 
         render json: {
           recent_game_results: build_recent_game_results(user),
-          batting_stats: build_batting_stats(user, year:, match_type:),
-          pitching_stats: build_pitching_stats(user, year:, match_type:),
+          batting_stats: build_batting_stats(user, year:, match_type:, season_id:),
+          pitching_stats: build_pitching_stats(user, year:, match_type:, season_id:),
           group_rankings: build_group_rankings(user),
           available_years: build_available_years(user)
         }
@@ -27,13 +28,13 @@ module Api
       # GET /api/v2/dashboard/batting_stats
       def batting_stats
         user = current_api_v1_user
-        render json: build_batting_stats(user, year: params[:year], match_type: params[:match_type])
+        render json: build_batting_stats(user, year: params[:year], match_type: params[:match_type], season_id: params[:season_id])
       end
 
       # GET /api/v2/dashboard/pitching_stats
       def pitching_stats
         user = current_api_v1_user
-        render json: build_pitching_stats(user, year: params[:year], match_type: params[:match_type])
+        render json: build_pitching_stats(user, year: params[:year], match_type: params[:match_type], season_id: params[:season_id])
       end
 
       private
@@ -69,9 +70,9 @@ module Api
           earned_run: pitching.earned_run, strikeouts: pitching.strikeouts }
       end
 
-      def build_batting_stats(user, year: nil, match_type: nil)
-        aggregate = BattingAverage.filtered_aggregate_for_user(user.id, year:, match_type:).take
-        calculated = BattingAverage.filtered_stats_for_user(user.id, year:, match_type:)
+      def build_batting_stats(user, year: nil, match_type: nil, season_id: nil)
+        aggregate = BattingAverage.filtered_aggregate_for_user(user.id, year:, match_type:, season_id:).take
+        calculated = BattingAverage.filtered_stats_for_user(user.id, year:, match_type:, season_id:)
 
         return { aggregate: nil, calculated: nil } unless aggregate && calculated
         return { aggregate: nil, calculated: nil } if batting_all_zero?(aggregate)
@@ -103,9 +104,9 @@ module Api
           iso: calc[:iso], bb_per_k: calc[:bb_per_k], isod: calc[:isod] }
       end
 
-      def build_pitching_stats(user, year: nil, match_type: nil)
-        aggregate = PitchingResult.filtered_pitching_aggregate_for_user(user.id, year:, match_type:).take
-        calculated = PitchingResult.filtered_pitching_stats_for_user(user.id, year:, match_type:)
+      def build_pitching_stats(user, year: nil, match_type: nil, season_id: nil)
+        aggregate = PitchingResult.filtered_pitching_aggregate_for_user(user.id, year:, match_type:, season_id:).take
+        calculated = PitchingResult.filtered_pitching_stats_for_user(user.id, year:, match_type:, season_id:)
 
         return { aggregate: nil, calculated: nil } unless aggregate && calculated
         return { aggregate: nil, calculated: nil } if pitching_all_zero?(aggregate)

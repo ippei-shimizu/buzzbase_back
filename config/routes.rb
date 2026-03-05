@@ -121,6 +121,8 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :seasons, only: %i[index create update destroy]
+
       resources :baseball_notes, only: %i[index create show update destroy]
 
       namespace :admin do

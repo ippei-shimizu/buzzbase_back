@@ -38,15 +38,15 @@ class BattingAverage < ApplicationRecord
      'SUM(error) AS error']
   end
 
-  def self.filtered_aggregate_for_user(user_id, year: nil, match_type: nil)
+  def self.filtered_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil)
     scope = joins(game_result: :match_result).select(*aggregate_columns)
-    scope = apply_filters(scope, year, match_type)
+    scope = apply_filters(scope, year, match_type, season_id:)
     scope.where(batting_averages: { user_id: }).group('batting_averages.user_id')
   end
 
-  def self.stats_for_user(user_id, year: nil, match_type: nil)
-    if year.present? || match_type.present?
-      scope = apply_filters(unscoped.joins(game_result: :match_result), year, match_type)
+  def self.stats_for_user(user_id, year: nil, match_type: nil, season_id: nil)
+    if year.present? || match_type.present? || season_id.present?
+      scope = apply_filters(unscoped.joins(game_result: :match_result), year, match_type, season_id:)
       result = scope.where(batting_averages: { user_id: }).select(*stats_columns).reorder(nil).take
     else
       result = unscoped.where(user_id:).select(*stats_columns).reorder(nil).take
@@ -72,9 +72,10 @@ class BattingAverage < ApplicationRecord
     alias filtered_stats_for_user stats_for_user
   end
 
-  def self.apply_filters(scope, year, match_type)
+  def self.apply_filters(scope, year, match_type, season_id: nil)
     scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
+    scope = scope.where(game_results: { season_id: }) if season_id.present?
     scope
   end
 

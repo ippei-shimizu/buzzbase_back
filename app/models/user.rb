@@ -24,6 +24,7 @@ class User < ActiveRecord::Base
                                  dependent: :destroy, inverse_of: :actor
   has_many :baseball_notes, dependent: :destroy
   has_many :match_results, dependent: :destroy
+  has_many :seasons, dependent: :destroy
   has_many :game_results, dependent: :destroy
   has_many :batting_averages, dependent: :destroy
   has_many :pitching_results, dependent: :destroy
@@ -32,6 +33,8 @@ class User < ActiveRecord::Base
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
+
+  after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create
   validates :user_id, uniqueness: true, allow_blank: true
@@ -105,4 +108,10 @@ class User < ActiveRecord::Base
   delegate :count, to: :following, prefix: true
 
   delegate :count, to: :followers, prefix: true
+
+  private
+
+  def notify_slack_new_user
+    SlackNotificationService.notify_new_user(self)
+  end
 end

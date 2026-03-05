@@ -45,7 +45,9 @@ module Api
       def existing_search
         @match_result = MatchResult.find_by(game_result_id: params[:game_result_id], user_id: params[:user_id])
         if @match_result
-          render json: @match_result
+          game_result = GameResult.includes(:season).find_by(id: params[:game_result_id])
+          season_id = game_result&.season_id
+          render json: @match_result.as_json.merge(season_id:)
         else
           render json: { message: 'No matching record found' }, status: :not_found
         end
@@ -53,9 +55,11 @@ module Api
 
       def current_game_result_search
         if params[:game_result_id]
+          game_result = GameResult.includes(:season).find_by(id: params[:game_result_id])
           match_result = MatchResult.where(game_result_id: params[:game_result_id], user_id: current_api_v1_user.id)
           if match_result.present?
-            render json: match_result
+            season_name = game_result&.season&.name
+            render json: match_result.map { |mr| mr.as_json.merge(season_name:) }
           else
             render json: { message: '試合情報が見つかりません。' }, status: :not_found
           end
@@ -66,14 +70,15 @@ module Api
 
       def user_game_result_search
         if params[:game_result_id]
-          game_result = GameResult.find_by(id: params[:game_result_id])
+          game_result = GameResult.includes(:season).find_by(id: params[:game_result_id])
           if game_result
             user = game_result.user
             return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
           end
           match_result = MatchResult.where(game_result_id: params[:game_result_id])
           if match_result.present?
-            render json: match_result
+            season_name = game_result&.season&.name
+            render json: match_result.map { |mr| mr.as_json.merge(season_name:) }
           else
             render json: { message: '試合情報が見つかりません。' }, status: :not_found
           end

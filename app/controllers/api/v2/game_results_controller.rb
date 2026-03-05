@@ -7,6 +7,7 @@ module Api
     # - フロントエンド側でN+1 HTTPリクエスト（チーム名・大会名・打席結果を個別取得）を不要にする
     # - シリアライザー(V2::GameResultSerializer)を使用してレスポンス形式を制御する
     class GameResultsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[index filtered_index]
 
       # GET /api/v2/game_results
@@ -30,7 +31,8 @@ module Api
       def filtered_index
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
       end
 
@@ -56,24 +58,9 @@ module Api
 
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
-        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type)
+        season_id = params[:season_id]
+        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type, season_id)
         render json: game_results, each_serializer: ::V2::GameResultSerializer
-      end
-
-      private
-
-      # フロントエンドから送られる日本語の試合種別をDB値に変換する
-      # @param match_type [String] "公式戦" | "オープン戦" | その他
-      # @return [String] "regular" | "open" | そのまま返却
-      def convert_match_type(match_type)
-        case match_type
-        when '公式戦'
-          'regular'
-        when 'オープン戦'
-          'open'
-        else
-          match_type
-        end
       end
     end
   end

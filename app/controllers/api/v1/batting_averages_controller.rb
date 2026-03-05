@@ -1,6 +1,7 @@
 module Api
   module V1
     class BattingAveragesController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[create update search current_batting_average_search]
       before_action :set_batting_average, only: %i[update]
 
@@ -68,13 +69,23 @@ module Api
 
       def personal_batting_average
         user_id = params[:user_id]
-        aggregated_data = BattingAverage.aggregate_for_user(user_id)
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
+        season_id = params[:season_id]
+        aggregated_data = if year.present? || match_type.present? || season_id.present?
+                            BattingAverage.filtered_aggregate_for_user(user_id, year:, match_type:, season_id:)
+                          else
+                            BattingAverage.aggregate_for_user(user_id)
+                          end
         render json: aggregated_data
       end
 
       def personal_batting_stats
         user_id = params[:user_id]
-        batting_stats = BattingAverage.stats_for_user(user_id)
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
+        season_id = params[:season_id]
+        batting_stats = BattingAverage.stats_for_user(user_id, year:, match_type:, season_id:)
         if batting_stats.present?
           render json: batting_stats
         else
