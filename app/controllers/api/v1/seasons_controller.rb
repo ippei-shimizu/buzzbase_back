@@ -24,9 +24,7 @@ module Api
       end
 
       def update
-        if @season.user_id != current_api_v1_user.id
-          return render json: { error: '権限がありません' }, status: :forbidden
-        end
+        return render json: { error: '権限がありません' }, status: :forbidden if @season.user_id != current_api_v1_user.id
 
         if @season.update(season_params)
           render json: @season
@@ -36,9 +34,7 @@ module Api
       end
 
       def destroy
-        if @season.user_id != current_api_v1_user.id
-          return render json: { error: '権限がありません' }, status: :forbidden
-        end
+        return render json: { error: '権限がありません' }, status: :forbidden if @season.user_id != current_api_v1_user.id
 
         @season.destroy
         render json: { message: 'シーズンを削除しました' }, status: :ok

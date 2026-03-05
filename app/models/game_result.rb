@@ -75,7 +75,7 @@ class GameResult < ApplicationRecord
   end
 
   def self.filter_by_season(game_results, season_id)
-    game_results.where(season_id: season_id)
+    game_results.where(season_id:)
   end
 
   def self.map_game_results(game_results)
