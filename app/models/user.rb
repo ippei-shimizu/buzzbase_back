@@ -34,6 +34,8 @@ class User < ActiveRecord::Base
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
 
+  after_commit :notify_slack_new_user, on: :create
+
   validates :password, custom_password: true, on: :create
   validates :user_id, uniqueness: true, allow_blank: true
   validates :introduction, length: { maximum: 100 }
@@ -106,4 +108,10 @@ class User < ActiveRecord::Base
   delegate :count, to: :following, prefix: true
 
   delegate :count, to: :followers, prefix: true
+
+  private
+
+  def notify_slack_new_user
+    SlackNotificationService.notify_new_user(self)
+  end
 end
