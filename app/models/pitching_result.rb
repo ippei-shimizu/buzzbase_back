@@ -73,7 +73,7 @@ class PitchingResult < ApplicationRecord
   def self.apply_filters(scope, year, match_type, season_id: nil)
     scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
-    scope = scope.where(game_results: { season_id: season_id }) if season_id.present?
+    scope = scope.where(game_results: { season_id: }) if season_id.present?
     scope
   end
 

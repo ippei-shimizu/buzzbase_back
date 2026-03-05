@@ -68,19 +68,23 @@ module Api
 
       def personal_pitching_result
         user_id = params[:user_id]
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        if season_id.present?
-          pitching_aggregated_data = PitchingResult.filtered_pitching_aggregate_for_user(user_id, season_id:)
-        else
-          pitching_aggregated_data = PitchingResult.pitching_aggregate_for_user(user_id)
-        end
+        pitching_aggregated_data = if year.present? || match_type.present? || season_id.present?
+                                     PitchingResult.filtered_pitching_aggregate_for_user(user_id, year:, match_type:, season_id:)
+                                   else
+                                     PitchingResult.pitching_aggregate_for_user(user_id)
+                                   end
         render json: pitching_aggregated_data
       end
 
       def personal_pitching_stats
         user_id = params[:user_id]
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        pitching_stats = PitchingResult.pitching_stats_for_user(user_id, season_id:)
+        pitching_stats = PitchingResult.pitching_stats_for_user(user_id, year:, match_type:, season_id:)
         if pitching_stats.present?
           render json: pitching_stats
         else
@@ -89,6 +93,14 @@ module Api
       end
 
       private
+
+      def convert_match_type(match_type)
+        case match_type
+        when '公式戦' then 'regular'
+        when 'オープン戦' then 'open'
+        else match_type
+        end
+      end
 
       def set_pitching_result
         @pitching_result = PitchingResult.find(params[:id])

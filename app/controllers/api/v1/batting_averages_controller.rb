@@ -68,19 +68,23 @@ module Api
 
       def personal_batting_average
         user_id = params[:user_id]
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        if season_id.present?
-          aggregated_data = BattingAverage.filtered_aggregate_for_user(user_id, season_id:)
-        else
-          aggregated_data = BattingAverage.aggregate_for_user(user_id)
-        end
+        aggregated_data = if year.present? || match_type.present? || season_id.present?
+                            BattingAverage.filtered_aggregate_for_user(user_id, year:, match_type:, season_id:)
+                          else
+                            BattingAverage.aggregate_for_user(user_id)
+                          end
         render json: aggregated_data
       end
 
       def personal_batting_stats
         user_id = params[:user_id]
+        year = params[:year]
+        match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        batting_stats = BattingAverage.stats_for_user(user_id, season_id:)
+        batting_stats = BattingAverage.stats_for_user(user_id, year:, match_type:, season_id:)
         if batting_stats.present?
           render json: batting_stats
         else
@@ -92,6 +96,14 @@ module Api
 
       def set_batting_average
         @batting_average = BattingAverage.find(params[:id])
+      end
+
+      def convert_match_type(match_type)
+        case match_type
+        when '公式戦' then 'regular'
+        when 'オープン戦' then 'open'
+        else match_type
+        end
       end
 
       def batting_average_params
