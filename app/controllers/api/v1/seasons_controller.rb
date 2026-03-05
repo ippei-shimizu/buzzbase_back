@@ -12,8 +12,11 @@ module Api
                end
         return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
 
-        seasons = user.seasons.order(created_at: :desc)
-        render json: seasons
+        seasons = user.seasons.left_joins(:game_results)
+                      .select('seasons.*, COUNT(game_results.id) AS game_results_count')
+                      .group('seasons.id')
+                      .order(created_at: :desc)
+        render json: seasons.map { |s| s.as_json.merge(game_results_count: s.game_results_count) }
       end
 
       def create
