@@ -9,13 +9,15 @@ class ApplicationController < ActionController::API
   before_action :set_sentry_context
   after_action :update_last_login_at, if: :user_signed_in?
 
-  rescue_from ActionController::ParameterMissing do |exception|
-    render json: { errors: [exception.message] }, status: :bad_request
-  end
-
   rescue_from StandardError do |exception|
+    Rails.logger.error("#{exception.class}: #{exception.message}")
+    Rails.logger.error(exception.backtrace&.first(10)&.join("\n"))
     Sentry.capture_exception(exception) if Sentry.initialized?
     render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
+  end
+
+  rescue_from ActionController::ParameterMissing do |exception|
+    render json: { errors: [exception.message] }, status: :bad_request
   end
 
   def configure_permitted_parameters
