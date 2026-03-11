@@ -14,8 +14,9 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        expect(json).to be_an(Array)
-        game_result_ids = json.pluck('game_result_id')
+        expect(json).to have_key('data')
+        expect(json).to have_key('pagination')
+        game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).to include(user_game.id)
         expect(game_result_ids).not_to include(other_user_game.id)
       end
@@ -36,8 +37,8 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
-      expect(json).to be_an(Array)
-      game_result_ids = json.pluck('game_result_id')
+      expect(json).to have_key('data')
+      game_result_ids = json['data'].pluck('game_result_id')
       expect(game_result_ids).to include(user_game.id, other_user_game.id)
     end
 
@@ -45,7 +46,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       get '/api/v2/game_results/all'
 
       json = response.parsed_body
-      first_result = json.first
+      first_result = json['data'].first
       expect(first_result).to have_key('user_id')
       expect(first_result).to have_key('user_name')
       expect(first_result).to have_key('user_image')
@@ -60,7 +61,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
         get '/api/v2/game_results/all'
 
         json = response.parsed_body
-        game_result_ids = json.pluck('game_result_id')
+        game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).not_to include(private_user_game.id)
         expect(game_result_ids).to include(user_game.id, other_user_game.id)
       end
@@ -87,7 +88,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        game_result_ids = json.pluck('game_result_id')
+        game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).to include(game_2024_regular.id)
         expect(game_result_ids).not_to include(game_2024_open.id)
       end
@@ -99,7 +100,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        game_result_ids = json.pluck('game_result_id')
+        game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).to include(user_game.id, game_2024_regular.id, game_2024_open.id)
       end
     end
@@ -119,8 +120,9 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
-      expect(json).to be_an(Array)
-      game_result_ids = json.pluck('game_result_id')
+      expect(json).to have_key('data')
+      expect(json).to have_key('pagination')
+      game_result_ids = json['data'].pluck('game_result_id')
       expect(game_result_ids).to include(other_user_game.id)
       expect(game_result_ids).not_to include(user_game.id)
     end
@@ -150,7 +152,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        game_result_ids = json.pluck('game_result_id')
+        game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).to include(private_game.id)
       end
 
@@ -183,7 +185,7 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
-      game_result_ids = json.pluck('game_result_id')
+      game_result_ids = json['data'].pluck('game_result_id')
       expect(game_result_ids).to include(target_game_open.id)
       expect(game_result_ids).not_to include(target_game_regular.id)
     end
