@@ -47,7 +47,7 @@ gem 'devise-i18n'
 
 gem 'omniauth', '>= 1.0.0'
 
-gem 'google-id-token'
+gem 'googleauth'
 
 gem 'carrierwave'
 
