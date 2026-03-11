@@ -139,6 +139,8 @@ GEM
     formatador (1.1.0)
     globalid (1.2.1)
       activesupport (>= 6.1)
+    google-id-token (1.4.2)
+      jwt (>= 1)
     hashie (5.0.0)
     i18n (1.14.1)
       concurrent-ruby (~> 1.0)
@@ -354,6 +356,7 @@ DEPENDENCIES
   factory_bot_rails
   faker
   fog-aws
+  google-id-token
   jwt
   letter_opener_web (~> 2.0)
   mini_magick

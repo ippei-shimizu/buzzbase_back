@@ -18,6 +18,8 @@ Rails.application.routes.draw do
         resources :sessions, only: [:index]
       end
 
+      post 'google_sign_in', to: 'auth/google#create'
+
       resource :user, only: %i[update show] do
         put :update_positions
       end
