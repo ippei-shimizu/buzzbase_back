@@ -1,13 +1,30 @@
 module Api
   module V1
     class NotificationsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[index destroy read count]
+      before_action :authenticate_api_v1_user!, only: %i[index destroy read count mark_management_notices_read]
 
       def index
         return head :forbidden unless current_api_v1_user.user_id == params[:user_id]
 
         notifications = current_api_v1_user.notifications.includes(:actor).order(created_at: :desc)
-        render json: notifications.select { |n| displayable_notification?(n) }.map { |n| serialize_notification(n) }
+        user_notifications = notifications.select { |n| displayable_notification?(n) }.map { |n| serialize_notification(n) }
+
+        management_notices = ManagementNotice.published.limit(10).map do |notice|
+          {
+            id: "mn_#{notice.id}",
+            event_type: 'management_notice',
+            title: notice.title,
+            management_notice_id: notice.id,
+            read_at: if current_api_v1_user.last_management_notice_read_at &&
+                        notice.published_at <= current_api_v1_user.last_management_notice_read_at
+                       Time.current
+                     end,
+            created_at: notice.published_at
+          }
+        end
+
+        all_notifications = (user_notifications + management_notices).sort_by { |n| n[:created_at] }.reverse
+        render json: all_notifications
       end
 
       def destroy
@@ -37,9 +54,17 @@ module Api
                                                   .where(notifications: { event_type: 'follow_request', read_at: nil },
                                                          relationships: { followed_id: current_api_v1_user.id, status: 0 })
                                                   .count
+        management_notice_count = ManagementNotice.published
+                                                  .where('published_at > ?', current_api_v1_user.last_management_notice_read_at || Time.zone.at(0))
+                                                  .count
 
-        total_count = followed_count + group_invitation_count + follow_request_count
+        total_count = followed_count + group_invitation_count + follow_request_count + management_notice_count
         render json: { count: total_count }
+      end
+
+      def mark_management_notices_read
+        current_api_v1_user.update!(last_management_notice_read_at: Time.current)
+        render json: { success: true }
       end
 
       private
