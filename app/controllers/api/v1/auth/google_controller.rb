@@ -3,6 +3,8 @@ module Api
     module Auth
       class GoogleController < ApplicationController
         def create
+          raise GoogleAuthService::InvalidToken, 'IDトークンが指定されていません' if params[:id_token].blank?
+
           google_data = GoogleAuthService.verify(params[:id_token])
 
           user = find_or_create_user(google_data)
@@ -19,6 +21,8 @@ module Api
           }, status: :ok
         rescue GoogleAuthService::InvalidToken => e
           render json: { errors: [e.message] }, status: :unauthorized
+        rescue ActiveRecord::RecordInvalid => e
+          render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
         end
 
         private

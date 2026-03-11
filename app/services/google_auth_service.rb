@@ -12,5 +12,7 @@ class GoogleAuthService
     }
   rescue GoogleIDToken::ValidationError => e
     raise InvalidToken, "Google IDトークンの検証に失敗しました: #{e.message}"
+  rescue StandardError => e
+    raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}"
   end
 end
