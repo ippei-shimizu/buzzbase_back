@@ -47,6 +47,8 @@ gem 'devise-i18n'
 
 gem 'omniauth', '>= 1.0.0'
 
+gem 'googleauth'
+
 gem 'carrierwave'
 
 # JWT for server-to-server authentication
