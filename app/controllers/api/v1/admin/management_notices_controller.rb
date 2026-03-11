@@ -6,7 +6,11 @@ module Api
 
         def index
           notices = ManagementNotice.includes(:created_by).order(created_at: :desc)
-          notices = notices.where(status: params[:status]) if params[:status].present?
+          if params[:status].present?
+            return render json: { errors: ['無効なステータスです'] }, status: :bad_request unless ManagementNotice.statuses.key?(params[:status])
+
+            notices = notices.where(status: params[:status])
+          end
 
           render json: {
             management_notices: ActiveModelSerializers::SerializableResource.new(
