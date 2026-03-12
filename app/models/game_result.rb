@@ -1,4 +1,6 @@
 class GameResult < ApplicationRecord
+  paginates_per 15
+
   belongs_to :user
   belongs_to :season, optional: true
   has_one :match_result, dependent: :destroy
@@ -87,6 +89,27 @@ class GameResult < ApplicationRecord
         pitching_result: game_result.pitching_result
       }
     end
+  end
+
+  # 対戦相手名で部分一致検索（ILIKE: 大文字小文字区別なし）
+  def self.search_by_opponent(query)
+    return all if query.blank?
+
+    joins(match_result: :opponent_team)
+      .where('teams.name ILIKE ?', "%#{sanitize_sql_like(query)}%")
+  end
+
+  # ソート（許可リスト方式で安全に）
+  SORTABLE_COLUMNS = {
+    'date' => 'match_results.date_and_time',
+    'my_score' => 'match_results.my_team_score',
+    'opponent_score' => 'match_results.opponent_team_score'
+  }.freeze
+
+  def self.apply_sort(sort_by, sort_order)
+    column = SORTABLE_COLUMNS[sort_by] || 'match_results.date_and_time'
+    direction = sort_order == 'asc' ? 'ASC' : 'DESC'
+    order(Arel.sql("#{column} #{direction}"))
   end
 
   # === v2 API メソッド ===
