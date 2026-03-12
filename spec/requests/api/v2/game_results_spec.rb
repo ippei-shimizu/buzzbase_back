@@ -104,7 +104,6 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
         game_result_ids = json['data'].pluck('game_result_id')
         expect(game_result_ids).to include(user_game.id, game_2024_regular.id, game_2024_open.id)
       end
-    end
 
       it 'filters results by opponent name search' do
         opponent_team = game_2024_regular.match_result.opponent_team
