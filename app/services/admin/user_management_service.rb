@@ -77,6 +77,10 @@ module Admin
         users.left_joins(:passive_relationships)
              .group('users.id')
              .order(Arel.sql("COUNT(relationships.id) #{@sort_order}"))
+      when 'last_login_at'
+        users.order(Arel.sql("last_login_at IS NULL ASC, last_login_at #{@sort_order}"))
+      when 'name'
+        users.order(Arel.sql("(name IS NULL OR name = '') ASC, name #{@sort_order}"))
       else
         users.order(@sort_by => @sort_order)
       end
