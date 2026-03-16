@@ -92,3 +92,5 @@ gem 'sentry-ruby', '~> 5.13'
 gem 'sentry-rails', '~> 5.13'
 
 gem 'kaminari'
+
+gem 'exponent-server-sdk'

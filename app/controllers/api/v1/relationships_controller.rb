@@ -17,6 +17,11 @@ module Api
               user_id: user.id,
               notification_id: notification.id
             )
+            PushNotificationService.send_to_user(
+              user,
+              title: 'BUZZ BASE',
+              body: "#{current_api_v1_user.name}さんからフォローリクエストが届きました"
+            )
             render json: { status: 'success', message: 'Follow request sent.', follow_status: 'pending' }, status: :created
           else
             notification = Notification.create!(
@@ -27,6 +32,11 @@ module Api
             UserNotification.create!(
               user_id: user.id,
               notification_id: notification.id
+            )
+            PushNotificationService.send_to_user(
+              user,
+              title: 'BUZZ BASE',
+              body: "#{current_api_v1_user.name}さんにフォローされました"
             )
             render json: { status: 'success', message: 'User followed successfully.', follow_status: 'following' }, status: :created
           end
@@ -55,6 +65,11 @@ module Api
         UserNotification.create!(
           user_id: relationship.follower_id,
           notification_id: notification.id
+        )
+        PushNotificationService.send_to_user(
+          relationship.follower,
+          title: 'BUZZ BASE',
+          body: "#{current_api_v1_user.name}さんがフォローリクエストを承認しました"
         )
         render json: { status: 'success', message: 'Follow request accepted.' }, status: :ok
       end

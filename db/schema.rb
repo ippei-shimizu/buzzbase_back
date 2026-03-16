@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_03_06_003322) do
+ActiveRecord::Schema[7.0].define(version: 2026_03_16_040729) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -142,6 +142,16 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_06_003322) do
     t.integer "sacrifice_fly"
     t.index ["game_result_id"], name: "index_batting_averages_on_game_result_id"
     t.index ["user_id"], name: "index_batting_averages_on_user_id"
+  end
+
+  create_table "device_tokens", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "token", null: false
+    t.string "platform", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token"], name: "index_device_tokens_on_token", unique: true
+    t.index ["user_id"], name: "index_device_tokens_on_user_id"
   end
 
   create_table "game_results", force: :cascade do |t|
@@ -399,6 +409,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_06_003322) do
   add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
+  add_foreign_key "device_tokens", "users"
   add_foreign_key "game_results", "batting_averages"
   add_foreign_key "game_results", "match_results", on_delete: :cascade
   add_foreign_key "game_results", "pitching_results"

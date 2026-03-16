@@ -138,6 +138,11 @@ module Api
             user_id: user.id,
             notification_id: notification.id
           )
+          PushNotificationService.send_to_user(
+            user,
+            title: 'BUZZ BASE',
+            body: "#{current_api_v1_user.name}さんからグループに招待されました"
+          )
         end
       end
     end
