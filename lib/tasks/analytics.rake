@@ -1,4 +1,4 @@
-namespace :analytics do
+namespace :analytics do # rubocop:disable Metrics/BlockLength
   desc '指定日の日次統計データを計算'
   task :calculate_daily, [:date] => :environment do |_task, args|
     date = args[:date] ? Date.parse(args[:date]) : Date.current
@@ -43,6 +43,10 @@ namespace :analytics do
 
     begin
       stats = Admin::WeeklyStatistic.calculate_for_week(date)
+      if stats.nil?
+        puts "No weekly statistics could be calculated for #{date}"
+        next
+      end
       puts 'Weekly statistics calculated successfully:'
       puts "  Week: #{stats.week_start_date} to #{stats.week_end_date}"
       puts "  Total Users: #{stats.total_users}"
@@ -68,6 +72,10 @@ namespace :analytics do
 
     begin
       stats = Admin::MonthlyStatistic.calculate_for_month(date)
+      if stats.nil?
+        puts "No monthly statistics could be calculated for #{date.strftime('%Y-%m')}"
+        next
+      end
       puts 'Monthly statistics calculated successfully:'
       puts "  Month: #{stats.year}/#{stats.month}"
       puts "  Total Users: #{stats.total_users}"

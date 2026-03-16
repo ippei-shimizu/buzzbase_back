@@ -23,6 +23,11 @@ module Api
         title = award_params[:title]
         user_id = params[:user_id]
 
+        if title.blank?
+          render json: { errors: ['タイトルを入力してください'] }, status: :unprocessable_entity
+          return
+        end
+
         award = Award.find_or_create_by(title:)
         user = User.find(user_id)
         user.awards << award unless user.awards.include?(award)
@@ -47,6 +52,12 @@ module Api
         user_id = params[:user_id]
         award_id = params[:id]
         user_award = UserAward.find_by(user_id:, award_id:)
+
+        unless user_award
+          render json: { error: '受賞タイトルが見つかりません' }, status: :not_found
+          return
+        end
+
         if user_award.destroy
           award = Award.find_by(id: award_id)
           award.destroy if award.present?
