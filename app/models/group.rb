@@ -20,32 +20,27 @@ class Group < ApplicationRecord
         user = User.find_by(id: user_id)
         next unless user
 
-        invitation = group_invitations.find_or_initialize_by(user_id:)
-        next unless invitation.new_record?
-
-        invitation.state = 'pending'
-        invitation.sent_at = Time.current
-        invitation.save!
-
-        notification = Notification.create!(
-          actor: current_user,
-          event_type: 'group_invitation',
-          event_id: id
-        )
-        UserNotification.create!(
-          user_id: user.id,
-          notification_id: notification.id
-        )
-        PushNotificationService.send_to_user(
-          user,
-          title: 'BUZZ BASE',
-          body: "#{current_user.name}さんからグループに招待されました"
-        )
+        invite_and_notify_user(user, current_user)
       end
 
       removed_user_ids.each do |user_id|
         group_invitations.where(user_id:).destroy_all
       end
     end
+  end
+
+  private
+
+  def invite_and_notify_user(user, current_user)
+    invitation = group_invitations.find_or_initialize_by(user_id: user.id)
+    return unless invitation.new_record?
+
+    invitation.state = 'pending'
+    invitation.sent_at = Time.current
+    invitation.save!
+
+    notification = Notification.create!(actor: current_user, event_type: 'group_invitation', event_id: id)
+    UserNotification.create!(user_id: user.id, notification_id: notification.id)
+    PushNotificationService.send_to_user(user, title: 'BUZZ BASE', body: "#{current_user.name}さんからグループに招待されました")
   end
 end

@@ -8,36 +8,10 @@ module Api
         relationship = current_api_v1_user.follow(user)
         if relationship
           if user.is_private?
-            notification = Notification.create!(
-              actor: current_api_v1_user,
-              event_type: 'follow_request',
-              event_id: relationship.id
-            )
-            UserNotification.create!(
-              user_id: user.id,
-              notification_id: notification.id
-            )
-            PushNotificationService.send_to_user(
-              user,
-              title: 'BUZZ BASE',
-              body: "#{current_api_v1_user.name}さんからフォローリクエストが届きました"
-            )
+            notify_user(user, 'follow_request', relationship.id, "#{current_api_v1_user.name}さんからフォローリクエストが届きました")
             render json: { status: 'success', message: 'Follow request sent.', follow_status: 'pending' }, status: :created
           else
-            notification = Notification.create!(
-              actor: current_api_v1_user,
-              event_type: 'followed',
-              event_id: current_api_v1_user.id
-            )
-            UserNotification.create!(
-              user_id: user.id,
-              notification_id: notification.id
-            )
-            PushNotificationService.send_to_user(
-              user,
-              title: 'BUZZ BASE',
-              body: "#{current_api_v1_user.name}さんにフォローされました"
-            )
+            notify_user(user, 'followed', current_api_v1_user.id, "#{current_api_v1_user.name}さんにフォローされました")
             render json: { status: 'success', message: 'User followed successfully.', follow_status: 'following' }, status: :created
           end
         else
@@ -57,20 +31,8 @@ module Api
       def accept_follow_request
         relationship = current_api_v1_user.pending_follow_requests.find(params[:id])
         relationship.accepted!
-        notification = Notification.create!(
-          actor: current_api_v1_user,
-          event_type: 'follow_request_accepted',
-          event_id: current_api_v1_user.id
-        )
-        UserNotification.create!(
-          user_id: relationship.follower_id,
-          notification_id: notification.id
-        )
-        PushNotificationService.send_to_user(
-          relationship.follower,
-          title: 'BUZZ BASE',
-          body: "#{current_api_v1_user.name}さんがフォローリクエストを承認しました"
-        )
+        notify_user(relationship.follower, 'follow_request_accepted', current_api_v1_user.id,
+                    "#{current_api_v1_user.name}さんがフォローリクエストを承認しました")
         render json: { status: 'success', message: 'Follow request accepted.' }, status: :ok
       end
 
@@ -78,6 +40,14 @@ module Api
         relationship = current_api_v1_user.pending_follow_requests.find(params[:id])
         relationship.destroy
         render json: { status: 'success', message: 'Follow request rejected.' }, status: :ok
+      end
+
+      private
+
+      def notify_user(recipient, event_type, event_id, push_body)
+        notification = Notification.create!(actor: current_api_v1_user, event_type:, event_id:)
+        UserNotification.create!(user_id: recipient.id, notification_id: notification.id)
+        PushNotificationService.send_to_user(recipient, title: 'BUZZ BASE', body: push_body)
       end
     end
   end
