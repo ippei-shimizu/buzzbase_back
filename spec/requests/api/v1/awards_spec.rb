@@ -58,13 +58,31 @@ RSpec.describe 'Api::V1::Awards', type: :request do
         user.awards << award
       end
 
-      it 'destroys the user_award and award, returns 200' do
+      it 'destroys the user_award and orphaned award, returns 200' do
         delete "/api/v1/users/#{user.id}/awards/#{award.id}",
                headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
         expect(UserAward.find_by(user_id: user.id, award_id: award.id)).to be_nil
         expect(Award.find_by(id: award.id)).to be_nil
+      end
+
+      context 'when another user also has the same award' do
+        let(:other_user) { create(:user) }
+
+        before do
+          other_user.awards << award
+        end
+
+        it 'destroys only the user_award but keeps the shared award' do
+          delete "/api/v1/users/#{user.id}/awards/#{award.id}",
+                 headers: auth_headers_for(user)
+
+          expect(response).to have_http_status(:ok)
+          expect(UserAward.find_by(user_id: user.id, award_id: award.id)).to be_nil
+          expect(Award.find_by(id: award.id)).to be_present
+          expect(other_user.awards.reload).to include(award)
+        end
       end
     end
   end

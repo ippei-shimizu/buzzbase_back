@@ -60,7 +60,7 @@ module Api
 
         if user_award.destroy
           award = Award.find_by(id: award_id)
-          award.destroy if award.present?
+          award.destroy if award.present? && award.user_awards.empty?
           render json: { message: '受賞タイトルが削除されました' }, status: :ok
         else
           render json: user_award.errors, status: :unprocessable_entity
