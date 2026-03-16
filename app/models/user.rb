@@ -22,6 +22,7 @@ class User < ActiveRecord::Base
   has_many :notifications, through: :user_notifications
   has_many :actor_notifications, class_name: 'Notification', foreign_key: 'actor_id',
                                  dependent: :destroy, inverse_of: :actor
+  has_many :device_tokens, dependent: :destroy
   has_many :baseball_notes, dependent: :destroy
   has_many :match_results, dependent: :destroy
   has_many :seasons, dependent: :destroy

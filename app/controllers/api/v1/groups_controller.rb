@@ -47,14 +47,16 @@ module Api
 
       def update
         group = Group.find(params[:id])
+        invited_users = []
         ActiveRecord::Base.transaction do
           group.update!(group_params) if params[:group]
           if params[:invite_user_ids]
             user_ids = params[:invite_user_ids].map(&:to_i)
-            group.update_users_by_ids(user_ids, current_api_v1_user)
+            invited_users = group.update_users_by_ids(user_ids)
           end
         end
 
+        notify_invited_users(invited_users, group)
         render json: group, status: :ok
       rescue ActiveRecord::RecordInvalid => e
         render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
@@ -115,6 +117,14 @@ module Api
         params[:invite_user_ids] || []
       end
 
+      def notify_invited_users(users, group)
+        users.each do |user|
+          notification = Notification.create!(actor: current_api_v1_user, event_type: 'group_invitation', event_id: group.id)
+          UserNotification.create!(user_id: user.id, notification_id: notification.id)
+          PushNotificationService.send_to_user(user, title: 'BUZZ BASE', body: "#{current_api_v1_user.name}さんからグループに招待されました")
+        end
+      end
+
       def invite_users(group, user_ids)
         user_ids.each do |user_id|
           user = User.find_by(id: user_id)
@@ -137,6 +147,11 @@ module Api
           UserNotification.create!(
             user_id: user.id,
             notification_id: notification.id
+          )
+          PushNotificationService.send_to_user(
+            user,
+            title: 'BUZZ BASE',
+            body: "#{current_api_v1_user.name}さんからグループに招待されました"
           )
         end
       end
