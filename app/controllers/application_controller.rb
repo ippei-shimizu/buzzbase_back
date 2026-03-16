@@ -13,7 +13,7 @@ class ApplicationController < ActionController::API
     Rails.logger.error("#{exception.class}: #{exception.message}")
     Rails.logger.error(exception.backtrace&.first(10)&.join("\n"))
     Sentry.capture_exception(exception) if Sentry.initialized?
-    render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error
+    render json: { errors: ['内部サーバーエラーが発生しました'] }, status: :internal_server_error unless performed?
   end
 
   rescue_from ActionController::ParameterMissing do |exception|
@@ -30,7 +30,7 @@ class ApplicationController < ActionController::API
     return unless current_user
     return if current_user.last_login_at&.> 1.hour.ago
 
-    current_user.update!(last_login_at: Time.current)
+    current_user.update_column(:last_login_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
   end
 
   def set_sentry_context

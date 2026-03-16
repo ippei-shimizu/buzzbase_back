@@ -114,6 +114,12 @@ Rails.application.routes.draw do
         end
       end
 
+      resources :device_tokens, only: %i[create] do
+        collection do
+          delete :destroy
+        end
+      end
+
       resources :notifications, only: %i[index destroy] do
         member do
           patch :read
