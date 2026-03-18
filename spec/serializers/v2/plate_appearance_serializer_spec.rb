@@ -29,4 +29,12 @@ RSpec.describe V2::PlateAppearanceSerializer, type: :serializer do
   it 'includes game_result_id' do
     expect(serialization[:game_result_id]).to eq(game_result.id)
   end
+
+  it 'includes batting_position_id' do
+    expect(serialization).to have_key(:batting_position_id)
+  end
+
+  it 'includes plate_result_id' do
+    expect(serialization).to have_key(:plate_result_id)
+  end
 end

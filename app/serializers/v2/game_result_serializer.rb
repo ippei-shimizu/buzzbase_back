@@ -5,7 +5,7 @@ module V2
   # ネストしたJSONとして1レスポンスに含める。
   # v1では match_result のみ含み、plate_appearances は別APIで取得していた。
   class GameResultSerializer < ActiveModel::Serializer
-    attributes :game_result_id, :season_id, :season_name
+    attributes :game_result_id, :user_id, :season_id, :season_name
 
     has_one :match_result, serializer: V2::MatchResultSerializer
     has_many :plate_appearances, serializer: V2::PlateAppearanceSerializer
