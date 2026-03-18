@@ -14,6 +14,10 @@ RSpec.describe V2::GameResultSerializer, type: :serializer do
     expect(serialization[:game_result_id]).to eq(game_result.id)
   end
 
+  it 'includes user_id' do
+    expect(serialization[:user_id]).to eq(user.id)
+  end
+
   it 'includes nested match_result' do
     expect(serialization[:match_result]).to be_present
     expect(serialization[:match_result][:id]).to eq(game_result.match_result.id)
