@@ -26,7 +26,8 @@ class GoogleAuthService
   def self.allowed_client_ids
     [
       ENV.fetch('GOOGLE_CLIENT_ID'),
-      ENV.fetch('GOOGLE_IOS_CLIENT_ID', nil)
+      ENV.fetch('GOOGLE_IOS_CLIENT_ID', nil),
+      ENV.fetch('GOOGLE_ANDROID_CLIENT_ID', nil)
     ].compact
   end
 
