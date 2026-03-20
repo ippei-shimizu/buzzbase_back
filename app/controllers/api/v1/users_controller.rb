@@ -57,7 +57,7 @@ module Api
       def show_current_user_details
         user = current_api_v1_user
         if user
-          render json: { user_id: user.user_id, image: user.image }
+          render json: { user_id: user.user_id, image: { url: user.image.url } }
         else
           render json: {}, status: :ok
         end
