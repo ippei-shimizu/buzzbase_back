@@ -85,7 +85,7 @@ module Api
           id: notification.id,
           actor_user_id: notification.actor.user_id,
           actor_name: notification.actor.name,
-          actor_icon: notification.actor.image,
+          actor_icon: { url: notification.actor.image.url },
           event_type: notification.event_type,
           event_id: notification.event_id,
           read_at: notification.read_at,
