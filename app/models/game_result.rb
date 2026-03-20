@@ -125,7 +125,7 @@ class GameResult < ApplicationRecord
   def self.v2_game_associated_data_user(user)
     includes(
       :season,
-      match_result: %i[opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament],
       plate_appearances: [],
       batting_average: [],
       pitching_result: []
@@ -152,7 +152,7 @@ class GameResult < ApplicationRecord
   def self.v2_all_game_associated_data
     includes(
       :user,
-      match_result: %i[opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament],
       plate_appearances: [],
       pitching_result: []
     ).where.not(match_result_id: nil)

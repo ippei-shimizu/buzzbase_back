@@ -32,6 +32,18 @@ RSpec.describe V2::MatchResultSerializer, type: :serializer do
     expect(serialization[:tournament_name]).to eq('テスト大会')
   end
 
+  context 'when my_team is present' do
+    let(:my_team) { create(:team, name: '自チーム') }
+
+    before do
+      game_result.match_result.update!(my_team:)
+    end
+
+    it 'includes my_team_name' do
+      expect(serialization[:my_team_name]).to eq('自チーム')
+    end
+  end
+
   context 'when tournament is nil' do
     before do
       game_result.match_result.update!(tournament: nil)
