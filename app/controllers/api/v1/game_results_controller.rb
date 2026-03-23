@@ -86,7 +86,7 @@ module Api
       private
 
       def set_game_result
-        @game_result = GameResult.find(params[:id])
+        @game_result = current_api_v1_user.game_results.find(params[:id])
       end
 
       def game_results_params
