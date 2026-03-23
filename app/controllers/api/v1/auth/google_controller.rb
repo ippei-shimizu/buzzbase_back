@@ -2,6 +2,8 @@ module Api
   module V1
     module Auth
       class GoogleController < ApplicationController
+        skip_before_action :authenticate_user!, only: [:create], raise: false
+
         def create
           raise GoogleAuthService::InvalidToken, 'IDトークンが指定されていません' if params[:id_token].blank?
 
