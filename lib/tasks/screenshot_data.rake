@@ -13,11 +13,11 @@ namespace :screenshot_data do
     puts "  チーム: #{team.name}"
 
     # 対戦相手チーム
-    opponent_teams = [
-      '星光学院', '青葉台高校', '東都実業', '桜丘高校',
-      '翔英高校', '北斗学園', '南海高校', '西武台高校'
+    opponent_teams = %w[
+      星光学院 青葉台高校 東都実業 桜丘高校
+      翔英高校 北斗学園 南海高校 西武台高校
     ].map do |name|
-      Team.find_or_create_by!(name: name) do |t|
+      Team.find_or_create_by!(name:) do |t|
         t.category_id = category&.id
         t.prefecture_id = prefecture&.id
       end
@@ -40,7 +40,7 @@ namespace :screenshot_data do
     user_defs = [
       { name: 'バズ太郎', user_id: 'buzz_taro', email: 'buzz_taro@example.com',
         intro: '打てるピッチャーになりたい。ストレートの最速は131km/h。目指せ140km/h！',
-        pos: [:pitcher, :right], batting_order: 1, defensive_position: '投手', is_pitcher: true },
+        pos: %i[pitcher right], batting_order: 1, defensive_position: '投手', is_pitcher: true },
       { name: 'バズ次郎', user_id: 'buzz_jiro', email: 'buzz_jiro@example.com',
         intro: 'キャッチャーとして配球を勉強中。盗塁阻止率を上げたい。',
         pos: [:catcher], batting_order: 2, defensive_position: '捕手', is_pitcher: false },
@@ -87,7 +87,7 @@ namespace :screenshot_data do
       user.positions = d[:pos].filter_map { |p| positions[p] }
 
       puts "  ユーザー: #{user.name} (@#{user.user_id})"
-      { user: user, **d }
+      { user:, **d }
     end
 
     # シーズン作成
@@ -101,11 +101,11 @@ namespace :screenshot_data do
 
     users.each do |u|
       user = u[:user]
-      season = Season.find_by(user: user, name: '2026年春季')
+      season = Season.find_by(user:, name: '2026年春季')
       game_count = rand(5..8)
 
       game_count.times do |i|
-        game_date = base_date + i * rand(3..5)
+        game_date = base_date + (i * rand(3..5))
         opponent = opponent_teams.sample
         my_score = rand(0..12)
         opp_score = rand(0..8)
@@ -113,12 +113,12 @@ namespace :screenshot_data do
 
         ActiveRecord::Base.transaction do
           # GameResultを先に作成
-          game_result = GameResult.create!(user: user, created_at: game_time, updated_at: game_time)
+          game_result = GameResult.create!(user:, created_at: game_time, updated_at: game_time)
 
           # MatchResult作成（game_resultを渡す）
           match_result = MatchResult.create!(
-            game_result: game_result,
-            user: user,
+            game_result:,
+            user:,
             my_team_id: team.id,
             opponent_team_id: opponent.id,
             date_and_time: game_time,
@@ -134,36 +134,48 @@ namespace :screenshot_data do
           # BattingAverage作成（リアルな成績）
           at_bats = rand(2..5)
           hit = weighted_hit(at_bats)
-          two_base = hit > 0 ? (rand < 0.2 ? 1 : 0) : 0
-          three_base = hit > 1 ? (rand < 0.05 ? 1 : 0) : 0
-          home_run = hit > 0 ? (rand < 0.08 ? 1 : 0) : 0
+          two_base = if hit > 0
+                       rand < 0.2 ? 1 : 0
+                     else
+                       0
+                     end
+          three_base = if hit > 1
+                         rand < 0.05 ? 1 : 0
+                       else
+                         0
+                       end
+          home_run = if hit > 0
+                       rand < 0.08 ? 1 : 0
+                     else
+                       0
+                     end
           single = [hit - two_base - three_base - home_run, 0].max
-          total_bases = single + two_base * 2 + three_base * 3 + home_run * 4
+          total_bases = single + (two_base * 2) + (three_base * 3) + (home_run * 4)
           bb = rand < 0.3 ? rand(0..2) : 0
           hbp = rand < 0.05 ? 1 : 0
           sf = rand < 0.08 ? 1 : 0
           sh = rand < 0.1 ? 1 : 0
           times_at_bat = at_bats + bb + hbp + sf + sh
-          rbi = (hit > 0 && rand < 0.4) ? rand(1..3) : 0
-          run = (hit > 0 && rand < 0.3) ? 1 : 0
+          rbi = hit > 0 && rand < 0.4 ? rand(1..3) : 0
+          run = hit > 0 && rand < 0.3 ? 1 : 0
           so = at_bats - hit > 0 ? rand(0..[at_bats - hit, 2].min) : 0
           sb = rand < 0.15 ? rand(1..2) : 0
           cs = sb > 0 && rand < 0.3 ? 1 : 0
           error = rand < 0.05 ? 1 : 0
 
           batting = BattingAverage.create!(
-            user: user,
-            game_result: game_result,
+            user:,
+            game_result:,
             plate_appearances: times_at_bat,
-            times_at_bat: times_at_bat,
-            at_bats: at_bats,
-            hit: hit,
+            times_at_bat:,
+            at_bats:,
+            hit:,
             two_base_hit: two_base,
             three_base_hit: three_base,
-            home_run: home_run,
-            total_bases: total_bases,
+            home_run:,
+            total_bases:,
             runs_batted_in: rbi,
-            run: run,
+            run:,
             strike_out: so,
             base_on_balls: bb,
             hit_by_pitch: hbp,
@@ -171,7 +183,7 @@ namespace :screenshot_data do
             sacrifice_fly: sf,
             stealing_base: sb,
             caught_stealing: cs,
-            error: error
+            error:
           )
           game_result.update!(batting_average_id: batting.id)
 
@@ -182,10 +194,10 @@ namespace :screenshot_data do
           if u[:is_pitcher]
             ip_whole = rand(5..9)
             ip_frac = [0, 1, 2].sample
-            innings = ip_whole + ip_frac / 3.0
+            innings = ip_whole + (ip_frac / 3.0)
             pitching = PitchingResult.create!(
-              user: user,
-              game_result: game_result,
+              user:,
+              game_result:,
               win: my_score > opp_score ? 1 : 0,
               loss: my_score < opp_score ? 1 : 0,
               hold: 0,
@@ -219,8 +231,8 @@ namespace :screenshot_data do
     # メンバー追加
     users.each do |u|
       user = u[:user]
-      GroupUser.find_or_create_by!(user: user, group: group)
-      GroupInvitation.find_or_create_by!(user: user, group: group) do |inv|
+      GroupUser.find_or_create_by!(user:, group:)
+      GroupInvitation.find_or_create_by!(user:, group:) do |inv|
         inv.state = :accepted
         inv.sent_at = Time.current
         inv.responded_at = Time.current
@@ -234,20 +246,20 @@ namespace :screenshot_data do
       Relationship.find_or_create_by!(follower_id: a.id, followed_id: b.id) { |r| r.status = :accepted }
       Relationship.find_or_create_by!(follower_id: b.id, followed_id: a.id) { |r| r.status = :accepted }
     end
-    puts "    相互フォロー設定完了"
+    puts '    相互フォロー設定完了'
 
     # ランキングスナップショット更新
     begin
       Group.all.each do |g|
         GroupRankingSnapshotService.new(g, g.users).update_snapshots
       end
-      puts "    ランキングスナップショット更新完了"
-    rescue => e
+      puts '    ランキングスナップショット更新完了'
+    rescue StandardError => e
       puts "    ランキングスナップショット更新スキップ: #{e.message}"
     end
 
     puts 'スクリーンショット用データの作成が完了しました！'
-    puts "メインアカウント: buzz_taro@example.com / password123"
+    puts 'メインアカウント: buzz_taro@example.com / password123'
   end
 end
 
@@ -277,8 +289,8 @@ def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_ba
 
   results.shuffle.each_with_index do |result, i|
     PlateAppearance.create!(
-      game_result: game_result,
-      user: user,
+      game_result:,
+      user:,
       batter_box_number: i + 1,
       batting_result: result
     )
