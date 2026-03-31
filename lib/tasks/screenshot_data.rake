@@ -1,6 +1,6 @@
-namespace :screenshot_data do # rubocop:disable Metrics/BlockLength
+namespace :screenshot_data do
   desc 'スクリーンショット用のデモデータを作成'
-  task create: :environment do # rubocop:disable Metrics/BlockLength
+  task create: :environment do
     puts 'スクリーンショット用データを作成中...'
 
     # チーム作成

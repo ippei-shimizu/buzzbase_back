@@ -11,18 +11,24 @@ AllCops:
 require:
   - rubocop-rails
   - rubocop-capybara
+  - rubocop-performance
+  - rubocop-rspec
+  - rubocop-factory_bot
 
 Style/Documentation:
+  Enabled: false
+
+Style/FrozenStringLiteralComment:
   Enabled: false
 
 Metrics/MethodLength:
   Max: 30
 
 Metrics/AbcSize:
-  Max: 100
+  Max: 30
 
 Layout/LineLength:
-  Max: 400 
+  Max: 140
 
 Metrics/CyclomaticComplexity:
   Max: 8
@@ -31,8 +37,27 @@ Metrics/PerceivedComplexity:
   Max: 10
 
 Metrics/ClassLength:
-  Max: 150 
+  Max: 150
 
 Metrics/BlockLength:
   AllowedMethods: ['describe', 'context', 'rails_application_routes']
-  Max: 200 
+  Max: 50
+
+# RSpec: 実用的な設定（過度に厳しくしない）
+RSpec/ExampleLength:
+  Max: 20
+
+RSpec/MultipleExpectations:
+  Max: 8
+
+RSpec/NestedGroups:
+  Max: 4
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+RSpec/ContextWording:
+  Enabled: false
+
+RSpec/IteratedExpectation:
+  Enabled: false
