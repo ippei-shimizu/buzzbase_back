@@ -21,8 +21,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         expect(response.headers['client']).to be_present
         expect(response.headers['uid']).to be_present
 
-        json = JSON.parse(response.body)
-        expect(json['requires_username']).to be true
+        expect(response.parsed_body['requires_username']).to be true
       end
 
       it 'provider: apple で作成される' do
@@ -48,8 +47,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
 
         expect(response).to have_http_status(:ok)
 
-        json = JSON.parse(response.body)
-        expect(json['requires_username']).to be false
+        expect(response.parsed_body['requires_username']).to be false
       end
     end
 
@@ -90,8 +88,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         post '/api/v1/apple_sign_in', params: { identity_token: 'invalid_token' }
 
         expect(response).to have_http_status(:unauthorized)
-        json = JSON.parse(response.body)
-        expect(json['errors']).to include('Apple IDトークンの検証に失敗しました')
+        expect(response.parsed_body['errors']).to include('Apple IDトークンの検証に失敗しました')
       end
     end
 
@@ -104,8 +101,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
 
         expect(response).to have_http_status(:unauthorized)
-        json = JSON.parse(response.body)
-        expect(json['errors']).to include('アカウントが停止されています')
+        expect(response.parsed_body['errors']).to include('アカウントが停止されています')
       end
     end
 
@@ -118,8 +114,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
 
         expect(response).to have_http_status(:unauthorized)
-        json = JSON.parse(response.body)
-        expect(json['errors']).to include('アカウントが削除されています')
+        expect(response.parsed_body['errors']).to include('アカウントが削除されています')
       end
     end
 

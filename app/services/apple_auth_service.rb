@@ -4,8 +4,8 @@ require 'jwt'
 class AppleAuthService
   class InvalidToken < StandardError; end
 
-  APPLE_JWKS_URI = 'https://appleid.apple.com/auth/keys'
-  APPLE_ISSUER = 'https://appleid.apple.com'
+  APPLE_JWKS_URI = 'https://appleid.apple.com/auth/keys'.freeze
+  APPLE_ISSUER = 'https://appleid.apple.com'.freeze
   JWKS_CACHE_TTL = 24.hours
 
   def self.verify(identity_token, full_name: nil)
