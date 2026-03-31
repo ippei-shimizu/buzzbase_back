@@ -13,7 +13,8 @@ module Api
       def show
         group = Group.find(params[:id])
 
-        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user, state: 'accepted')
+        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user,
+                                                                                                                 state: 'accepted')
 
         accepted_users = group.accepted_users
         batting_averages = accepted_users.map do |user|
@@ -64,7 +65,8 @@ module Api
 
       def update_group_info
         group = Group.find(params[:id])
-        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user, state: 'accepted')
+        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user,
+                                                                                                                 state: 'accepted')
 
         if group.update(group_params)
           render json: group, status: :ok
@@ -76,7 +78,8 @@ module Api
       def show_group_user
         group = Group.find(params[:id])
 
-        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user, state: 'accepted')
+        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user,
+                                                                                                                 state: 'accepted')
 
         accepted_users = group.accepted_users
         group_creator_id = GroupUser.find_by(group_id: group.id)&.user_id
@@ -87,7 +90,8 @@ module Api
 
       def invite_members
         group = Group.find(params[:id])
-        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user, state: 'accepted')
+        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user,
+                                                                                                                 state: 'accepted')
 
         user_ids = invite_user_ids_params.map(&:to_i)
         invite_users(group, user_ids)
@@ -99,7 +103,8 @@ module Api
 
       def destroy
         group = Group.find(params[:id])
-        return render json: { error: '削除権限がありません' }, status: :forbidden unless GroupUser.exists?(user_id: current_api_v1_user.id, group_id: group.id)
+        return render json: { error: '削除権限がありません' }, status: :forbidden unless GroupUser.exists?(user_id: current_api_v1_user.id,
+                                                                                                 group_id: group.id)
 
         group.destroy
         render json: { message: 'グループが削除されました' }, status: :ok
