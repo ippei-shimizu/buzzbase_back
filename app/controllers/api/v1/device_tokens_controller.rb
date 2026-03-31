@@ -4,6 +4,11 @@ module Api
       before_action :authenticate_api_v1_user!
 
       def create
+        # 別ユーザーに紐づいている同じデバイストークンがあれば削除
+        DeviceToken.where(token: device_token_params[:token])
+                   .where.not(user: current_api_v1_user)
+                   .destroy_all
+
         token = current_api_v1_user.device_tokens.find_or_initialize_by(
           token: device_token_params[:token]
         )
