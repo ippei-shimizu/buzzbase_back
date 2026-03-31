@@ -52,14 +52,14 @@ RSpec.describe AppleAuthService do
 
       it 'full_nameが指定された場合はnameを返す' do
         full_name = { given_name: '太郎', family_name: '山田' }
-        result = described_class.verify(identity_token, full_name: full_name)
+        result = described_class.verify(identity_token, full_name:)
 
         expect(result[:name]).to eq('山田 太郎')
       end
 
       it 'full_nameが文字列キーの場合もnameを返す' do
         full_name = { 'given_name' => '太郎', 'family_name' => '山田' }
-        result = described_class.verify(identity_token, full_name: full_name)
+        result = described_class.verify(identity_token, full_name:)
 
         expect(result[:name]).to eq('山田 太郎')
       end

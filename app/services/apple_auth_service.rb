@@ -17,7 +17,7 @@ class AppleAuthService
       true,
       {
         algorithms: ['RS256'],
-        jwks: jwks,
+        jwks:,
         iss: APPLE_ISSUER,
         verify_iss: true,
         aud: bundle_id,
@@ -30,7 +30,7 @@ class AppleAuthService
     {
       email: payload['email'],
       uid: payload['sub'],
-      name: name
+      name:
     }
   rescue JWT::DecodeError, JWT::ExpiredSignature, JWT::InvalidIssuerError, JWT::InvalidAudError => e
     raise InvalidToken, "Apple IDトークンの検証に失敗しました: #{e.message}"

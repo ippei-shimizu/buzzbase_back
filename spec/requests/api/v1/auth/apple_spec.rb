@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe 'Api::V1::Auth::Apple', type: :request do
   let(:apple_uid) { '001234.abcdef1234567890.1234' }
   let(:email) { 'apple-user@privaterelay.appleid.com' }
-  let(:apple_data) { { uid: apple_uid, email: email, name: '山田 太郎' } }
+  let(:apple_data) { { uid: apple_uid, email:, name: '山田 太郎' } }
 
   before do
     allow(AppleAuthService).to receive(:verify).and_return(apple_data)
@@ -12,9 +12,9 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
   describe 'POST /api/v1/apple_sign_in' do
     context '新規ユーザーの場合' do
       it 'ユーザーを作成してログインする' do
-        expect {
+        expect do
           post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
-        }.to change(User, :count).by(1)
+        end.to change(User, :count).by(1)
 
         expect(response).to have_http_status(:ok)
         expect(response.headers['access-token']).to be_present
@@ -38,13 +38,13 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
 
     context '既存のAppleユーザーの場合' do
       let!(:existing_user) do
-        create(:user, provider: 'apple', uid: apple_uid, email: email, user_id: 'yamada')
+        create(:user, provider: 'apple', uid: apple_uid, email:, user_id: 'yamada')
       end
 
       it '既存ユーザーでログインする' do
-        expect {
+        expect do
           post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
-        }.not_to change(User, :count)
+        end.not_to change(User, :count)
 
         expect(response).to have_http_status(:ok)
 
@@ -55,13 +55,13 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
 
     context 'メールアドレスが既存のユーザーと一致する場合' do
       let!(:existing_user) do
-        create(:user, provider: 'email', uid: email, email: email, user_id: 'yamada')
+        create(:user, provider: 'email', uid: email, email:, user_id: 'yamada')
       end
 
       it 'providerをappleに更新してリンクする' do
-        expect {
+        expect do
           post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
-        }.not_to change(User, :count)
+        end.not_to change(User, :count)
 
         expect(response).to have_http_status(:ok)
 
@@ -97,7 +97,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
 
     context 'アカウントが停止されている場合' do
       let!(:suspended_user) do
-        create(:user, provider: 'apple', uid: apple_uid, email: email, suspended_at: Time.current)
+        create(:user, provider: 'apple', uid: apple_uid, email:, suspended_at: Time.current)
       end
 
       it '401を返す' do
@@ -111,7 +111,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
 
     context 'アカウントが削除されている場合' do
       let!(:deleted_user) do
-        create(:user, provider: 'apple', uid: apple_uid, email: email, deleted_at: Time.current)
+        create(:user, provider: 'apple', uid: apple_uid, email:, deleted_at: Time.current)
       end
 
       it '401を返す' do
@@ -124,7 +124,7 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
     end
 
     context 'full_nameが送信された場合' do
-      let(:apple_data) { { uid: apple_uid, email: email, name: '山田 太郎' } }
+      let(:apple_data) { { uid: apple_uid, email:, name: '山田 太郎' } }
 
       it 'nameが保存される' do
         post '/api/v1/apple_sign_in', params: {
