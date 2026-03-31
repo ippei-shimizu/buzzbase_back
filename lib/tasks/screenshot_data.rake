@@ -1,6 +1,6 @@
-namespace :screenshot_data do
+namespace :screenshot_data do # rubocop:disable Metrics/BlockLength
   desc 'スクリーンショット用のデモデータを作成'
-  task create: :environment do
+  task create: :environment do # rubocop:disable Metrics/BlockLength
     puts 'スクリーンショット用データを作成中...'
 
     # チーム作成
@@ -134,7 +134,7 @@ namespace :screenshot_data do
           # BattingAverage作成（リアルな成績）
           at_bats = rand(2..5)
           hit = weighted_hit(at_bats)
-          two_base = if hit > 0
+          two_base = if hit.positive?
                        rand < 0.2 ? 1 : 0
                      else
                        0
@@ -144,7 +144,7 @@ namespace :screenshot_data do
                        else
                          0
                        end
-          home_run = if hit > 0
+          home_run = if hit.positive?
                        rand < 0.08 ? 1 : 0
                      else
                        0
@@ -156,11 +156,11 @@ namespace :screenshot_data do
           sf = rand < 0.08 ? 1 : 0
           sh = rand < 0.1 ? 1 : 0
           times_at_bat = at_bats + bb + hbp + sf + sh
-          rbi = hit > 0 && rand < 0.4 ? rand(1..3) : 0
-          run = hit > 0 && rand < 0.3 ? 1 : 0
-          so = at_bats - hit > 0 ? rand(0..[at_bats - hit, 2].min) : 0
+          rbi = hit.positive? && rand < 0.4 ? rand(1..3) : 0
+          run = hit.positive? && rand < 0.3 ? 1 : 0
+          so = (at_bats - hit).positive? ? rand(0..[at_bats - hit, 2].min) : 0
           sb = rand < 0.15 ? rand(1..2) : 0
-          cs = sb > 0 && rand < 0.3 ? 1 : 0
+          cs = sb.positive? && rand < 0.3 ? 1 : 0
           error = rand < 0.05 ? 1 : 0
 
           batting = BattingAverage.create!(
@@ -188,13 +188,17 @@ namespace :screenshot_data do
           game_result.update!(batting_average_id: batting.id)
 
           # 打席結果作成
-          create_plate_appearances(game_result, user, at_bats, hit, two_base, three_base, home_run, bb, hbp, so, sf, sh)
+          create_plate_appearances(
+            game_result:, user:, at_bats:, hit:,
+            two_base:, three_base:, home_run:,
+            base_on_balls: bb, hit_by_pitch: hbp, strike_out: so, sacrifice_fly: sf, sacrifice_hit: sh
+          )
 
           # 投手成績（バズ太郎のみ）
           if u[:is_pitcher]
             ip_whole = rand(5..9)
             ip_frac = [0, 1, 2].sample
-            innings = ip_whole + (ip_frac / 3.0)
+            innings = (ip_whole + (ip_frac / 3.0)).round(1)
             pitching = PitchingResult.create!(
               user:,
               game_result:,
@@ -241,7 +245,7 @@ namespace :screenshot_data do
     puts "    メンバー: #{group.group_users.count}人"
 
     # フォロー関係（全員相互フォロー）
-    all_users = users.map { |u| u[:user] }
+    all_users = users.pluck(:user)
     all_users.combination(2).each do |a, b|
       Relationship.find_or_create_by!(follower_id: a.id, followed_id: b.id) { |r| r.status = :accepted }
       Relationship.find_or_create_by!(follower_id: b.id, followed_id: a.id) { |r| r.status = :accepted }
@@ -250,7 +254,7 @@ namespace :screenshot_data do
 
     # ランキングスナップショット更新
     begin
-      Group.all.each do |g|
+      Group.find_each do |g|
         GroupRankingSnapshotService.new(g, g.users).update_snapshots
       end
       puts '    ランキングスナップショット更新完了'
@@ -270,7 +274,34 @@ def weighted_hit(at_bats)
   hits
 end
 
-def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_base, home_run, bb, hbp, so, sf, sh)
+# 打撃結果の定義: [result_id, position_ids, short_form]
+# position_ids: その結果で使いうるポジションID群
+BATTING_RESULT_MAP = {
+  'single' => { result_id: 7,  positions: (1..9).to_a, short: '安' },
+  'double' => { result_id: 8,  positions: [7, 8, 9],   short: '二' },
+  'triple' => { result_id: 9,  positions: [7, 8, 9],   short: '三' },
+  'home_run' => { result_id: 10, positions: [7, 8, 9], short: '本' },
+  'strikeout' => { result_id: 13, positions: [0], short: '三振' },
+  'walk' => { result_id: 15, positions: [0], short: '四球' },
+  'hit_by_pitch' => { result_id: 16, positions: [0], short: '死球' },
+  'sacrifice_fly' => { result_id: 12, positions: [7, 8, 9], short: '犠飛' },
+  'sacrifice_hit' => { result_id: 11, positions: [1, 2, 3], short: '犠打' },
+  'groundout' => { result_id: 1,  positions: (1..6).to_a, short: 'ゴ' },
+  'flyout' => { result_id: 2, positions: [7, 8, 9], short: '飛' },
+  'lineout' => { result_id: 4, positions: (1..9).to_a, short: '直' }
+}.freeze
+
+POSITION_LABELS = { 0 => '', 1 => '投', 2 => '捕', 3 => '一', 4 => '二', 5 => '三', 6 => '遊', 7 => '左', 8 => '中', 9 => '右' }.freeze
+
+def create_plate_appearances(**params) # rubocop:disable Metrics/MethodLength
+  game_result = params[:game_result]
+  user = params[:user]
+  at_bats = params[:at_bats]
+  hit = params[:hit]
+  two_base = params[:two_base]
+  three_base = params[:three_base]
+  home_run = params[:home_run]
+
   results = []
 
   single = [hit - two_base - three_base - home_run, 0].max
@@ -278,21 +309,29 @@ def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_ba
   two_base.times { results << 'double' }
   three_base.times { results << 'triple' }
   home_run.times { results << 'home_run' }
-  so.times { results << 'strikeout' }
-  bb.times { results << 'walk' }
-  hbp.times { results << 'hit_by_pitch' }
-  sf.times { results << 'sacrifice_fly' }
-  sh.times { results << 'sacrifice_hit' }
+  params[:strike_out].times { results << 'strikeout' }
+  params[:base_on_balls].times { results << 'walk' }
+  params[:hit_by_pitch].times { results << 'hit_by_pitch' }
+  params[:sacrifice_fly].times { results << 'sacrifice_fly' }
+  params[:sacrifice_hit].times { results << 'sacrifice_hit' }
 
-  remaining = at_bats - hit - so
-  remaining.times { results << %w[groundout flyout lineout].sample } if remaining > 0
+  remaining = at_bats - hit - params[:strike_out]
+  remaining.times { results << %w[groundout flyout lineout].sample } if remaining.positive?
 
-  results.shuffle.each_with_index do |result, i|
+  results.shuffle.each_with_index do |result_key, i|
+    mapping = BATTING_RESULT_MAP[result_key]
+    position_id = mapping[:positions].sample
+    result_id = mapping[:result_id]
+    position_label = POSITION_LABELS[position_id] || ''
+    batting_result = "#{position_label}#{mapping[:short]}"
+
     PlateAppearance.create!(
       game_result:,
       user:,
       batter_box_number: i + 1,
-      batting_result: result
+      batting_result:,
+      batting_position_id: position_id,
+      plate_result_id: result_id
     )
   end
 end

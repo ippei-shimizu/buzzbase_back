@@ -37,18 +37,22 @@ class User < ActiveRecord::Base
 
   after_commit :notify_slack_new_user, on: :create
 
-  validates :password, custom_password: true, on: :create, unless: -> { provider == 'google' }
+  validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
   validates :user_id, uniqueness: true, allow_blank: true
   validates :introduction, length: { maximum: 100 }
 
   def password_required?
-    return false if provider == 'google'
+    return false if provider.in?(%w[google apple])
 
     super
   end
 
   def google_account?
     provider == 'google'
+  end
+
+  def apple_account?
+    provider == 'apple'
   end
 
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
