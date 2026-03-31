@@ -194,7 +194,7 @@ namespace :screenshot_data do
           if u[:is_pitcher]
             ip_whole = rand(5..9)
             ip_frac = [0, 1, 2].sample
-            innings = ip_whole + (ip_frac / 3.0)
+            innings = (ip_whole + (ip_frac / 3.0)).round(1)
             pitching = PitchingResult.create!(
               user:,
               game_result:,
@@ -270,6 +270,25 @@ def weighted_hit(at_bats)
   hits
 end
 
+# 打撃結果の定義: [result_id, position_ids, short_form]
+# position_ids: その結果で使いうるポジションID群
+BATTING_RESULT_MAP = {
+  'single'        => { result_id: 7,  positions: (1..9).to_a, short: '安' },
+  'double'        => { result_id: 8,  positions: [7, 8, 9],   short: '二' },
+  'triple'        => { result_id: 9,  positions: [7, 8, 9],   short: '三' },
+  'home_run'      => { result_id: 10, positions: [7, 8, 9],   short: '本' },
+  'strikeout'     => { result_id: 13, positions: [0],          short: '三振' },
+  'walk'          => { result_id: 15, positions: [0],          short: '四球' },
+  'hit_by_pitch'  => { result_id: 16, positions: [0],          short: '死球' },
+  'sacrifice_fly' => { result_id: 12, positions: [7, 8, 9],   short: '犠飛' },
+  'sacrifice_hit' => { result_id: 11, positions: [1, 2, 3],   short: '犠打' },
+  'groundout'     => { result_id: 1,  positions: (1..6).to_a, short: 'ゴ' },
+  'flyout'        => { result_id: 2,  positions: [7, 8, 9],   short: '飛' },
+  'lineout'       => { result_id: 4,  positions: (1..9).to_a, short: '直' }
+}.freeze
+
+POSITION_LABELS = { 0 => '', 1 => '投', 2 => '捕', 3 => '一', 4 => '二', 5 => '三', 6 => '遊', 7 => '左', 8 => '中', 9 => '右' }.freeze
+
 def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_base, home_run, bb, hbp, so, sf, sh)
   results = []
 
@@ -287,12 +306,20 @@ def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_ba
   remaining = at_bats - hit - so
   remaining.times { results << %w[groundout flyout lineout].sample } if remaining > 0
 
-  results.shuffle.each_with_index do |result, i|
+  results.shuffle.each_with_index do |result_key, i|
+    mapping = BATTING_RESULT_MAP[result_key]
+    position_id = mapping[:positions].sample
+    result_id = mapping[:result_id]
+    position_label = POSITION_LABELS[position_id] || ''
+    batting_result = "#{position_label}#{mapping[:short]}"
+
     PlateAppearance.create!(
       game_result:,
       user:,
       batter_box_number: i + 1,
-      batting_result: result
+      batting_result: batting_result,
+      batting_position_id: position_id,
+      plate_result_id: result_id
     )
   end
 end
