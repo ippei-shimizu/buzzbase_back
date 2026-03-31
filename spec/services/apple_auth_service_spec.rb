@@ -20,11 +20,18 @@ RSpec.describe AppleAuthService do
   end
 
   let(:jwk) { JWT::JWK.new(apple_private_key, kid: 'test-key-id') }
-  let(:jwks_set) { JWT::JWK::Set.new(jwk) }
 
   let(:identity_token) do
     JWT.encode(valid_payload, apple_private_key, 'RS256', { kid: 'test-key-id' })
   end
+
+  let(:jwks_response) do
+    response = instance_double(Net::HTTPSuccess, body: { 'keys' => [jwk.export] }.to_json)
+    allow(response).to receive(:is_a?).with(Net::HTTPRedirection).and_return(false)
+    response
+  end
+
+  let(:mock_http) { instance_double(Net::HTTP) }
 
   before do
     # JWKSキャッシュをリセット
@@ -34,10 +41,10 @@ RSpec.describe AppleAuthService do
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('APPLE_BUNDLE_ID', 'jp.buzzbase.mobile').and_return(bundle_id)
 
-    # Apple JWKSエンドポイントをモック
-    allow(Net::HTTP).to receive(:get).with(URI('https://appleid.apple.com/keys')).and_return(
-      { 'keys' => [jwk.export] }.to_json
-    )
+    # Net::HTTP をモック
+    allow(Net::HTTP).to receive(:new).and_return(mock_http)
+    allow(mock_http).to receive(:use_ssl=)
+    allow(mock_http).to receive(:request).and_return(jwks_response)
   end
 
   describe '.verify' do
@@ -113,7 +120,7 @@ RSpec.describe AppleAuthService do
 
     context 'JWKS取得に失敗した場合' do
       before do
-        allow(Net::HTTP).to receive(:get).and_raise(SocketError, 'Failed to connect')
+        allow(mock_http).to receive(:request).and_raise(SocketError, 'Failed to connect')
       end
 
       it 'InvalidTokenを発生させる' do
