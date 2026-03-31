@@ -42,6 +42,8 @@ module Api
               user.update!(attrs)
               return user
             end
+          else
+            raise AppleAuthService::InvalidToken, 'メールアドレスが取得できませんでした'
           end
 
           User.create!(

@@ -132,5 +132,30 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         expect(user.name).to eq('山田 太郎')
       end
     end
+
+    context 'emailがnilの場合（新規ユーザー）' do
+      let(:apple_data) { { uid: apple_uid, email: nil, name: nil } }
+
+      it '401を返す' do
+        post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('メールアドレスが取得できませんでした')
+      end
+    end
+
+    context 'emailがnilだが既存のAppleユーザーの場合' do
+      let(:apple_data) { { uid: apple_uid, email: nil, name: nil } }
+
+      let!(:existing_user) do
+        create(:user, provider: 'apple', uid: apple_uid, email: 'existing@example.com', user_id: 'yamada')
+      end
+
+      it 'uidで既存ユーザーを見つけてログインできる' do
+        post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
   end
 end
