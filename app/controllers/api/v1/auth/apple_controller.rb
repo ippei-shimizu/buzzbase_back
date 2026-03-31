@@ -34,16 +34,14 @@ module Api
           user = User.find_by(provider: 'apple', uid: apple_data[:uid])
           return user if user
 
-          if apple_data[:email].present?
-            user = User.find_by(email: apple_data[:email])
-            if user
-              attrs = { provider: 'apple', uid: apple_data[:uid] }
-              attrs[:confirmed_at] = Time.current if user.confirmed_at.blank?
-              user.update!(attrs)
-              return user
-            end
-          else
-            raise AppleAuthService::InvalidToken, 'メールアドレスが取得できませんでした'
+          raise AppleAuthService::InvalidToken, 'メールアドレスが取得できませんでした' if apple_data[:email].blank?
+
+          user = User.find_by(email: apple_data[:email])
+          if user
+            attrs = { provider: 'apple', uid: apple_data[:uid] }
+            attrs[:confirmed_at] = Time.current if user.confirmed_at.blank?
+            user.update!(attrs)
+            return user
           end
 
           User.create!(
