@@ -22,6 +22,7 @@ module Api
             requires_username: user.user_id.blank?
           }, status: :ok
         rescue AppleAuthService::InvalidToken => e
+          Rails.logger.error "Apple Auth Error: #{e.message}"
           render json: { errors: [e.message] }, status: :unauthorized
         rescue ActiveRecord::RecordInvalid => e
           render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity

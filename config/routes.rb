@@ -21,7 +21,7 @@ Rails.application.routes.draw do
       post 'google_sign_in', to: 'auth/google#create'
       post 'apple_sign_in', to: 'auth/apple#create'
 
-      resource :user, only: %i[update show] do
+      resource :user, only: %i[show update destroy] do
         put :update_positions
       end
 
