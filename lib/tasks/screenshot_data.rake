@@ -273,18 +273,18 @@ end
 # 打撃結果の定義: [result_id, position_ids, short_form]
 # position_ids: その結果で使いうるポジションID群
 BATTING_RESULT_MAP = {
-  'single'        => { result_id: 7,  positions: (1..9).to_a, short: '安' },
-  'double'        => { result_id: 8,  positions: [7, 8, 9],   short: '二' },
-  'triple'        => { result_id: 9,  positions: [7, 8, 9],   short: '三' },
-  'home_run'      => { result_id: 10, positions: [7, 8, 9],   short: '本' },
-  'strikeout'     => { result_id: 13, positions: [0],          short: '三振' },
-  'walk'          => { result_id: 15, positions: [0],          short: '四球' },
-  'hit_by_pitch'  => { result_id: 16, positions: [0],          short: '死球' },
+  'single' => { result_id: 7,  positions: (1..9).to_a, short: '安' },
+  'double' => { result_id: 8,  positions: [7, 8, 9],   short: '二' },
+  'triple' => { result_id: 9,  positions: [7, 8, 9],   short: '三' },
+  'home_run' => { result_id: 10, positions: [7, 8, 9], short: '本' },
+  'strikeout' => { result_id: 13, positions: [0], short: '三振' },
+  'walk' => { result_id: 15, positions: [0], short: '四球' },
+  'hit_by_pitch' => { result_id: 16, positions: [0],          short: '死球' },
   'sacrifice_fly' => { result_id: 12, positions: [7, 8, 9],   short: '犠飛' },
   'sacrifice_hit' => { result_id: 11, positions: [1, 2, 3],   short: '犠打' },
-  'groundout'     => { result_id: 1,  positions: (1..6).to_a, short: 'ゴ' },
-  'flyout'        => { result_id: 2,  positions: [7, 8, 9],   short: '飛' },
-  'lineout'       => { result_id: 4,  positions: (1..9).to_a, short: '直' }
+  'groundout' => { result_id: 1,  positions: (1..6).to_a, short: 'ゴ' },
+  'flyout' => { result_id: 2, positions: [7, 8, 9], short: '飛' },
+  'lineout' => { result_id: 4, positions: (1..9).to_a, short: '直' }
 }.freeze
 
 POSITION_LABELS = { 0 => '', 1 => '投', 2 => '捕', 3 => '一', 4 => '二', 5 => '三', 6 => '遊', 7 => '左', 8 => '中', 9 => '右' }.freeze
@@ -317,7 +317,7 @@ def create_plate_appearances(game_result, user, at_bats, hit, two_base, three_ba
       game_result:,
       user:,
       batter_box_number: i + 1,
-      batting_result: batting_result,
+      batting_result:,
       batting_position_id: position_id,
       plate_result_id: result_id
     )
