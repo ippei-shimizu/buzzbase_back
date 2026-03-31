@@ -7,7 +7,7 @@ module Api
         def create
           raise AppleAuthService::InvalidToken, 'IDトークンが指定されていません' if params[:identity_token].blank?
 
-          apple_data = AppleAuthService.verify(params[:identity_token], full_name: params[:full_name])
+          apple_data = AppleAuthService.verify(params[:identity_token], full_name: full_name_params)
 
           user = find_or_create_user(apple_data)
 
@@ -34,11 +34,14 @@ module Api
           user = User.find_by(provider: 'apple', uid: apple_data[:uid])
           return user if user
 
-          user = User.find_by(email: apple_data[:email])
-          if user
-            user.update!(provider: 'apple', uid: apple_data[:uid])
-            user.update!(confirmed_at: Time.current) if user.confirmed_at.blank?
-            return user
+          if apple_data[:email].present?
+            user = User.find_by(email: apple_data[:email])
+            if user
+              attrs = { provider: 'apple', uid: apple_data[:uid] }
+              attrs[:confirmed_at] = Time.current if user.confirmed_at.blank?
+              user.update!(attrs)
+              return user
+            end
           end
 
           User.create!(
@@ -48,6 +51,10 @@ module Api
             name: apple_data[:name],
             confirmed_at: Time.current
           )
+        end
+
+        def full_name_params
+          params.permit(full_name: %i[given_name family_name])[:full_name]
         end
       end
     end

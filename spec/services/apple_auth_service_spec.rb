@@ -118,6 +118,26 @@ RSpec.describe AppleAuthService do
       end
     end
 
+    context 'email_verifiedがfalseの場合' do
+      let(:valid_payload) do
+        {
+          'iss' => 'https://appleid.apple.com',
+          'aud' => bundle_id,
+          'exp' => 1.hour.from_now.to_i,
+          'iat' => Time.current.to_i,
+          'sub' => apple_user_id,
+          'email' => email,
+          'email_verified' => 'false'
+        }
+      end
+
+      it 'InvalidTokenを発生させる' do
+        expect { described_class.verify(identity_token) }.to raise_error(
+          described_class::InvalidToken, 'メールアドレスが未検証です'
+        )
+      end
+    end
+
     context 'JWKS取得に失敗した場合' do
       before do
         allow(mock_http).to receive(:request).and_raise(SocketError, 'Failed to connect')

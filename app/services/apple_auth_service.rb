@@ -25,6 +25,8 @@ class AppleAuthService
       }
     )
 
+    raise InvalidToken, 'メールアドレスが未検証です' unless payload['email_verified'] == 'true' || payload['email_verified'] == true
+
     name = build_name(full_name)
 
     {
@@ -40,13 +42,17 @@ class AppleAuthService
     raise
   end
 
+  @mutex = Mutex.new
+
   def self.jwks
-    if @jwks_cache.nil? || @jwks_cache_expires_at.nil? || @jwks_cache_expires_at < Time.current
-      response = fetch_jwks
-      @jwks_cache = JWT::JWK::Set.new(JSON.parse(response))
-      @jwks_cache_expires_at = Time.current + JWKS_CACHE_TTL
+    @mutex.synchronize do
+      if @jwks_cache.nil? || @jwks_cache_expires_at.nil? || @jwks_cache_expires_at < Time.current
+        response = fetch_jwks
+        @jwks_cache = JWT::JWK::Set.new(JSON.parse(response))
+        @jwks_cache_expires_at = Time.current + JWKS_CACHE_TTL
+      end
+      @jwks_cache
     end
-    @jwks_cache
   end
 
   def self.fetch_jwks
