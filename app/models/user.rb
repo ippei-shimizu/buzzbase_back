@@ -39,6 +39,8 @@ class User < ActiveRecord::Base
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
   validates :user_id, uniqueness: true, allow_blank: true
+  validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true
+  validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true
   validates :introduction, length: { maximum: 100 }
 
   def password_required?

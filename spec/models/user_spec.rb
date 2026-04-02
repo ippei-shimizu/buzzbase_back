@@ -1,6 +1,104 @@
 require 'rails_helper'
 
 RSpec.describe User, type: :model do
+  describe 'user_id validations' do
+    describe 'uniqueness' do
+      it 'allows unique user_id' do
+        create(:user, user_id: 'player_one')
+        user = build(:user, user_id: 'player_two')
+        expect(user).to be_valid
+      end
+
+      it 'rejects duplicate user_id' do
+        create(:user, user_id: 'player_one')
+        user = build(:user, user_id: 'player_one')
+        expect(user).not_to be_valid
+        expect(user.errors[:user_id]).to include('このユーザーIDは既に使われています')
+      end
+
+      it 'allows blank user_id' do
+        user = build(:user, user_id: '')
+        expect(user.errors[:user_id]).to be_empty
+      end
+    end
+
+    describe 'format' do
+      it 'allows alphanumeric characters' do
+        user = build(:user, user_id: 'Player123')
+        expect(user).to be_valid
+      end
+
+      it 'allows hyphens and underscores' do
+        user = build(:user, user_id: 'my-user_name')
+        expect(user).to be_valid
+      end
+
+      it 'rejects Japanese characters' do
+        user = build(:user, user_id: 'ユーザー名')
+        expect(user).not_to be_valid
+        expect(user.errors[:user_id]).to be_present
+      end
+
+      it 'rejects spaces' do
+        user = build(:user, user_id: 'my name')
+        expect(user).not_to be_valid
+      end
+
+      it 'rejects special characters' do
+        user = build(:user, user_id: 'user@name!')
+        expect(user).not_to be_valid
+      end
+    end
+
+    describe 'length' do
+      it 'rejects user_id shorter than 3 characters' do
+        user = build(:user, user_id: 'ab')
+        expect(user).not_to be_valid
+        expect(user.errors[:user_id]).to be_present
+      end
+
+      it 'allows user_id with exactly 3 characters' do
+        user = build(:user, user_id: 'abc')
+        expect(user).to be_valid
+      end
+
+      it 'allows user_id with exactly 30 characters' do
+        user = build(:user, user_id: 'a' * 30)
+        expect(user).to be_valid
+      end
+
+      it 'rejects user_id longer than 30 characters' do
+        user = build(:user, user_id: 'a' * 31)
+        expect(user).not_to be_valid
+        expect(user.errors[:user_id]).to be_present
+      end
+    end
+
+    describe 'user_id update' do
+      it 'allows changing user_id to a new valid value' do
+        user = create(:user, user_id: 'old_slug')
+        user.user_id = 'new_slug'
+        expect(user).to be_valid
+        expect(user.save).to be true
+        expect(user.reload.user_id).to eq('new_slug')
+      end
+
+      it 'rejects changing user_id to an existing one' do
+        create(:user, user_id: 'taken_slug')
+        user = create(:user, user_id: 'my_slug')
+        user.user_id = 'taken_slug'
+        expect(user).not_to be_valid
+      end
+
+      it 'preserves associated data after user_id change' do
+        user = create(:user, user_id: 'old_slug')
+        original_id = user.id
+        user.update!(user_id: 'new_slug')
+        expect(user.reload.id).to eq(original_id)
+      end
+    end
+  end
+
   describe 'scopes' do
     let!(:active_user) { create(:user) }
     let!(:suspended_user) { create(:user, suspended_at: Time.current, suspended_reason: 'test') }
