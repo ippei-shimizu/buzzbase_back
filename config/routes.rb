@@ -196,6 +196,14 @@ Rails.application.routes.draw do
           get 'filtered_user/:user_id', action: :filtered_show_user
         end
       end
+
+      resource :stats, only: [], controller: 'stats' do
+        get :hit_directions, on: :member
+        get :plate_appearance_breakdown, on: :member
+        get :batting, on: :member
+        get :pitching, on: :member
+        get :game_summary, on: :member
+      end
     end
   end
 
