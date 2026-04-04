@@ -2,8 +2,16 @@
 
 module Stats
   class PitchingStatsTableService
-    ZERO = 0
+    include Concerns::TableServiceConcern
+
     INNINGS_PER_GAME = 9
+
+    PITCHING_FIELDS = %w[
+      win loss hold saves complete_games shutouts innings_pitched
+      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch earned_run
+    ].freeze
+
+    PITCHING_SYMBOLS = PITCHING_FIELDS.map(&:to_sym).freeze
 
     # mode: :yearly, :monthly, :daily
     # year: required for :monthly and :daily
@@ -39,7 +47,7 @@ module Stats
       years = scope.select(Arel.sql('DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr'))
                    .filter_map(&:yr).sort
 
-      rows = years.map { |yr| build_row(label: yr.to_s, scope: scope_for_year(scope, yr)) }
+      rows = years.map { |year| build_row(label: year.to_s, scope: scope_for_year(scope, year)) }
       rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
@@ -63,10 +71,8 @@ module Stats
 
       rows = records.map do |pr|
         mr = pr.game_result.match_result
-        opponent_name = mr.opponent_team&.name || '不明'
-        date_str = mr.date_and_time.strftime('%m/%d')
-        row = build_single_row(label: date_str, pitching_result: pr)
-        row[:opponent] = opponent_name
+        row = compose_row(mr.date_and_time.strftime('%m/%d'), extract_pitching_stats(pr))
+        row[:opponent] = mr.opponent_team&.name || '不明'
         row
       end
 
@@ -75,23 +81,6 @@ module Stats
     end
 
     # --- helpers ---
-    def scope_for_year(scope, yr)
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
-                  "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
-    end
-
-    def scope_for_month(scope, mon)
-      if @year.present?
-        yr = @year.to_i
-        last_day = Date.new(yr, mon, -1).day
-        scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
-                    "#{yr}-#{format('%02d', mon)}-01 00:00:00",
-                    "#{yr}-#{format('%02d', mon)}-#{format('%02d', last_day)} 23:59:59")
-      else
-        scope.where('EXTRACT(MONTH FROM match_results.date_and_time) = ?', mon)
-      end
-    end
-
     def build_row(label:, scope:)
       agg = scope.select(aggregate_columns).reorder(nil).take
       return empty_row(label) unless agg
@@ -99,68 +88,76 @@ module Stats
       compose_row(label, agg.attributes)
     end
 
-    def build_single_row(label:, pitching_result:)
-      pr = pitching_result
-      stats = {
+    def extract_pitching_stats(pitching_result)
+      {
         'appearances' => 1,
-        'win' => pr.win.to_i,
-        'loss' => pr.loss.to_i,
-        'hold' => pr.hold.to_i,
-        'saves' => pr.saves.to_i,
-        'complete_games' => pr.got_to_the_distance ? 1 : 0,
-        'shutouts' => pr.got_to_the_distance && pr.run_allowed.to_i.zero? ? 1 : 0,
-        'innings_pitched' => pr.innings_pitched.to_f,
-        'hits_allowed' => pr.hits_allowed.to_i,
-        'home_runs_hit' => pr.home_runs_hit.to_i,
-        'strikeouts' => pr.strikeouts.to_i,
-        'base_on_balls' => pr.base_on_balls.to_i,
-        'hit_by_pitch' => pr.hit_by_pitch.to_i,
-        'earned_run' => pr.earned_run.to_i
+        'win' => pitching_result.win.to_i,
+        'loss' => pitching_result.loss.to_i,
+        'hold' => pitching_result.hold.to_i,
+        'saves' => pitching_result.saves.to_i,
+        'complete_games' => pitching_result.got_to_the_distance ? 1 : 0,
+        'shutouts' => pitching_result.got_to_the_distance && pitching_result.run_allowed.to_i.zero? ? 1 : 0,
+        'innings_pitched' => pitching_result.innings_pitched.to_f,
+        'hits_allowed' => pitching_result.hits_allowed.to_i,
+        'home_runs_hit' => pitching_result.home_runs_hit.to_i,
+        'strikeouts' => pitching_result.strikeouts.to_i,
+        'base_on_balls' => pitching_result.base_on_balls.to_i,
+        'hit_by_pitch' => pitching_result.hit_by_pitch.to_i,
+        'earned_run' => pitching_result.earned_run.to_i
       }
-      compose_row(label, stats)
     end
 
-    def compose_row(label, s)
-      ip = s['innings_pitched'].to_f
-      wins = s['win'].to_i
-      losses = s['loss'].to_i
-      so = s['strikeouts'].to_i
-      bb = s['base_on_balls'].to_i
+    def compose_row(label, stats)
+      base = build_base_pitching_row(label, stats)
+      base.merge(calculate_pitching_rates(stats))
+    end
 
+    def build_base_pitching_row(label, stats)
       {
         label:,
-        appearances: s['appearances'].to_i,
-        win: wins,
-        loss: losses,
-        hold: s['hold'].to_i,
-        saves: s['saves'].to_i,
-        complete_games: s['complete_games'].to_i,
-        shutouts: s['shutouts'].to_i,
-        innings_pitched: ip.round(1),
-        hits_allowed: s['hits_allowed'].to_i,
-        home_runs_hit: s['home_runs_hit'].to_i,
-        strikeouts: so,
-        base_on_balls: bb,
-        hit_by_pitch: s['hit_by_pitch'].to_i,
-        earned_run: s['earned_run'].to_i,
-        era: safe_divide(s['earned_run'].to_f * INNINGS_PER_GAME, ip, 2),
-        whip: safe_divide(bb.to_f + s['hits_allowed'].to_f, ip, 3),
-        k_per_nine: safe_divide(so.to_f * 9, ip, 3),
-        bb_per_nine: safe_divide(bb.to_f * 9, ip, 3),
-        k_bb: safe_divide(so.to_f, bb, 3),
-        win_percentage: safe_divide(wins.to_f, wins + losses, 3)
+        appearances: stats['appearances'].to_i,
+        win: stats['win'].to_i,
+        loss: stats['loss'].to_i,
+        hold: stats['hold'].to_i,
+        saves: stats['saves'].to_i,
+        complete_games: stats['complete_games'].to_i,
+        shutouts: stats['shutouts'].to_i,
+        innings_pitched: stats['innings_pitched'].to_f.round(1),
+        hits_allowed: stats['hits_allowed'].to_i,
+        home_runs_hit: stats['home_runs_hit'].to_i,
+        strikeouts: stats['strikeouts'].to_i,
+        base_on_balls: stats['base_on_balls'].to_i,
+        hit_by_pitch: stats['hit_by_pitch'].to_i,
+        earned_run: stats['earned_run'].to_i
+      }
+    end
+
+    def calculate_pitching_rates(stats)
+      innings = stats['innings_pitched'].to_f
+      strikeouts = stats['strikeouts'].to_i
+      walks = stats['base_on_balls'].to_i
+
+      calculate_pitching_rate_values(innings, strikeouts, walks, stats)
+    end
+
+    def calculate_pitching_rate_values(innings, strikeouts, walks, stats)
+      {
+        era: safe_divide(stats['earned_run'].to_f * INNINGS_PER_GAME, innings, 2),
+        whip: safe_divide(walks.to_f + stats['hits_allowed'].to_f, innings),
+        k_per_nine: safe_divide(strikeouts.to_f * 9, innings),
+        bb_per_nine: safe_divide(walks.to_f * 9, innings),
+        k_bb: safe_divide(strikeouts.to_f, walks),
+        win_percentage: safe_divide(stats['win'].to_f, stats['win'].to_i + stats['loss'].to_i)
       }
     end
 
     def empty_row(label)
-      {
-        label:, appearances: 0, win: 0, loss: 0, hold: 0, saves: 0,
-        complete_games: 0, shutouts: 0, innings_pitched: 0.0,
-        hits_allowed: 0, home_runs_hit: 0, strikeouts: 0,
-        base_on_balls: 0, hit_by_pitch: 0, earned_run: 0,
-        era: ZERO, whip: ZERO, k_per_nine: ZERO, bb_per_nine: ZERO,
-        k_bb: ZERO, win_percentage: ZERO
-      }
+      base = { label:, appearances: 0 }
+      zeros = PITCHING_SYMBOLS.index_with { 0 }
+      zeros[:innings_pitched] = 0.0
+      rates = { era: ZERO, whip: ZERO, k_per_nine: ZERO, bb_per_nine: ZERO,
+                k_bb: ZERO, win_percentage: ZERO }
+      base.merge(zeros).merge(rates)
     end
 
     def aggregate_columns
@@ -180,10 +177,6 @@ module Stats
         'SUM(hit_by_pitch) AS hit_by_pitch',
         'SUM(earned_run) AS earned_run'
       ]
-    end
-
-    def safe_divide(numerator, denominator, precision)
-      denominator.zero? ? ZERO : (numerator / denominator).round(precision)
     end
   end
 end

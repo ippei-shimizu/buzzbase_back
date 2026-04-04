@@ -146,6 +146,20 @@ module Stats
                           'match_results.opponent_team_score'
                         ))
 
+      records = aggregate_opponent_results(results)
+
+      sorted_records = records.map do |team_name, rec|
+        total = rec[:wins] + rec[:losses] + rec[:draws]
+        {
+          team_name:,
+          wins: rec[:wins], losses: rec[:losses], draws: rec[:draws],
+          total:
+        }
+      end
+      sorted_records.sort_by { |r| -r[:total] }
+    end
+
+    def aggregate_opponent_results(results)
       records = Hash.new { |h, k| h[k] = { wins: 0, losses: 0, draws: 0 } }
 
       results.each do |r|
@@ -159,14 +173,7 @@ module Stats
         end
       end
 
-      records.map do |team_name, rec|
-        total = rec[:wins] + rec[:losses] + rec[:draws]
-        {
-          team_name:,
-          wins: rec[:wins], losses: rec[:losses], draws: rec[:draws],
-          total:
-        }
-      end.sort_by { |r| -r[:total] }
+      records
     end
   end
 end

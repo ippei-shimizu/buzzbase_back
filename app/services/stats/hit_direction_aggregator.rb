@@ -34,20 +34,17 @@ module Stats
     end
 
     def call
+      dir_categories = aggregate_direction_categories
+
+      { directions: build_directions(dir_categories), home_runs: build_home_runs(dir_categories) }
+    end
+
+    private
+
+    def aggregate_direction_categories
       base = filtered_scope
+      direction_sql = build_direction_sql
 
-      # SQLで方向IDを正規化: hit_direction_id優先、なければbatting_position_idを変換
-      direction_sql = <<~SQL.squish
-        COALESCE(
-          plate_appearances.hit_direction_id,
-          CASE plate_appearances.batting_position_id
-            #{LEGACY_TO_NEW.map { |old_id, new_id| "WHEN #{old_id} THEN #{new_id}" }.join(' ')}
-            ELSE NULL
-          END
-        )
-      SQL
-
-      # 方向×結果のクロス集計をSQLで実行
       cross = base
               .where("#{direction_sql} IS NOT NULL AND #{direction_sql} > 0")
               .group(Arel.sql(direction_sql), :plate_result_id)
@@ -58,28 +55,39 @@ module Stats
         cat = RESULT_CATEGORIES[result_id] || 'その他'
         dir_categories[dir_id][cat] += cnt
       end
+      dir_categories
+    end
 
-      # 本塁打を除いた方向別データ
-      directions = DIRECTION_LABELS.map do |id, label|
+    def build_direction_sql
+      <<~SQL.squish
+        COALESCE(
+          plate_appearances.hit_direction_id,
+          CASE plate_appearances.batting_position_id
+            #{LEGACY_TO_NEW.map { |old_id, new_id| "WHEN #{old_id} THEN #{new_id}" }.join(' ')}
+            ELSE NULL
+          END
+        )
+      SQL
+    end
+
+    def build_directions(dir_categories)
+      DIRECTION_LABELS.map do |id, label|
         cats = dir_categories[id]
         non_hr = cats.except('本塁打')
         total = non_hr.values.sum
         top_category = non_hr.max_by { |_, v| v }&.first || 'その他'
         { id:, label:, count: total, top_category: }
       end
+    end
 
-      # 方向別の本塁打数
-      home_runs = DIRECTION_LABELS.filter_map do |id, label|
+    def build_home_runs(dir_categories)
+      DIRECTION_LABELS.filter_map do |id, label|
         count = dir_categories[id]['本塁打']
         next if count.zero?
 
         { id:, label:, count: }
       end
-
-      { directions:, home_runs: }
     end
-
-    private
 
     def filtered_scope
       scope = PlateAppearance.joins(game_result: :match_result)
