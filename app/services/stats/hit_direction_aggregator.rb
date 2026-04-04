@@ -8,14 +8,12 @@ module Stats
       10 => '中', 11 => '右中', 12 => '右', 13 => '右線'
     }.freeze
 
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil)
-      @user_id = user_id
-      @year = year
-      @match_type = match_type
-      @season_id = season_id
-    end
+    # batting_position_id(旧9方向) → hit_direction_id(新13方向) への変換
+    LEGACY_TO_NEW = {
+      1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 6 => 6,
+      7 => 8, 8 => 10, 9 => 12
+    }.freeze
 
-    # plate_result_id → カテゴリ
     RESULT_CATEGORIES = {
       7 => '単打',
       8 => '長打', 9 => '長打',
@@ -28,17 +26,28 @@ module Stats
 
     HR_RESULT_ID = 10
 
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil)
+      @user_id = user_id
+      @year = year
+      @match_type = match_type
+      @season_id = season_id
+    end
+
     def call
-      base = filtered_scope.where.not(batting_position_id: nil)
+      base = filtered_scope
 
-      # 方向×結果のクロス集計
-      cross = base.group(:batting_position_id, :plate_result_id).count
+      # hit_direction_id優先、なければbatting_position_idをフォールバック変換
+      # 方向を正規化して取得
+      records = base.pluck(:hit_direction_id, :batting_position_id, :plate_result_id)
 
-      # 方向ごとにカテゴリ別件数を集計
       dir_categories = Hash.new { |h, k| h[k] = Hash.new(0) }
-      cross.each_value do |cnt|
+
+      records.each do |hd_id, bp_id, result_id|
+        dir_id = hd_id || LEGACY_TO_NEW[bp_id]
+        next unless dir_id && dir_id > 0
+
         cat = RESULT_CATEGORIES[result_id] || 'その他'
-        dir_categories[dir_id][cat] += cnt
+        dir_categories[dir_id][cat] += 1
       end
 
       # 本塁打を除いた方向別データ
@@ -51,12 +60,8 @@ module Stats
       end
 
       # 方向別の本塁打数
-      hr_by_direction = base.where(plate_result_id: HR_RESULT_ID)
-                            .group(:batting_position_id)
-                            .count
-
       home_runs = DIRECTION_LABELS.filter_map do |id, label|
-        count = hr_by_direction.fetch(id, 0)
+        count = dir_categories[id]['本塁打']
         next if count.zero?
 
         { id:, label:, count: }
@@ -78,9 +83,9 @@ module Stats
     def apply_year_filter(scope)
       return scope if @year.blank? || @year.to_s == '通算'
 
-      scope.where(match_results: {
-                    date_and_time: Date.new(@year.to_i, 1, 1)..Date.new(@year.to_i, 12, 31)
-                  })
+      yr = @year.to_i
+      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
+                  "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
     end
 
     def apply_match_type_filter(scope)
