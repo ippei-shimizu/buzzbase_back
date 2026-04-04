@@ -3,7 +3,9 @@
 module Stats
   class PlateAppearanceBreakdownService
     CATEGORIES = {
-      '安打' => [7, 8, 9, 10],
+      '単打' => [7],
+      '長打' => [8, 9],
+      '本塁打' => [10],
       'ゴロ' => [1],
       'フライ' => [2, 3, 4],
       '三振' => [13, 14],
@@ -29,7 +31,7 @@ module Stats
       CATEGORIES.map do |category, result_ids|
         count = result_ids.sum { |id| counts_by_result.fetch(id, 0) }
         percentage = total.zero? ? 0.0 : (count.to_f / total * 100).round(1)
-        { category: category, count: count, percentage: percentage }
+        { category:, count:, percentage: }
       end
     end
 
@@ -40,8 +42,7 @@ module Stats
                              .where(user_id: @user_id)
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
-      scope = apply_season_filter(scope)
-      scope
+      apply_season_filter(scope)
     end
 
     def apply_year_filter(scope)
