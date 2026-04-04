@@ -6,10 +6,11 @@ module Stats
 
     # mode: :yearly, :monthly, :daily
     # year: required for :monthly and :daily
-    def initialize(user_id:, mode: :yearly, year: nil)
+    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil)
       @user_id = user_id
       @mode = mode.to_sym
       @year = year
+      @season_id = season_id
     end
 
     def call
@@ -24,39 +25,37 @@ module Stats
     private
 
     def base_scope
-      BattingAverage.joins(game_result: :match_result)
-                    .where(batting_averages: { user_id: @user_id })
+      scope = BattingAverage.joins(game_result: :match_result)
+                            .where(batting_averages: { user_id: @user_id })
+      scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?
+      scope
     end
 
     # --- yearly ---
     def yearly_rows
       scope = base_scope
-      years = scope.select(Arel.sql("DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr"))
-                   .map(&:yr).compact.sort
+      years = scope.select(Arel.sql('DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr'))
+                   .filter_map(&:yr).sort
 
       rows = years.map { |yr| build_row(label: yr.to_s, scope: scope_for_year(scope, yr)) }
-      rows << build_row(label: '通算', scope: scope) if rows.size > 1
+      rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
 
     # --- monthly ---
     def monthly_rows
-      raise ArgumentError, 'year is required for monthly mode' if @year.blank?
-
-      scope = scope_for_year(base_scope, @year.to_i)
-      months = scope.select(Arel.sql("DISTINCT EXTRACT(MONTH FROM match_results.date_and_time)::int AS mon"))
-                    .map(&:mon).compact.sort
+      scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
+      months = scope.select(Arel.sql('DISTINCT EXTRACT(MONTH FROM match_results.date_and_time)::int AS mon'))
+                    .filter_map(&:mon).sort
 
       rows = months.map { |mon| build_row(label: "#{mon}月", scope: scope_for_month(scope, mon)) }
-      rows << build_row(label: '通算', scope: scope) if rows.size > 1
+      rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
 
     # --- daily ---
     def daily_rows
-      raise ArgumentError, 'year is required for daily mode' if @year.blank?
-
-      scope = scope_for_year(base_scope, @year.to_i)
+      scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
       game_results = scope.includes(game_result: { match_result: :opponent_team })
                           .order('match_results.date_and_time ASC')
 
@@ -64,25 +63,31 @@ module Stats
         mr = ba.game_result.match_result
         opponent_name = mr.opponent_team&.name || '不明'
         date_str = mr.date_and_time.strftime('%m/%d')
-        build_single_row(label: "#{date_str} vs #{opponent_name}", batting_average: ba)
+        row = build_single_row(label: date_str, batting_average: ba)
+        row[:opponent] = opponent_name
+        row
       end
 
-      rows << build_row(label: '通算', scope: scope) if rows.size > 1
+      rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
 
     # --- helpers ---
     def scope_for_year(scope, yr)
-      scope.where(match_results: {
-                    date_and_time: Date.new(yr, 1, 1)..Date.new(yr, 12, 31)
-                  })
+      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
+                  "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
     end
 
     def scope_for_month(scope, mon)
-      yr = @year.to_i
-      start_date = Date.new(yr, mon, 1)
-      end_date = start_date.end_of_month
-      scope.where(match_results: { date_and_time: start_date..end_date })
+      if @year.present?
+        yr = @year.to_i
+        last_day = Date.new(yr, mon, -1).day
+        scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
+                    "#{yr}-#{format('%02d', mon)}-01 00:00:00",
+                    "#{yr}-#{format('%02d', mon)}-#{format('%02d', last_day)} 23:59:59")
+      else
+        scope.where('EXTRACT(MONTH FROM match_results.date_and_time) = ?', mon)
+      end
     end
 
     def build_row(label:, scope:)
@@ -140,10 +145,10 @@ module Stats
       babip = safe_divide((hits - s['home_run'].to_i).to_f, babip_denom)
 
       {
-        label: label,
-        games: games,
+        label:,
+        games:,
         plate_appearances: s['plate_appearances'].to_i,
-        at_bats: at_bats,
+        at_bats:,
         hit: hits,
         two_base_hit: s['two_base_hit'].to_i,
         three_base_hit: s['three_base_hit'].to_i,
@@ -161,16 +166,16 @@ module Stats
         error: s['error'].to_i,
         batting_average: avg,
         slugging_percentage: slg,
-        ops: ops,
-        iso: iso,
-        bb_per_k: bb_per_k,
-        babip: babip
+        ops:,
+        iso:,
+        bb_per_k:,
+        babip:
       }
     end
 
     def empty_row(label)
       {
-        label: label, games: 0, plate_appearances: 0, at_bats: 0,
+        label:, games: 0, plate_appearances: 0, at_bats: 0,
         hit: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0,
         total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 0,
         base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,

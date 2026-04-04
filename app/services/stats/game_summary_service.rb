@@ -14,10 +14,10 @@ module Stats
     def call
       {
         win_loss: win_loss_summary,
-        scoring: scoring,
-        recent_form: recent_form,
-        monthly_games: monthly_games,
-        opponent_records: opponent_records
+        scoring:,
+        recent_form:,
+        monthly_games:,
+        opponent_records:
       }
     end
 
@@ -28,8 +28,7 @@ module Stats
                         .where(user_id: @user_id)
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
-      scope = apply_season_filter(scope)
-      scope
+      apply_season_filter(scope)
     end
 
     def apply_year_filter(scope)
@@ -74,7 +73,7 @@ module Stats
       total = wins + losses + draws
       win_rate = total.zero? ? 0.0 : (wins.to_f / total).round(3)
 
-      { wins: wins, losses: losses, draws: draws, total: total, win_rate: win_rate }
+      { wins:, losses:, draws:, total:, win_rate: }
     end
 
     # --- scoring ---
@@ -87,8 +86,8 @@ module Stats
       total = results.size
 
       {
-        runs_for: runs_for,
-        runs_against: runs_against,
+        runs_for:,
+        runs_against:,
         run_differential: runs_for - runs_against,
         avg_runs_for: total.zero? ? 0.0 : (runs_for.to_f / total).round(1),
         avg_runs_against: total.zero? ? 0.0 : (runs_against.to_f / total).round(1)
@@ -100,11 +99,11 @@ module Stats
       games = base_scope
               .joins('INNER JOIN teams ON teams.id = match_results.opponent_team_id')
               .select(Arel.sql(
-                        "game_results.id AS game_result_id, " \
-                        "match_results.date_and_time, " \
-                        "teams.name AS opponent_name, " \
-                        "match_results.my_team_score, " \
-                        "match_results.opponent_team_score"
+                        'game_results.id AS game_result_id, ' \
+                        'match_results.date_and_time, ' \
+                        'teams.name AS opponent_name, ' \
+                        'match_results.my_team_score, ' \
+                        'match_results.opponent_team_score'
                       ))
               .order(Arel.sql('match_results.date_and_time DESC'))
               .limit(5)
@@ -114,13 +113,14 @@ module Stats
         opp = g.opponent_team_score.to_i
         result = if my > opp then 'win'
                  elsif my < opp then 'loss'
-                 else 'draw'
+                 else
+                   'draw'
                  end
         {
           game_result_id: g.game_result_id,
           date: g.date_and_time.strftime('%m/%d'),
           opponent: g.opponent_name,
-          result: result,
+          result:,
           my_score: my,
           opponent_score: opp
         }
@@ -130,9 +130,9 @@ module Stats
     # --- monthly games ---
     def monthly_games
       base_scope
-        .select(Arel.sql("EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, COUNT(*) AS count"))
-        .group(Arel.sql("EXTRACT(MONTH FROM match_results.date_and_time)::int"))
-        .order(Arel.sql("month"))
+        .select(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, COUNT(*) AS count'))
+        .group(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int'))
+        .order(Arel.sql('month'))
         .map { |r| { month: r.month, count: r.count } }
     end
 
@@ -141,9 +141,9 @@ module Stats
       results = base_scope
                 .joins('INNER JOIN teams ON teams.id = match_results.opponent_team_id')
                 .select(Arel.sql(
-                          "teams.name AS team_name, " \
-                          "match_results.my_team_score, " \
-                          "match_results.opponent_team_score"
+                          'teams.name AS team_name, ' \
+                          'match_results.my_team_score, ' \
+                          'match_results.opponent_team_score'
                         ))
 
       records = Hash.new { |h, k| h[k] = { wins: 0, losses: 0, draws: 0 } }
@@ -162,9 +162,9 @@ module Stats
       records.map do |team_name, rec|
         total = rec[:wins] + rec[:losses] + rec[:draws]
         {
-          team_name: team_name,
+          team_name:,
           wins: rec[:wins], losses: rec[:losses], draws: rec[:draws],
-          total: total
+          total:
         }
       end.sort_by { |r| -r[:total] }
     end
