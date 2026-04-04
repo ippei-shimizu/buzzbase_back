@@ -42,8 +42,8 @@ module Stats
 
       if @year.present? && @year.to_s != '通算'
         yr = @year.to_i
-        scope = scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
-                            "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
+        scope = scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
+                            "#{yr}-01-01 00:00:00", "#{yr + 1}-01-01 00:00:00")
       end
 
       scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?

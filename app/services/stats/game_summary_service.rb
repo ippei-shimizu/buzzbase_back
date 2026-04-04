@@ -2,8 +2,6 @@
 
 module Stats
   class GameSummaryService
-    MATCH_TYPES = %w[公式戦 オープン戦].freeze
-
     def initialize(user_id:, year: nil, match_type: nil, season_id: nil)
       @user_id = user_id
       @year = year
@@ -12,9 +10,13 @@ module Stats
     end
 
     def call
+      # win_loss と scoring で同じデータを使うため1回だけ取得
+      score_results = base_scope
+                      .pluck(Arel.sql('match_results.my_team_score'), Arel.sql('match_results.opponent_team_score'))
+
       {
-        win_loss: win_loss_summary,
-        scoring:,
+        win_loss: win_loss_summary(score_results),
+        scoring: scoring(score_results),
         recent_form:,
         monthly_games:,
         opponent_records:
@@ -35,8 +37,8 @@ module Stats
       return scope if @year.blank? || @year.to_s == '通算'
 
       yr = @year.to_i
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
-                  "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
+      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
+                  "#{yr}-01-01 00:00:00", "#{yr + 1}-01-01 00:00:00")
     end
 
     def apply_match_type_filter(scope)
@@ -52,10 +54,7 @@ module Stats
     end
 
     # --- win/loss summary ---
-    def win_loss_summary
-      results = base_scope
-                .pluck(Arel.sql('match_results.my_team_score'), Arel.sql('match_results.opponent_team_score'))
-
+    def win_loss_summary(results)
       wins = 0
       losses = 0
       draws = 0
@@ -77,10 +76,7 @@ module Stats
     end
 
     # --- scoring ---
-    def scoring
-      results = base_scope
-                .pluck(Arel.sql('match_results.my_team_score'), Arel.sql('match_results.opponent_team_score'))
-
+    def scoring(results)
       runs_for = results.sum { |my, _| my.to_i }
       runs_against = results.sum { |_, opp| opp.to_i }
       total = results.size

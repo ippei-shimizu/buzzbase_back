@@ -64,6 +64,8 @@ module Api
 
       private
 
+      # 他ユーザーの成績も参照可能（公開プロフィール設計）
+      # プライベートアカウント対応時はprofile_visible_to?チェックを追加する
       def target_user_id
         params[:user_id] || current_api_v1_user.id
       end
