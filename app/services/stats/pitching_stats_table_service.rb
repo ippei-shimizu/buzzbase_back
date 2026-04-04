@@ -8,7 +8,7 @@ module Stats
 
     PITCHING_FIELDS = %w[
       win loss hold saves complete_games shutouts innings_pitched
-      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch earned_run
+      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run
     ].freeze
 
     PITCHING_SYMBOLS = PITCHING_FIELDS.map(&:to_sym).freeze
@@ -103,6 +103,7 @@ module Stats
         'strikeouts' => pitching_result.strikeouts.to_i,
         'base_on_balls' => pitching_result.base_on_balls.to_i,
         'hit_by_pitch' => pitching_result.hit_by_pitch.to_i,
+        'run_allowed' => pitching_result.run_allowed.to_i,
         'earned_run' => pitching_result.earned_run.to_i
       }
     end
@@ -113,23 +114,10 @@ module Stats
     end
 
     def build_base_pitching_row(label, stats)
-      {
-        label:,
-        appearances: stats['appearances'].to_i,
-        win: stats['win'].to_i,
-        loss: stats['loss'].to_i,
-        hold: stats['hold'].to_i,
-        saves: stats['saves'].to_i,
-        complete_games: stats['complete_games'].to_i,
-        shutouts: stats['shutouts'].to_i,
-        innings_pitched: stats['innings_pitched'].to_f.round(1),
-        hits_allowed: stats['hits_allowed'].to_i,
-        home_runs_hit: stats['home_runs_hit'].to_i,
-        strikeouts: stats['strikeouts'].to_i,
-        base_on_balls: stats['base_on_balls'].to_i,
-        hit_by_pitch: stats['hit_by_pitch'].to_i,
-        earned_run: stats['earned_run'].to_i
-      }
+      row = { label:, appearances: stats['appearances'].to_i }
+      PITCHING_SYMBOLS.each { |field| row[field] = stats[field.to_s].to_i }
+      row[:innings_pitched] = stats['innings_pitched'].to_f.round(1)
+      row
     end
 
     def calculate_pitching_rates(stats)
@@ -175,6 +163,7 @@ module Stats
         'SUM(strikeouts) AS strikeouts',
         'SUM(base_on_balls) AS base_on_balls',
         'SUM(hit_by_pitch) AS hit_by_pitch',
+        'SUM(run_allowed) AS run_allowed',
         'SUM(earned_run) AS earned_run'
       ]
     end
