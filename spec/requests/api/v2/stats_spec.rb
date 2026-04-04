@@ -6,7 +6,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
   let(:user) { create(:user) }
   let(:headers) { auth_headers_for(user) }
 
-  let!(:game_result) do
+  before do
     gr = create(:game_result, user:)
     gr.match_result.update!(
       date_and_time: Time.zone.local(2024, 7, 10),
@@ -23,7 +23,6 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     create(:plate_appearance, game_result: gr, user:,
                               hit_direction_id: 8, plate_result_id: 7,
                               batter_box_number: 1)
-    gr
   end
 
   describe 'GET /api/v2/stats/hit_directions' do
@@ -33,7 +32,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with directions and home_runs' do
-      get '/api/v2/stats/hit_directions', headers: headers
+      get('/api/v2/stats/hit_directions', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -50,7 +49,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with breakdown array' do
-      get '/api/v2/stats/plate_appearance_breakdown', headers: headers
+      get('/api/v2/stats/plate_appearance_breakdown', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -65,7 +64,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with rows array' do
-      get '/api/v2/stats/batting', headers: headers
+      get('/api/v2/stats/batting', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -80,7 +79,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with rows array' do
-      get '/api/v2/stats/pitching', headers: headers
+      get('/api/v2/stats/pitching', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -95,7 +94,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with trend array' do
-      get '/api/v2/stats/era_trend', headers: headers
+      get('/api/v2/stats/era_trend', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
@@ -111,7 +110,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
 
     it 'returns 200 with summary structure' do
-      get '/api/v2/stats/game_summary', headers: headers
+      get('/api/v2/stats/game_summary', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
