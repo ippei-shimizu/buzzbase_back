@@ -109,7 +109,7 @@ module Stats
       slg = safe_divide(total_bases.to_f, ab)
       obp = calculate_obp(hits, vals)
 
-      { hit: hits, total_bases:, batting_average: avg, slugging_percentage: slg,
+      { hits: hits, total_bases:, batting_average: avg, slugging_percentage: slg,
         ops: (obp + slg).round(3), iso: safe_divide((total_bases - hits).to_f, ab),
         bb_per_k: safe_divide(bb.to_f, vals['strike_out']) }
         .merge(babip: calculate_babip(hits, vals))
@@ -130,7 +130,7 @@ module Stats
     def empty_row(label)
       base = { label:, games: 0 }
       zeros = BATTING_SYMBOLS.index_with { 0 }
-      rates = { batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
+      rates = { hits: ZERO, batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
                 iso: ZERO, bb_per_k: ZERO, babip: ZERO }
       base.merge(zeros).merge(rates)
     end
