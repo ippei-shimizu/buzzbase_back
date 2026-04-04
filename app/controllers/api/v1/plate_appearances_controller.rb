@@ -96,7 +96,7 @@ module Api
       end
 
       def plate_appearance_params
-        params.require(:plate_appearance).permit(:game_result_id, :user_id, :batter_box_number, :batting_result, :batting_position_id, :plate_result_id)
+        params.require(:plate_appearance).permit(:game_result_id, :user_id, :batter_box_number, :batting_result, :batting_position_id, :plate_result_id, :hit_direction_id)
       end
     end
   end
