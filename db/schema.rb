@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_03_16_040729) do
+ActiveRecord::Schema[7.0].define(version: 2026_04_04_100002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -140,7 +140,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_16_040729) do
     t.datetime "updated_at", null: false
     t.integer "at_bats"
     t.integer "sacrifice_fly"
-    t.index ["game_result_id"], name: "index_batting_averages_on_game_result_id"
+    t.index ["game_result_id"], name: "index_batting_averages_on_game_result_id", unique: true
     t.index ["user_id"], name: "index_batting_averages_on_user_id"
   end
 
@@ -238,6 +238,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_16_040729) do
     t.text "memo"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["game_result_id"], name: "index_match_results_on_game_result_id_unique", unique: true, where: "(game_result_id IS NOT NULL)"
     t.index ["my_team_id"], name: "index_match_results_on_my_team_id"
     t.index ["opponent_team_id"], name: "index_match_results_on_opponent_team_id"
     t.index ["user_id"], name: "index_match_results_on_user_id"
@@ -285,6 +286,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_03_16_040729) do
     t.datetime "updated_at", null: false
     t.integer "batting_position_id"
     t.integer "plate_result_id"
+    t.integer "hit_direction_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
   end

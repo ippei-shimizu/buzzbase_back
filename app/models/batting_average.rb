@@ -2,6 +2,8 @@ class BattingAverage < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
 
+  validates :game_result_id, uniqueness: true
+
   ZERO = 0
 
   def self.aggregate_for_user(user_id)
