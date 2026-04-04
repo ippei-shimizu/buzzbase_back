@@ -202,6 +202,7 @@ Rails.application.routes.draw do
         get :plate_appearance_breakdown, on: :member
         get :batting, on: :member
         get :pitching, on: :member
+        get :era_trend, on: :member
         get :game_summary, on: :member
       end
     end

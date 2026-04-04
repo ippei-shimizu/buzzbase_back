@@ -10,7 +10,7 @@ module Api
           match_type: params[:match_type],
           season_id: params[:season_id]
         ).call
-        render json: { directions: result }
+        render json: result
       end
 
       def plate_appearance_breakdown
@@ -26,8 +26,9 @@ module Api
       def batting
         result = Stats::BattingStatsTableService.new(
           user_id: target_user_id,
-          period: params[:period] || "yearly",
-          year: params[:year]
+          mode: params[:period] || 'yearly',
+          year: params[:year],
+          season_id: params[:season_id]
         ).call
         render json: { rows: result }
       end
@@ -35,10 +36,20 @@ module Api
       def pitching
         result = Stats::PitchingStatsTableService.new(
           user_id: target_user_id,
-          period: params[:period] || "yearly",
-          year: params[:year]
+          mode: params[:period] || 'yearly',
+          year: params[:year],
+          season_id: params[:season_id]
         ).call
         render json: { rows: result }
+      end
+
+      def era_trend
+        result = Stats::EraTrendService.new(
+          user_id: target_user_id,
+          year: params[:year],
+          season_id: params[:season_id]
+        ).call
+        render json: { trend: result }
       end
 
       def game_summary
