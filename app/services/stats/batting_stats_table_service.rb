@@ -95,34 +95,34 @@ module Stats
     end
 
     def calculate_rate_stats(vals)
-      hits = vals['hit'] + vals['two_base_hit'] + vals['three_base_hit'] + vals['home_run']
+      hit = vals['hit'] + vals['two_base_hit'] + vals['three_base_hit'] + vals['home_run']
       tb = vals['hit'] + (vals['two_base_hit'] * 2) + (vals['three_base_hit'] * 3) + (vals['home_run'] * 4)
 
-      calculate_batting_rates(hits, tb, vals)
+      calculate_batting_rates(hit, tb, vals)
     end
 
-    def calculate_batting_rates(hits, total_bases, vals)
+    def calculate_batting_rates(hit, total_bases, vals)
       ab = vals['at_bats']
       bb = vals['base_on_balls']
 
-      avg = safe_divide(hits.to_f, ab)
+      avg = safe_divide(hit.to_f, ab)
       slg = safe_divide(total_bases.to_f, ab)
-      obp = calculate_obp(hits, vals)
+      obp = calculate_obp(hit, vals)
 
-      { hits: hits, total_bases:, batting_average: avg, slugging_percentage: slg,
-        ops: (obp + slg).round(3), iso: safe_divide((total_bases - hits).to_f, ab),
+      { hit:, total_bases:, batting_average: avg, slugging_percentage: slg,
+        ops: (obp + slg).round(3), iso: safe_divide((total_bases - hit).to_f, ab),
         bb_per_k: safe_divide(bb.to_f, vals['strike_out']) }
-        .merge(babip: calculate_babip(hits, vals))
+        .merge(babip: calculate_babip(hit, vals))
     end
 
-    def calculate_obp(hits, vals)
-      on_base = hits + vals['base_on_balls'] + vals['hit_by_pitch']
+    def calculate_obp(hit, vals)
+      on_base = hit + vals['base_on_balls'] + vals['hit_by_pitch']
       denom = vals['at_bats'] + vals['base_on_balls'] + vals['hit_by_pitch'] + vals['sacrifice_fly']
       safe_divide(on_base.to_f, denom)
     end
 
-    def calculate_babip(hits, vals)
-      numer = hits - vals['home_run']
+    def calculate_babip(hit, vals)
+      numer = hit - vals['home_run']
       denom = vals['at_bats'] - vals['strike_out'] - vals['home_run'] + vals['sacrifice_fly']
       safe_divide(numer.to_f, denom)
     end
@@ -130,7 +130,7 @@ module Stats
     def empty_row(label)
       base = { label:, games: 0 }
       zeros = BATTING_SYMBOLS.index_with { 0 }
-      rates = { hits: ZERO, batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
+      rates = { hit: ZERO, batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
                 iso: ZERO, bb_per_k: ZERO, babip: ZERO }
       base.merge(zeros).merge(rates)
     end
