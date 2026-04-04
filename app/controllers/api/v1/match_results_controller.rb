@@ -1,8 +1,11 @@
 module Api
   module V1
     class MatchResultsController < ApplicationController
+      include MatchTypeConvertible
+
       before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index]
       before_action :set_match_result, only: %i[show update destroy]
+      before_action :normalize_match_type, only: %i[create update]
 
       def index
         @match_results = MatchResult.includes(:user, :tournament, :my_team, :opponent_team)
@@ -96,6 +99,12 @@ module Api
 
       def set_match_result
         @match_result = MatchResult.find(params[:id])
+      end
+
+      def normalize_match_type
+        return unless params.dig(:match_result, :match_type)
+
+        params[:match_result][:match_type] = convert_match_type(params[:match_result][:match_type])
       end
 
       def match_results_params
