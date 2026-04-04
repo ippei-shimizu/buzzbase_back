@@ -34,9 +34,9 @@ module Stats
     def apply_year_filter(scope)
       return scope if @year.blank? || @year.to_s == '通算'
 
-      scope.where(match_results: {
-                    date_and_time: Date.new(@year.to_i, 1, 1)..Date.new(@year.to_i, 12, 31)
-                  })
+      yr = @year.to_i
+      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time <= ?',
+                  "#{yr}-01-01 00:00:00", "#{yr}-12-31 23:59:59")
     end
 
     def apply_match_type_filter(scope)

@@ -36,18 +36,27 @@ module Stats
     def call
       base = filtered_scope
 
-      # hit_direction_id優先、なければbatting_position_idをフォールバック変換
-      # 方向を正規化して取得
-      records = base.pluck(:hit_direction_id, :batting_position_id, :plate_result_id)
+      # SQLで方向IDを正規化: hit_direction_id優先、なければbatting_position_idを変換
+      direction_sql = <<~SQL.squish
+        COALESCE(
+          plate_appearances.hit_direction_id,
+          CASE plate_appearances.batting_position_id
+            #{LEGACY_TO_NEW.map { |old_id, new_id| "WHEN #{old_id} THEN #{new_id}" }.join(' ')}
+            ELSE NULL
+          END
+        )
+      SQL
+
+      # 方向×結果のクロス集計をSQLで実行
+      cross = base
+              .where("#{direction_sql} IS NOT NULL AND #{direction_sql} > 0")
+              .group(Arel.sql(direction_sql), :plate_result_id)
+              .count
 
       dir_categories = Hash.new { |h, k| h[k] = Hash.new(0) }
-
-      records.each do |hd_id, bp_id, result_id|
-        dir_id = hd_id || LEGACY_TO_NEW[bp_id]
-        next unless dir_id && dir_id > 0
-
+      cross.each do |(dir_id, result_id), cnt| # rubocop:disable Style/HashEachMethods
         cat = RESULT_CATEGORIES[result_id] || 'その他'
-        dir_categories[dir_id][cat] += 1
+        dir_categories[dir_id][cat] += cnt
       end
 
       # 本塁打を除いた方向別データ

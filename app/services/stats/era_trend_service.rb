@@ -28,7 +28,7 @@ module Stats
         ip = r.total_ip.to_f
         next if ip <= 0
 
-        era = (r.total_er.to_f / ip * INNINGS_PER_GAME).round(2)
+        era = (r.total_er.to_f * INNINGS_PER_GAME / ip).round(2)
         { month: r.month, era: }
       end
     end
