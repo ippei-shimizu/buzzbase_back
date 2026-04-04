@@ -5,6 +5,7 @@ class MatchResult < ApplicationRecord
   belongs_to :tournament, optional: true
   belongs_to :game_result
 
+  validates :game_result_id, uniqueness: true
   validates :date_and_time, presence: true
   validates :match_type, presence: true
   validates :my_team_score, presence: true
