@@ -109,7 +109,7 @@ class GameResult < ApplicationRecord
   def self.apply_sort(sort_by, sort_order)
     column = SORTABLE_COLUMNS[sort_by] || 'match_results.date_and_time'
     direction = sort_order == 'asc' ? 'ASC' : 'DESC'
-    order(Arel.sql("#{column} #{direction}"))
+    order(Arel.sql("#{column} #{direction}"), 'game_results.created_at DESC')
   end
 
   # === v2 API メソッド ===
@@ -130,7 +130,7 @@ class GameResult < ApplicationRecord
       batting_average: [],
       pitching_result: []
     ).where(user:).where.not(match_result_id: nil)
-      .joins(:match_result).order('match_results.date_and_time DESC')
+      .joins(:match_result).order('match_results.date_and_time DESC', 'game_results.created_at DESC')
   end
 
   # 特定ユーザーの試合一覧を年度・試合種別でフィルタリングして取得する
@@ -156,7 +156,7 @@ class GameResult < ApplicationRecord
       plate_appearances: [],
       pitching_result: []
     ).where.not(match_result_id: nil)
-      .joins(:match_result).order('match_results.date_and_time DESC')
+      .joins(:match_result).order('match_results.date_and_time DESC', 'game_results.created_at DESC')
   end
 
   def self.v2_all_game_associated_data_public
