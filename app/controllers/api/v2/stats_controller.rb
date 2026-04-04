@@ -44,7 +44,9 @@ module Api
       def game_summary
         result = Stats::GameSummaryService.new(
           user_id: target_user_id,
-          year: params[:year]
+          year: params[:year],
+          match_type: params[:match_type],
+          season_id: params[:season_id]
         ).call
         render json: result
       end

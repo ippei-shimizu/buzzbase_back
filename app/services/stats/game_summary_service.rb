@@ -4,16 +4,18 @@ module Stats
   class GameSummaryService
     MATCH_TYPES = %w[公式戦 オープン戦].freeze
 
-    def initialize(user_id:, year: nil, season_id: nil)
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil)
       @user_id = user_id
       @year = year
+      @match_type = match_type
       @season_id = season_id
     end
 
     def call
       {
         win_loss: win_loss_summary,
-        match_type_breakdown: match_type_breakdown,
+        scoring: scoring,
+        recent_form: recent_form,
         monthly_games: monthly_games,
         opponent_records: opponent_records
       }
@@ -25,6 +27,7 @@ module Stats
       scope = GameResult.joins(:match_result)
                         .where(user_id: @user_id)
       scope = apply_year_filter(scope)
+      scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
       scope
     end
@@ -35,6 +38,12 @@ module Stats
       scope.where(match_results: {
                     date_and_time: Date.new(@year.to_i, 1, 1)..Date.new(@year.to_i, 12, 31)
                   })
+    end
+
+    def apply_match_type_filter(scope)
+      return scope if @match_type.blank? || @match_type == '全て'
+
+      scope.where(match_results: { match_type: @match_type })
     end
 
     def apply_season_filter(scope)
@@ -68,34 +77,52 @@ module Stats
       { wins: wins, losses: losses, draws: draws, total: total, win_rate: win_rate }
     end
 
-    # --- match type breakdown ---
-    def match_type_breakdown
-      MATCH_TYPES.map do |mt|
-        scope = base_scope.where(match_results: { match_type: mt })
-        results = scope.pluck(Arel.sql('match_results.my_team_score'),
-                              Arel.sql('match_results.opponent_team_score'))
+    # --- scoring ---
+    def scoring
+      results = base_scope
+                .pluck(Arel.sql('match_results.my_team_score'), Arel.sql('match_results.opponent_team_score'))
 
-        wins = 0
-        losses = 0
-        draws = 0
+      runs_for = results.sum { |my, _| my.to_i }
+      runs_against = results.sum { |_, opp| opp.to_i }
+      total = results.size
 
-        results.each do |my_score, opp_score|
-          if my_score > opp_score
-            wins += 1
-          elsif my_score < opp_score
-            losses += 1
-          else
-            draws += 1
-          end
-        end
+      {
+        runs_for: runs_for,
+        runs_against: runs_against,
+        run_differential: runs_for - runs_against,
+        avg_runs_for: total.zero? ? 0.0 : (runs_for.to_f / total).round(1),
+        avg_runs_against: total.zero? ? 0.0 : (runs_against.to_f / total).round(1)
+      }
+    end
 
-        total = wins + losses + draws
-        win_rate = total.zero? ? 0.0 : (wins.to_f / total).round(3)
+    # --- recent form (last 5 games) ---
+    def recent_form
+      games = base_scope
+              .joins('INNER JOIN teams ON teams.id = match_results.opponent_team_id')
+              .select(Arel.sql(
+                        "game_results.id AS game_result_id, " \
+                        "match_results.date_and_time, " \
+                        "teams.name AS opponent_name, " \
+                        "match_results.my_team_score, " \
+                        "match_results.opponent_team_score"
+                      ))
+              .order(Arel.sql('match_results.date_and_time DESC'))
+              .limit(5)
 
+      games.map do |g|
+        my = g.my_team_score.to_i
+        opp = g.opponent_team_score.to_i
+        result = if my > opp then 'win'
+                 elsif my < opp then 'loss'
+                 else 'draw'
+                 end
         {
-          match_type: mt, total: total,
-          wins: wins, losses: losses, draws: draws,
-          win_rate: win_rate
+          game_result_id: g.game_result_id,
+          date: g.date_and_time.strftime('%m/%d'),
+          opponent: g.opponent_name,
+          result: result,
+          my_score: my,
+          opponent_score: opp
         }
       end
     end
