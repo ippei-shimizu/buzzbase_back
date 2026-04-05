@@ -1,7 +1,7 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[create update destroy]
+      before_action :authenticate_api_v1_user!, only: %i[create update destroy invite_link]
 
       def index
         accepted_group_ids = GroupInvitation.where(user_id: current_api_v1_user.id, state: 'accepted').pluck(:group_id)
@@ -87,6 +87,17 @@ module Api
         invite_users(group, user_ids)
 
         render json: { message: '招待を送信しました' }, status: :ok
+      rescue ActiveRecord::RecordNotFound
+        render json: { error: 'グループは存在しません' }, status: :not_found
+      end
+
+      def invite_link
+        group = Group.find(params[:id])
+        return render json: { error: 'アクセス権限がありません' }, status: :forbidden unless group.group_invitations.exists?(user: current_api_v1_user,
+                                                                                                                 state: 'accepted')
+
+        link = group.group_invite_links.active.first || group.group_invite_links.create!(inviter: current_api_v1_user)
+        render json: { code: link.code, group_name: group.name, group_id: group.id }
       rescue ActiveRecord::RecordNotFound
         render json: { error: 'グループは存在しません' }, status: :not_found
       end
