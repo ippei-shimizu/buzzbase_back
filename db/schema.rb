@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_04_04_100002) do
+ActiveRecord::Schema[7.0].define(version: 2026_04_04_144851) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -179,6 +179,19 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_04_100002) do
     t.datetime "updated_at", null: false
     t.index ["group_id"], name: "index_group_invitations_on_group_id"
     t.index ["user_id"], name: "index_group_invitations_on_user_id"
+  end
+
+  create_table "group_invite_links", force: :cascade do |t|
+    t.bigint "group_id", null: false
+    t.bigint "inviter_id", null: false
+    t.string "code", limit: 8, null: false
+    t.boolean "is_active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["code"], name: "index_group_invite_links_on_code", unique: true
+    t.index ["group_id", "is_active"], name: "index_group_invite_links_on_group_id_and_is_active"
+    t.index ["group_id"], name: "index_group_invite_links_on_group_id"
+    t.index ["inviter_id"], name: "index_group_invite_links_on_inviter_id"
   end
 
   create_table "group_ranking_snapshots", force: :cascade do |t|
@@ -419,6 +432,8 @@ ActiveRecord::Schema[7.0].define(version: 2026_04_04_100002) do
   add_foreign_key "game_results", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"
+  add_foreign_key "group_invite_links", "groups"
+  add_foreign_key "group_invite_links", "users", column: "inviter_id"
   add_foreign_key "group_ranking_snapshots", "groups"
   add_foreign_key "group_ranking_snapshots", "users"
   add_foreign_key "group_users", "groups"

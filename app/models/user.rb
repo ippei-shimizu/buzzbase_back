@@ -85,11 +85,11 @@ class User < ActiveRecord::Base
     following.include?(other_user)
   end
 
-  def follow(other_user)
-    if other_user.is_private?
-      active_relationships.create(followed_id: other_user.id, status: :pending)
-    else
+  def follow(other_user, force_accept: false)
+    if force_accept || !other_user.is_private?
       active_relationships.create(followed_id: other_user.id, status: :accepted)
+    else
+      active_relationships.create(followed_id: other_user.id, status: :pending)
     end
   end
 

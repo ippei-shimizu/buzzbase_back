@@ -105,6 +105,7 @@ Rails.application.routes.draw do
           get :show_group_user
           put :update_group_info
           post :invite_members
+          post :invite_link
         end
       end
 
@@ -112,6 +113,13 @@ Rails.application.routes.draw do
         member do
           post 'accept_invitation'
           post 'declined_invitation'
+        end
+      end
+
+      resources :invite_links, only: [], param: :code, controller: 'group_invite_links' do
+        member do
+          get '/', action: :show
+          post :accept
         end
       end
 
