@@ -11,21 +11,19 @@ class GroupInviteLink < ApplicationRecord
 
   before_validation :set_code, on: :create
 
-  def self.generate_code
+  private
+
+  def set_code
+    self.code ||= generate_unique_code
+  end
+
+  def generate_unique_code
     loop do
       chars = SecureRandom.alphanumeric(CODE_LENGTH * 2).upcase.chars.reject { |c| AMBIGUOUS_CHARS.include?(c) }
       next if chars.length < CODE_LENGTH
 
       candidate = chars.first(CODE_LENGTH).join
-      break candidate unless exists?(code: candidate)
+      break candidate unless self.class.exists?(code: candidate)
     end
-  end
-
-  private_class_method :generate_code
-
-  private
-
-  def set_code
-    self.code ||= self.class.send(:generate_code)
   end
 end

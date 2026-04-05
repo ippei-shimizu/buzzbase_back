@@ -38,12 +38,20 @@ module Api
         ActiveRecord::Base.transaction do
           group.group_invitations.create!(user:, state: 'accepted', sent_at: Time.current)
           create_mutual_follow(user, invite_link.inviter)
-          notify_inviter(invite_link.inviter, user, group)
+          create_notification(invite_link.inviter, user, group)
         end
+
+        PushNotificationService.send_to_user(
+          invite_link.inviter,
+          title: 'BUZZ BASE',
+          body: "#{user.name}さんが招待コードでグループに参加しました"
+        )
 
         render json: { success: true, group_id: group.id }
       rescue ActiveRecord::RecordNotFound
         render json: { error: '無効な招待コードです' }, status: :not_found
+      rescue ActiveRecord::RecordInvalid => e
+        render json: { error: e.message }, status: :unprocessable_entity
       end
 
       private
@@ -55,18 +63,13 @@ module Api
         inviter.follow(user, force_accept: true) unless inviter.following?(user)
       end
 
-      def notify_inviter(inviter, new_member, group)
+      def create_notification(inviter, new_member, group)
         notification = Notification.create!(
           actor: new_member,
           event_type: 'group_invitation',
           event_id: group.id
         )
         UserNotification.create!(user_id: inviter.id, notification_id: notification.id)
-        PushNotificationService.send_to_user(
-          inviter,
-          title: 'BUZZ BASE',
-          body: "#{new_member.name}さんが招待コードでグループに参加しました"
-        )
       end
     end
   end
