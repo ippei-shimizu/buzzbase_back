@@ -66,9 +66,9 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
       end
 
       it 'creates group invitation with accepted state' do
-        expect {
+        expect do
           post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
-        }.to change(GroupInvitation, :count).by(1)
+        end.to change(GroupInvitation, :count).by(1)
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
@@ -80,9 +80,9 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
       end
 
       it 'creates mutual follow relationships' do
-        expect {
+        expect do
           post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
-        }.to change(Relationship, :count).by(2)
+        end.to change(Relationship, :count).by(2)
 
         expect(user.following?(inviter)).to be true
         expect(inviter.following?(user)).to be true
@@ -99,10 +99,10 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
       end
 
       it 'creates notification for inviter' do
-        expect {
+        expect do
           post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
-        }.to change(Notification, :count).by(1)
-         .and change(UserNotification, :count).by(1)
+        end.to change(Notification, :count).by(1)
+                                           .and change(UserNotification, :count).by(1)
 
         notification = Notification.last
         expect(notification.actor_id).to eq(user.id)
@@ -113,10 +113,10 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
       it 'does not create duplicate follow if already following' do
         user.follow(inviter)
 
-        expect {
+        # only inviter -> user
+        expect do
           post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
-        }.to change(Relationship, :count).by(1) # only inviter -> user
-
+        end.to change(Relationship, :count).by(1)
         expect(inviter.following?(user)).to be true
       end
     end

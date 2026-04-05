@@ -13,7 +13,7 @@ RSpec.describe GroupInviteLink, type: :model do
     end
 
     it 'generates codes without ambiguous characters (0, O, 1, I, L)' do
-      codes = 10.times.map { create(:group_invite_link, group: create(:group), inviter: user).code }
+      codes = Array.new(10) { create(:group_invite_link, group: create(:group), inviter: user).code }
 
       codes.each do |code|
         expect(code).not_to match(/[0O1IL]/)
@@ -21,7 +21,7 @@ RSpec.describe GroupInviteLink, type: :model do
     end
 
     it 'generates unique codes' do
-      codes = 5.times.map { create(:group_invite_link, group: create(:group), inviter: user).code }
+      codes = Array.new(5) { create(:group_invite_link, group: create(:group), inviter: user).code }
 
       expect(codes.uniq.length).to eq(5)
     end
