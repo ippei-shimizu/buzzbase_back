@@ -204,6 +204,75 @@ RSpec.describe 'Api::V1::Groups', type: :request do
     end
   end
 
+  describe 'POST /api/v1/groups/:id/invite_link' do
+    let(:group) { Group.create!(name: 'テストグループ') }
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        post "/api/v1/groups/#{group.id}/invite_link"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated and user is a member' do
+      before do
+        GroupInvitation.create!(user:, group:, state: 'accepted', sent_at: Time.current)
+      end
+
+      it 'creates an invite link and returns the code' do
+        post "/api/v1/groups/#{group.id}/invite_link", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['code']).to be_present
+        expect(json['code'].length).to eq(8)
+        expect(json['group_name']).to eq('テストグループ')
+        expect(json['group_id']).to eq(group.id)
+      end
+
+      it 'returns the same code on subsequent calls' do
+        post "/api/v1/groups/#{group.id}/invite_link", headers: auth_headers_for(user)
+        first_code = response.parsed_body['code']
+
+        post "/api/v1/groups/#{group.id}/invite_link", headers: auth_headers_for(user)
+        second_code = response.parsed_body['code']
+
+        expect(first_code).to eq(second_code)
+      end
+    end
+
+    context 'when authenticated but user is not a member' do
+      it 'returns 403' do
+        post "/api/v1/groups/#{group.id}/invite_link", headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when group does not exist' do
+      it 'returns 404' do
+        post '/api/v1/groups/0/invite_link', headers: auth_headers_for(user)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
+  describe 'GET /api/v1/groups/:id (with filters)' do
+    let(:group) { Group.create!(name: 'テストグループ') }
+
+    before do
+      GroupInvitation.create!(user:, group:, state: 'accepted', sent_at: Time.current)
+    end
+
+    it 'returns available_years in response' do
+      get "/api/v1/groups/#{group.id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to have_key('available_years')
+      expect(json['available_years']).to be_an(Array)
+    end
+  end
+
   describe 'GET /api/v1/groups/:id/show_group_user' do
     let(:group) { Group.create!(name: 'テストグループ') }
 
