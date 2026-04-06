@@ -41,7 +41,9 @@ RSpec.describe 'Api::V1::Auth::Registrations', type: :request do
 
     context 'when email sending fails' do
       before do
-        allow(EmailAuthenticationMailer).to receive(:send_when_signup).and_raise(StandardError.new('SMTP error'))
+        mail_double = instance_double(ActionMailer::MessageDelivery)
+        allow(mail_double).to receive(:deliver_now).and_raise(StandardError.new('SMTP error'))
+        allow(EmailAuthenticationMailer).to receive(:send_when_signup).and_return(mail_double)
       end
 
       it 'still returns success (user is created)' do
@@ -62,6 +64,26 @@ RSpec.describe 'Api::V1::Auth::Registrations', type: :request do
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
         expect(json['status']).to eq('success')
+      end
+
+      it 'passes confirm_success_url to the mailer' do
+        mail_double = instance_double(ActionMailer::MessageDelivery, deliver_now: nil)
+        allow(EmailAuthenticationMailer).to receive(:send_when_signup).and_return(mail_double)
+
+        post '/api/v1/auth', params: valid_params
+
+        expect(EmailAuthenticationMailer).to have_received(:send_when_signup)
+          .with(an_instance_of(User), 'http://localhost:8100')
+      end
+
+      it 'passes mobile app scheme url to the mailer when confirm_success_url is buzzbase://' do
+        mail_double = instance_double(ActionMailer::MessageDelivery, deliver_now: nil)
+        allow(EmailAuthenticationMailer).to receive(:send_when_signup).and_return(mail_double)
+
+        post '/api/v1/auth', params: valid_params.merge(confirm_success_url: 'buzzbase://confirmation-success')
+
+        expect(EmailAuthenticationMailer).to have_received(:send_when_signup)
+          .with(an_instance_of(User), 'buzzbase://confirmation-success')
       end
     end
   end
