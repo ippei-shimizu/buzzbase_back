@@ -4,12 +4,12 @@ class EmailAuthenticationMailer < ApplicationMailer
   #
   #   en.email_authentication_mailer.send_when_signup.subject
   #
-  def send_when_signup(user)
+  def send_when_signup(user, redirect_url = nil)
     @user = user
     @name = user.name
     @confirmation_url = api_v1_user_confirmation_url(
       confirmation_token: user.confirmation_token,
-      redirect_url: ENV.fetch('CONFIRM_SUCCESS_URL', 'http://localhost:8100/signin')
+      redirect_url: redirect_url || ENV.fetch('CONFIRM_SUCCESS_URL', 'http://localhost:8100/signin')
     )
     mail(
       to: user.email,

@@ -13,7 +13,7 @@ class Api::V1::Auth::RegistrationsController < DeviseTokenAuth::RegistrationsCon
 
   def render_create_success
     begin
-      EmailAuthenticationMailer.send_when_signup(@resource).deliver_now
+      EmailAuthenticationMailer.send_when_signup(@resource, @redirect_url).deliver_now
     rescue StandardError => e
       Rails.logger.error("Registration email failed: #{e.message}")
       Sentry.capture_exception(e) if Sentry.initialized?
