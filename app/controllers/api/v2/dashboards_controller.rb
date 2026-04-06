@@ -6,6 +6,7 @@ module Api
     # 1リクエストで返却する。
     class DashboardsController < ApplicationController
       include Concerns::DashboardRankings
+      include MatchTypeConvertible
 
       before_action :authenticate_api_v1_user!
 
@@ -13,7 +14,7 @@ module Api
       def show
         user = current_api_v1_user
         year = params[:year]
-        match_type = params[:match_type]
+        match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
 
         render json: {
@@ -28,13 +29,19 @@ module Api
       # GET /api/v2/dashboard/batting_stats
       def batting_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
-        render json: build_batting_stats(user, year: params[:year], match_type: params[:match_type], season_id: params[:season_id])
+        render json: build_batting_stats(
+          user, year: params[:year], match_type: convert_match_type(params[:match_type]),
+                season_id: params[:season_id]
+        )
       end
 
       # GET /api/v2/dashboard/pitching_stats
       def pitching_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
-        render json: build_pitching_stats(user, year: params[:year], match_type: params[:match_type], season_id: params[:season_id])
+        render json: build_pitching_stats(
+          user, year: params[:year], match_type: convert_match_type(params[:match_type]),
+                season_id: params[:season_id]
+        )
       end
 
       private

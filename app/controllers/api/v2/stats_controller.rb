@@ -1,13 +1,14 @@
 module Api
   module V2
     class StatsController < ApplicationController
+      include MatchTypeConvertible
       before_action :authenticate_api_v1_user!
 
       def hit_directions
         result = Stats::HitDirectionAggregator.new(
           user_id: target_user_id,
           year: params[:year],
-          match_type: params[:match_type],
+          match_type: convert_match_type(params[:match_type]),
           season_id: params[:season_id]
         ).call
         render json: result
@@ -17,7 +18,7 @@ module Api
         result = Stats::PlateAppearanceBreakdownService.new(
           user_id: target_user_id,
           year: params[:year],
-          match_type: params[:match_type],
+          match_type: convert_match_type(params[:match_type]),
           season_id: params[:season_id]
         ).call
         render json: { breakdown: result }
@@ -56,7 +57,7 @@ module Api
         result = Stats::GameSummaryService.new(
           user_id: target_user_id,
           year: params[:year],
-          match_type: params[:match_type],
+          match_type: convert_match_type(params[:match_type]),
           season_id: params[:season_id]
         ).call
         render json: result

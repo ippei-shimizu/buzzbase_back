@@ -33,13 +33,17 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
   def validate_redirect_url(redirect_url)
     return default_redirect_url if redirect_url.blank?
 
+    uri = URI.parse(redirect_url)
+
+    # モバイルアプリのカスタムスキームを許可
+    allowed_schemes = [ENV.fetch('MOBILE_APP_SCHEME', 'buzzbase')]
+    return redirect_url if allowed_schemes.include?(uri.scheme)
+
     # ホワイトリスト: 環境変数で指定されたホストのみ許可
     allowed_hosts = [
       ENV.fetch('FRONTEND_URL', nil),
       ENV.fetch('CONFIRM_SUCCESS_URL', nil)
     ].compact.map { |url| URI.parse(url).host }
-
-    uri = URI.parse(redirect_url)
 
     if allowed_hosts.include?(uri.host)
       redirect_url

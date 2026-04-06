@@ -7,5 +7,11 @@ FactoryBot.define do
     confirmed_at { Time.current }
     uid { email }
     provider { 'email' }
+
+    trait :unconfirmed do
+      confirmed_at { nil }
+      confirmation_token { Devise.friendly_token }
+      confirmation_sent_at { Time.current }
+    end
   end
 end
