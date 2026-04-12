@@ -101,12 +101,45 @@ RSpec.describe BattingAverage, type: :model do
       gr = create(:game_result, user:)
       gr.match_result.update!(date_and_time: Time.zone.local(2025, 1, 10))
       create(:batting_average, game_result: gr, user:,
-                               hit: 0, at_bats: 0, times_at_bat: 0, base_on_balls: 0, strike_out: 0,
+                               hit: 0, at_bats: 0, times_at_bat: 0, base_on_balls: 1, strike_out: 0,
                                two_base_hit: 0, three_base_hit: 0, home_run: 0)
 
       result = described_class.filtered_stats_for_user(user.id, year: '2025')
       expect(result[:batting_average]).to eq(0)
-      expect(result[:on_base_percentage]).to eq(0)
+      expect(result[:on_base_percentage]).to eq(1.0)
+    end
+  end
+
+  describe 'must_have_any_stats validation' do
+    let(:game_result) { create(:game_result, user:) }
+
+    it 'is invalid when all stat fields are zero' do
+      ba = described_class.new(
+        game_result:, user:,
+        times_at_bat: 0, at_bats: 0, hit: 0, two_base_hit: 0, three_base_hit: 0,
+        home_run: 0, total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 0,
+        base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+        stealing_base: 0, caught_stealing: 0, error: 0
+      )
+      expect(ba).not_to be_valid
+      expect(ba.errors[:base]).to include('打撃成績が未入力です')
+    end
+
+    it 'is invalid when all stat fields are nil' do
+      ba = described_class.new(game_result:, user:)
+      expect(ba).not_to be_valid
+      expect(ba.errors[:base]).to include('打撃成績が未入力です')
+    end
+
+    it 'is valid when at least one stat field is non-zero' do
+      ba = described_class.new(
+        game_result:, user:,
+        times_at_bat: 0, at_bats: 0, hit: 0, two_base_hit: 0, three_base_hit: 0,
+        home_run: 0, total_bases: 0, runs_batted_in: 1, run: 0, strike_out: 0,
+        base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+        stealing_base: 0, caught_stealing: 0, error: 0
+      )
+      expect(ba).to be_valid
     end
   end
 end

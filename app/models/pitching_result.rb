@@ -2,6 +2,8 @@ class PitchingResult < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
 
+  validate :must_have_any_stats
+
   INNINGS_PER_GAME = 9
   ZERO = 0
 
@@ -97,5 +99,18 @@ class PitchingResult < ApplicationRecord
 
   def self.safe_divide_round(numerator, denominator, precision)
     denominator.zero? ? ZERO : (numerator / denominator).round(precision)
+  end
+
+  private
+
+  def must_have_any_stats
+    stat_fields = [
+      win, loss, hold, saves, innings_pitched, number_of_pitches,
+      run_allowed, earned_run, hits_allowed, home_runs_hit,
+      strikeouts, base_on_balls, hit_by_pitch
+    ]
+    return unless stat_fields.all? { |v| v.nil? || v.to_f.zero? } && !got_to_the_distance
+
+    errors.add(:base, '投手成績が未入力です')
   end
 end
