@@ -3,6 +3,7 @@ class BattingAverage < ApplicationRecord
   belongs_to :user
 
   validates :game_result_id, uniqueness: true
+  validate :must_have_any_stats
 
   ZERO = 0
 
@@ -141,5 +142,19 @@ class BattingAverage < ApplicationRecord
     total_bases = stats['hit'].to_i + (stats['two_base_hit'].to_i * 2) +
                   (stats['three_base_hit'].to_i * 3) + (stats['home_run'].to_i * 4)
     at_bats.zero? ? ZERO : total_bases.to_f / at_bats
+  end
+
+  private
+
+  def must_have_any_stats
+    stat_fields = [
+      times_at_bat, at_bats, hit, two_base_hit, three_base_hit, home_run,
+      total_bases, runs_batted_in, run, strike_out, base_on_balls,
+      hit_by_pitch, sacrifice_hit, sacrifice_fly, stealing_base,
+      caught_stealing, error
+    ]
+    return unless stat_fields.all? { |v| v.nil? || v.to_f.zero? }
+
+    errors.add(:base, '打撃成績が未入力です')
   end
 end
