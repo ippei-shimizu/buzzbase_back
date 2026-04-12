@@ -153,7 +153,7 @@ class BattingAverage < ApplicationRecord
       hit_by_pitch, sacrifice_hit, sacrifice_fly, stealing_base,
       caught_stealing, error
     ]
-    return unless stat_fields.all? { |v| v.nil? || v.zero? }
+    return unless stat_fields.all? { |v| v.nil? || v.to_f.zero? }
 
     errors.add(:base, '打撃成績が未入力です')
   end
