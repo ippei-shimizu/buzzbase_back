@@ -114,6 +114,7 @@ module Api
       def search
         query = params[:query]
         users = User.where('name LIKE ? OR user_id LIKE ?', "%#{query}%", "%#{query}%")
+                    .order(created_at: :desc)
         render json: users.map { |user|
           user.as_json.merge(is_private: user.is_private?)
         }
