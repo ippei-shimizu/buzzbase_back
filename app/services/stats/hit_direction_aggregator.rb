@@ -26,11 +26,12 @@ module Stats
 
     HR_RESULT_ID = 10
 
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil)
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
       @year = year
       @match_type = match_type
       @season_id = season_id
+      @tournament_id = tournament_id
     end
 
     def call
@@ -94,7 +95,8 @@ module Stats
                              .where(user_id: @user_id)
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
-      apply_season_filter(scope)
+      scope = apply_season_filter(scope)
+      apply_tournament_filter(scope)
     end
 
     def apply_year_filter(scope)
@@ -115,6 +117,12 @@ module Stats
       return scope if @season_id.blank?
 
       scope.where(game_results: { season_id: @season_id })
+    end
+
+    def apply_tournament_filter(scope)
+      return scope if @tournament_id.blank?
+
+      scope.where(match_results: { tournament_id: @tournament_id })
     end
   end
 end

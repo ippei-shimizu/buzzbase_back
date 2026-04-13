@@ -44,11 +44,12 @@ class GameResult < ApplicationRecord
     end
   end
 
-  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil)
+  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
     game_results = base_query(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
+    game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
 
     map_game_results(game_results)
   end
@@ -78,6 +79,10 @@ class GameResult < ApplicationRecord
 
   def self.filter_by_season(game_results, season_id)
     game_results.where(season_id:)
+  end
+
+  def self.filter_by_tournament(game_results, tournament_id)
+    game_results.where(match_results: { tournament_id: })
   end
 
   def self.map_game_results(game_results)
@@ -138,11 +143,12 @@ class GameResult < ApplicationRecord
   # @param year [String, nil] フィルタ対象の年度（"通算"の場合はフィルタなし）
   # @param match_type [String, nil] フィルタ対象の試合種別（"全て"の場合はフィルタなし）
   # @return [ActiveRecord::Relation<GameResult>] フィルタ済みの試合結果リレーション
-  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil)
+  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
     game_results = v2_game_associated_data_user(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
+    game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
     game_results
   end
 
