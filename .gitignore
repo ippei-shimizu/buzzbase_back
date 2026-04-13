@@ -37,8 +37,5 @@
 
 .serena
 
-# Claude Code settings
-.claude/
-
 # Ruby LSP cache
 .ruby-lsp/
