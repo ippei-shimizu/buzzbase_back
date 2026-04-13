@@ -4,10 +4,11 @@ module Stats
   class EraTrendService
     INNINGS_PER_GAME = 9
 
-    def initialize(user_id:, year: nil, season_id: nil)
+    def initialize(user_id:, year: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
       @year = year
       @season_id = season_id
+      @tournament_id = tournament_id
     end
 
     def call
@@ -47,6 +48,7 @@ module Stats
       end
 
       scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?
+      scope = scope.where(match_results: { tournament_id: @tournament_id }) if @tournament_id.present?
       scope
     end
   end

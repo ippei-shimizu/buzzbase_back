@@ -9,7 +9,8 @@ module Api
           user_id: target_user_id,
           year: params[:year],
           match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: result
       end
@@ -19,7 +20,8 @@ module Api
           user_id: target_user_id,
           year: params[:year],
           match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: { breakdown: result }
       end
@@ -29,7 +31,8 @@ module Api
           user_id: target_user_id,
           mode: params[:period] || 'yearly',
           year: params[:year],
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: { rows: result }
       end
@@ -39,7 +42,8 @@ module Api
           user_id: target_user_id,
           mode: params[:period] || 'yearly',
           year: params[:year],
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: { rows: result }
       end
@@ -48,7 +52,8 @@ module Api
         result = Stats::EraTrendService.new(
           user_id: target_user_id,
           year: params[:year],
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: { trend: result }
       end
@@ -58,7 +63,8 @@ module Api
           user_id: target_user_id,
           year: params[:year],
           match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id]
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
         ).call
         render json: result
       end
