@@ -12,7 +12,12 @@ module Api
       # GET /api/v1/tournaments/user_tournaments
       # 指定ユーザー（またはログインユーザー）の試合に紐づく大会のみ返す
       def user_tournaments
-        user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        user = params[:user_id].present? ? User.find_by(id: params[:user_id]) : current_api_v1_user
+        return render json: { error: 'ユーザーが存在しません' }, status: :not_found unless user
+        unless user == current_api_v1_user || user.profile_visible_to?(current_api_v1_user)
+          return render json: { error: 'このアカウントは非公開です' }, status: :forbidden
+        end
+
         tournaments = Tournament.joins(:match_results)
                                 .where(match_results: { user_id: user.id })
                                 .distinct

@@ -66,6 +66,43 @@ RSpec.describe 'Api::V1::Tournaments', type: :request do
         expect(names).to include('他ユーザー大会')
         expect(names).not_to include('春季大会', '秋季大会')
       end
+
+      it '存在しないuser_idで404を返す' do
+        get '/api/v1/tournaments/user_tournaments',
+            params: { user_id: 999_999 },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:not_found)
+        json = response.parsed_body
+        expect(json['error']).to eq('ユーザーが存在しません')
+      end
+
+      it '非公開アカウントのuser_idで403を返す' do
+        private_user = create(:user, is_private: true)
+        game_result_private = create(:game_result, user: private_user)
+        game_result_private.match_result.update!(tournament: tournament_a)
+
+        get '/api/v1/tournaments/user_tournaments',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+        json = response.parsed_body
+        expect(json['error']).to eq('このアカウントは非公開です')
+      end
+
+      it '非公開アカウントでもフォロワーはアクセスできる' do
+        private_user = create(:user, is_private: true)
+        game_result_private = create(:game_result, user: private_user)
+        game_result_private.match_result.update!(tournament: tournament_a)
+        user.follow(private_user, force_accept: true)
+
+        get '/api/v1/tournaments/user_tournaments',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
     end
 
     context 'when not authenticated' do

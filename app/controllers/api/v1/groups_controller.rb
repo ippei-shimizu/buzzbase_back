@@ -1,7 +1,6 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      include GroupStatsBuilder
       before_action :authenticate_api_v1_user!, only: %i[show create update destroy invite_link]
 
       def index
@@ -18,7 +17,12 @@ module Api
                                                                                                                  state: 'accepted')
 
         accepted_users = group.accepted_users
-        stats = build_group_stats(accepted_users)
+        stats = Groups::StatsBuilder.new(
+          accepted_users:,
+          year: params[:year],
+          match_type: params[:match_type],
+          tournament_id: params[:tournament_id]
+        ).call
 
         render json: { group:, accepted_users:, **stats }
       rescue ActiveRecord::RecordNotFound
