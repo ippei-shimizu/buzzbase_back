@@ -1,12 +1,23 @@
 module Api
   module V1
     class TournamentsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[create update]
+      before_action :authenticate_api_v1_user!, only: %i[create update user_tournaments]
       before_action :set_tournament, only: %i[show update]
 
       def index
         @tournaments = Tournament.all
         render json: @tournaments
+      end
+
+      # GET /api/v1/tournaments/user_tournaments
+      # 指定ユーザー（またはログインユーザー）の試合に紐づく大会のみ返す
+      def user_tournaments
+        user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        tournaments = Tournament.joins(:match_results)
+                                .where(match_results: { user_id: user.id })
+                                .distinct
+                                .order(:name)
+        render json: tournaments
       end
 
       def show
