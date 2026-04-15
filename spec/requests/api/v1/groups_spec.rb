@@ -258,9 +258,12 @@ RSpec.describe 'Api::V1::Groups', type: :request do
 
   describe 'GET /api/v1/groups/:id (with filters)' do
     let(:group) { Group.create!(name: 'テストグループ') }
+    let!(:tournament) { create(:tournament, name: '春季大会') }
 
     before do
       GroupInvitation.create!(user:, group:, state: 'accepted', sent_at: Time.current)
+      game_result = create(:game_result, user:)
+      game_result.match_result.update!(tournament:)
     end
 
     it 'returns available_years in response' do
@@ -270,6 +273,27 @@ RSpec.describe 'Api::V1::Groups', type: :request do
       json = response.parsed_body
       expect(json).to have_key('available_years')
       expect(json['available_years']).to be_an(Array)
+    end
+
+    it 'returns available_tournaments in response' do
+      get "/api/v1/groups/#{group.id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to have_key('available_tournaments')
+      tournaments = json['available_tournaments']
+      expect(tournaments).to be_an(Array)
+      expect(tournaments.first['name']).to eq('春季大会')
+    end
+
+    it 'tournament_idでフィルタリングできる' do
+      get "/api/v1/groups/#{group.id}",
+          params: { tournament_id: tournament.id },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['batting_averages']).to be_present
     end
   end
 

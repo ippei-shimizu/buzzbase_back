@@ -2,6 +2,8 @@ class PitchingResult < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
 
+  validate :must_have_any_stats
+
   INNINGS_PER_GAME = 9
   ZERO = 0
 
@@ -36,15 +38,15 @@ class PitchingResult < ApplicationRecord
      'SUM(earned_run) AS earned_run']
   end
 
-  def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil)
+  def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
     scope = joins(game_result: :match_result).select(*pitching_aggregate_columns)
-    scope = apply_filters(scope, year, match_type, season_id:)
+    scope = apply_filters(scope, year, match_type, season_id:, tournament_id:)
     scope.where(pitching_results: { user_id: }).group('pitching_results.user_id')
   end
 
-  def self.pitching_stats_for_user(user_id, year: nil, match_type: nil, season_id: nil)
-    if year.present? || match_type.present? || season_id.present?
-      scope = apply_filters(joins(game_result: :match_result), year, match_type, season_id:)
+  def self.pitching_stats_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+    if year.present? || match_type.present? || season_id.present? || tournament_id.present?
+      scope = apply_filters(joins(game_result: :match_result), year, match_type, season_id:, tournament_id:)
       result = scope.select(*pitching_aggregate_columns)
                     .where(pitching_results: { user_id: })
                     .group('pitching_results.user_id').take
@@ -70,10 +72,11 @@ class PitchingResult < ApplicationRecord
     alias filtered_pitching_stats_for_user pitching_stats_for_user
   end
 
-  def self.apply_filters(scope, year, match_type, season_id: nil)
+  def self.apply_filters(scope, year, match_type, season_id: nil, tournament_id: nil)
     scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
     scope = scope.where(game_results: { season_id: }) if season_id.present?
+    scope = scope.where(match_results: { tournament_id: }) if tournament_id.present?
     scope
   end
 
@@ -97,5 +100,18 @@ class PitchingResult < ApplicationRecord
 
   def self.safe_divide_round(numerator, denominator, precision)
     denominator.zero? ? ZERO : (numerator / denominator).round(precision)
+  end
+
+  private
+
+  def must_have_any_stats
+    stat_fields = [
+      win, loss, hold, saves, innings_pitched, number_of_pitches,
+      run_allowed, earned_run, hits_allowed, home_runs_hit,
+      strikeouts, base_on_balls, hit_by_pitch
+    ]
+    return unless stat_fields.all? { |v| v.nil? || v.to_f.zero? } && !got_to_the_distance
+
+    errors.add(:base, '投手成績が未入力です')
   end
 end

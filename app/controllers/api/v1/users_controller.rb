@@ -80,7 +80,7 @@ module Api
       def following_users
         return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless @user.profile_visible_to?(current_api_v1_user)
 
-        @following_users = @user.following.map do |user|
+        @following_users = @user.following.order(created_at: :desc).map do |user|
           user_attributes = {
             id: user.id,
             name: user.name,
@@ -97,7 +97,7 @@ module Api
       def followers_users
         return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless @user.profile_visible_to?(current_api_v1_user)
 
-        @followers_users = @user.followers.map do |user|
+        @followers_users = @user.followers.order(created_at: :desc).map do |user|
           user_attributes = {
             id: user.id,
             name: user.name,
@@ -114,6 +114,7 @@ module Api
       def search
         query = params[:query]
         users = User.where('name LIKE ? OR user_id LIKE ?', "%#{query}%", "%#{query}%")
+                    .order(created_at: :desc)
         render json: users.map { |user|
           user.as_json.merge(is_private: user.is_private?)
         }

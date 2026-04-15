@@ -68,7 +68,11 @@ Rails.application.routes.draw do
         end
       end
 
-      resources :tournaments, only: %i[index create update show]
+      resources :tournaments, only: %i[index create update show] do
+        collection do
+          get :user_tournaments
+        end
+      end
 
       resources :game_results, only: %i[create update destroy] do
         member do
