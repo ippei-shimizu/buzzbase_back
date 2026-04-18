@@ -53,6 +53,34 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
       end
     end
 
+    context 'when the viewed user has sent a pending follow request to the current user' do
+      let(:requester) { create(:user, user_id: 'requester') }
+      let(:receiver) { create(:user, user_id: 'receiver', is_private: true) }
+      let!(:pending_request) { Relationship.create!(follower: requester, followed: receiver, status: :pending) }
+
+      it 'returns the incoming_follow_request_id' do
+        get '/api/v1/users/show_user_id_data',
+            params: { user_id: requester.user_id },
+            headers: auth_headers_for(receiver)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['incoming_follow_request_id']).to eq(pending_request.id)
+      end
+    end
+
+    context 'when there is no pending follow request from the viewed user' do
+      it 'returns null for incoming_follow_request_id' do
+        get '/api/v1/users/show_user_id_data',
+            params: { user_id: public_user.user_id },
+            headers: auth_headers_for(non_follower)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['incoming_follow_request_id']).to be_nil
+      end
+    end
+
     context 'when viewing a private user without authentication' do
       it 'returns minimal profile data' do
         get '/api/v1/users/show_user_id_data',
@@ -63,6 +91,7 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
         expect(json['is_private']).to be true
         expect(json['following_count']).to be_nil
         expect(json['followers_count']).to be_nil
+        expect(json['incoming_follow_request_id']).to be_nil
       end
     end
   end

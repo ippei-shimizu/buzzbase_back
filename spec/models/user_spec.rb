@@ -275,6 +275,23 @@ RSpec.describe User, type: :model do
       end
     end
 
+    describe '#incoming_follow_request_id_from' do
+      it 'returns the relationship id when a pending request exists from the other user' do
+        requester = create(:user)
+        relationship = Relationship.create!(follower: requester, followed: private_user, status: :pending)
+
+        expect(private_user.incoming_follow_request_id_from(requester)).to eq(relationship.id)
+      end
+
+      it 'returns nil when no pending request exists from the other user' do
+        expect(private_user.incoming_follow_request_id_from(non_follower)).to be_nil
+      end
+
+      it 'returns nil when the relationship is already accepted' do
+        expect(private_user.incoming_follow_request_id_from(follower)).to be_nil
+      end
+    end
+
     describe '#approve_all_pending_requests!' do
       it 'accepts all pending follow requests' do
         requester1 = create(:user)
