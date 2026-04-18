@@ -32,6 +32,7 @@ module Api
 
         follow_status = current_api_v1_user ? current_api_v1_user.follow_status(user) : 'none'
         is_following = follow_status == 'following'
+        incoming_request_id = current_api_v1_user&.incoming_follow_request_id_from(user)
 
         if user.profile_visible_to?(current_api_v1_user)
           render json: {
@@ -40,7 +41,8 @@ module Api
             follow_status:,
             following_count: user.following_count,
             followers_count: user.followers_count,
-            is_private: user.is_private?
+            is_private: user.is_private?,
+            incoming_follow_request_id: incoming_request_id
           }
         else
           render json: {
@@ -49,7 +51,8 @@ module Api
             follow_status:,
             following_count: nil,
             followers_count: nil,
-            is_private: user.is_private?
+            is_private: user.is_private?,
+            incoming_follow_request_id: incoming_request_id
           }
         end
       end

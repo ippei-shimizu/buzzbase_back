@@ -118,6 +118,10 @@ class User < ActiveRecord::Base
     followers.include?(viewer)
   end
 
+  def incoming_follow_request_id_from(other_user)
+    pending_follow_requests.find_by(follower_id: other_user.id)&.id
+  end
+
   def approve_all_pending_requests!
     pending_follow_requests.update_all(status: :accepted) # rubocop:disable Rails/SkipsModelValidations
   end
