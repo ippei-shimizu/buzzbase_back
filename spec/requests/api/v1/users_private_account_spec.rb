@@ -91,6 +91,7 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
         expect(json['is_private']).to be true
         expect(json['following_count']).to be_nil
         expect(json['followers_count']).to be_nil
+        expect(json['incoming_follow_request_id']).to be_nil
       end
     end
   end

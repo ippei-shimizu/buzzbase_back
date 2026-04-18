@@ -119,6 +119,8 @@ class User < ActiveRecord::Base
   end
 
   def incoming_follow_request_id_from(other_user)
+    return nil unless other_user
+
     pending_follow_requests.find_by(follower_id: other_user.id)&.id
   end
 
