@@ -65,6 +65,58 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
 
         expect(response).to have_http_status(:created)
       end
+
+      context 'when empty game results exist' do
+        let!(:empty_game_result) do
+          GameResult.create!(user:)
+        end
+
+        it 'deletes empty game results before creating a new one' do
+          expect do
+            post '/api/v1/game_results', headers: auth_headers_for(user)
+          end.not_to change(GameResult, :count)
+
+          expect(response).to have_http_status(:created)
+          expect(GameResult.exists?(empty_game_result.id)).to be false
+        end
+      end
+
+      context 'when game result has associated match_result' do
+        let!(:complete_game_result) { create(:game_result, user:) }
+
+        it 'does not delete game results with associations' do
+          post '/api/v1/game_results', headers: auth_headers_for(user)
+
+          expect(response).to have_http_status(:created)
+          expect(GameResult.exists?(complete_game_result.id)).to be true
+        end
+      end
+
+      context 'when game result has plate_appearances but no match_result' do
+        let!(:partial_game_result) do
+          gr = GameResult.create!(user:)
+          create(:plate_appearance, game_result: gr, user:)
+          gr
+        end
+
+        it 'does not delete game results with plate_appearances' do
+          post '/api/v1/game_results', headers: auth_headers_for(user)
+
+          expect(response).to have_http_status(:created)
+          expect(GameResult.exists?(partial_game_result.id)).to be true
+        end
+      end
+
+      context 'when other user has empty game results' do
+        let!(:other_empty) { GameResult.create!(user: other_user) }
+
+        it 'does not delete other users empty game results' do
+          post '/api/v1/game_results', headers: auth_headers_for(user)
+
+          expect(response).to have_http_status(:created)
+          expect(GameResult.exists?(other_empty.id)).to be true
+        end
+      end
     end
 
     context 'when not authenticated' do
