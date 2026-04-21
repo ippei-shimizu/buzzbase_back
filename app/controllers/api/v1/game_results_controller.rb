@@ -24,6 +24,7 @@ module Api
       end
 
       def create
+        cleanup_empty_game_results
         game_result = GameResult.new(user_id: current_api_v1_user.id)
         if game_result.save
           render json: game_result, status: :created
@@ -84,6 +85,13 @@ module Api
       end
 
       private
+
+      def cleanup_empty_game_results
+        current_api_v1_user.game_results
+                           .where(match_result_id: nil, batting_average_id: nil, pitching_result_id: nil)
+                           .where.not(id: PlateAppearance.select(:game_result_id))
+                           .delete_all
+      end
 
       def set_game_result
         @game_result = current_api_v1_user.game_results.find(params[:id])
