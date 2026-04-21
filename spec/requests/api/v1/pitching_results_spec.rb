@@ -149,6 +149,30 @@ RSpec.describe 'Api::V1::PitchingResults', type: :request do
     end
   end
 
+  describe 'GET /api/v1/user_pitching_result_search' do
+    let(:other_game_result) { create(:game_result, user: other_user) }
+    let!(:other_pitching_result) { create(:pitching_result, game_result: other_game_result, user: other_user) }
+
+    context 'when authenticated' do
+      it 'returns 200' do
+        get '/api/v1/user_pitching_result_search',
+            params: { game_result_id: other_game_result.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/user_pitching_result_search',
+            params: { game_result_id: other_game_result.id }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
   describe 'GET /api/v1/pitching_results/personal_pitching_result' do
     let!(:game_result) { create(:game_result, user:) }
     let!(:pitching_result) { create(:pitching_result, game_result:, user:) }

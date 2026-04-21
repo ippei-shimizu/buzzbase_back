@@ -1,7 +1,7 @@
 module Api
   module V1
     class PlateAppearancesController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[create update plate_search current_plate_search]
+      before_action :authenticate_api_v1_user!, only: %i[create update plate_search current_plate_search user_plate_search current_plate_search_user_id]
       before_action :set_plate_appearance, only: %i[update]
 
       def create

@@ -2,7 +2,7 @@ module Api
   module V1
     class BattingAveragesController < ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[create update search current_batting_average_search]
+      before_action :authenticate_api_v1_user!, only: %i[create update search current_batting_average_search user_batting_average_search]
       before_action :set_batting_average, only: %i[update]
 
       def index

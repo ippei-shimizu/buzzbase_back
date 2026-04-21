@@ -159,16 +159,27 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
   end
 
   describe 'GET /api/v2/game_results/user/:user_id' do
-    it 'returns 200 with the specified user game results' do
-      get "/api/v2/game_results/user/#{other_user.id}"
+    context 'when authenticated' do
+      it 'returns 200 with the specified user game results' do
+        get "/api/v2/game_results/user/#{other_user.id}",
+            headers: auth_headers_for(user)
 
-      expect(response).to have_http_status(:ok)
-      json = response.parsed_body
-      expect(json).to have_key('data')
-      expect(json).to have_key('pagination')
-      game_result_ids = json['data'].pluck('game_result_id')
-      expect(game_result_ids).to include(other_user_game.id)
-      expect(game_result_ids).not_to include(user_game.id)
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json).to have_key('data')
+        expect(json).to have_key('pagination')
+        game_result_ids = json['data'].pluck('game_result_id')
+        expect(game_result_ids).to include(other_user_game.id)
+        expect(game_result_ids).not_to include(user_game.id)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get "/api/v2/game_results/user/#{other_user.id}"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
     end
 
     context 'when the target user is private' do
@@ -182,10 +193,10 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
         expect(response).to have_http_status(:forbidden)
       end
 
-      it 'returns 403 when not authenticated' do
+      it 'returns 401 when not authenticated' do
         get "/api/v2/game_results/user/#{private_user.id}"
 
-        expect(response).to have_http_status(:forbidden)
+        expect(response).to have_http_status(:unauthorized)
       end
 
       it 'returns 200 when viewer is an accepted follower' do
@@ -223,15 +234,27 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
       gr
     end
 
-    it 'returns 200 with filtered results by year and match_type' do
-      get "/api/v2/game_results/filtered_user/#{other_user.id}",
-          params: { year: '2024', match_type: 'オープン戦' }
+    context 'when authenticated' do
+      it 'returns 200 with filtered results by year and match_type' do
+        get "/api/v2/game_results/filtered_user/#{other_user.id}",
+            params: { year: '2024', match_type: 'オープン戦' },
+            headers: auth_headers_for(user)
 
-      expect(response).to have_http_status(:ok)
-      json = response.parsed_body
-      game_result_ids = json['data'].pluck('game_result_id')
-      expect(game_result_ids).to include(target_game_open.id)
-      expect(game_result_ids).not_to include(target_game_regular.id)
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        game_result_ids = json['data'].pluck('game_result_id')
+        expect(game_result_ids).to include(target_game_open.id)
+        expect(game_result_ids).not_to include(target_game_regular.id)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get "/api/v2/game_results/filtered_user/#{other_user.id}",
+            params: { year: '2024', match_type: 'オープン戦' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
     end
 
     context 'when the target user is private' do
