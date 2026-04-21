@@ -9,7 +9,7 @@ module Api
     # - ページネーション対応（kaminari）
     class GameResultsController < ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[index filtered_index]
+      before_action :authenticate_api_v1_user!, only: %i[index filtered_index show_user filtered_show_user]
 
       # GET /api/v2/game_results
       # 認証ユーザー自身の試合一覧を取得する

@@ -164,6 +164,30 @@ RSpec.describe 'Api::V1::BattingAverages', type: :request do
     end
   end
 
+  describe 'GET /api/v1/user_batting_average_search' do
+    let(:other_game_result) { create(:game_result, user: other_user) }
+    let!(:other_batting_average) { create(:batting_average, game_result: other_game_result, user: other_user) }
+
+    context 'when authenticated' do
+      it 'returns 200' do
+        get '/api/v1/user_batting_average_search',
+            params: { game_result_id: other_game_result.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/user_batting_average_search',
+            params: { game_result_id: other_game_result.id }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
   describe 'GET /api/v1/batting_averages/personal_batting_stats' do
     let!(:game_result) { create(:game_result, user:) }
     let!(:batting_average) { create(:batting_average, game_result:, user:) }

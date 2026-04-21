@@ -3,7 +3,7 @@ module Api
     class MatchResultsController < ApplicationController
       include MatchTypeConvertible
 
-      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index]
+      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search]
       before_action :set_match_result, only: %i[show update destroy]
       before_action :normalize_match_type, only: %i[create update]
 
