@@ -5,11 +5,10 @@ RSpec.describe 'Api::V1::PitchingResults', type: :request do
   let(:other_user) { create(:user) }
 
   describe 'GET /api/v1/pitching_results' do
-    it 'returns 500 due to typo in controller (PitchingResults instead of PitchingResult)' do
+    it 'returns 200 with all pitching results' do
       get '/api/v1/pitching_results'
 
-      # Controller has `PitchingResults` (plural) which is not a valid constant
-      expect(response).to have_http_status(:internal_server_error)
+      expect(response).to have_http_status(:ok)
     end
   end
 

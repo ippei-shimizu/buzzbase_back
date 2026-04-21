@@ -7,7 +7,7 @@ module Api
       before_action :set_pitching_result, only: %i[update]
 
       def index
-        pitching_result = PitchingResults.includes(:user, :game_result)
+        pitching_result = PitchingResult.includes(:user, :game_result)
         render json: pitching_result
       end
 

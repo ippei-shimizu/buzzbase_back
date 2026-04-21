@@ -216,14 +216,11 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
     end
 
     context 'when not authenticated' do
-      it 'returns error (uses current_api_v1_user without before_action guard)' do
+      it 'returns 401' do
         get '/api/v1/game_results/filtered_game_associated_data',
             params: { year: Time.current.year.to_s, match_type: '全て' }
 
-        # filtered_game_associated_data is not in authenticate_api_v1_user! list
-        # but uses current_api_v1_user, so it may 500 or return empty
-        expect(response).to have_http_status(:internal_server_error)
-          .or have_http_status(:ok)
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
