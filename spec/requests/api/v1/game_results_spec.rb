@@ -31,21 +31,31 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
   end
 
   describe 'GET /api/v1/game_results/game_associated_data_index_user_id' do
-    context 'when target user is public' do
-      it 'returns 200' do
-        get '/api/v1/game_results/game_associated_data_index_user_id', params: { user_id: other_user.id }
+    context 'when authenticated' do
+      it 'returns 200 when target user is public' do
+        get '/api/v1/game_results/game_associated_data_index_user_id',
+            params: { user_id: other_user.id },
+            headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/game_results/game_associated_data_index_user_id', params: { user_id: other_user.id }
+
+        expect(response).to have_http_status(:unauthorized)
       end
     end
 
     context 'when target user is private' do
       let(:private_user) { create(:user, is_private: true) }
 
-      it 'returns 403 for unauthenticated request' do
+      it 'returns 401 for unauthenticated request' do
         get '/api/v1/game_results/game_associated_data_index_user_id', params: { user_id: private_user.id }
 
-        expect(response).to have_http_status(:forbidden)
+        expect(response).to have_http_status(:unauthorized)
       end
 
       it 'returns 403 when viewer is not a follower' do
@@ -54,6 +64,27 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:forbidden)
+      end
+    end
+  end
+
+  describe 'GET /api/v1/game_results/filtered_game_associated_data_user_id' do
+    context 'when authenticated' do
+      it 'returns 200 when target user is public' do
+        get '/api/v1/game_results/filtered_game_associated_data_user_id',
+            params: { user_id: other_user.id, year: Time.current.year.to_s, match_type: '全て' },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/game_results/filtered_game_associated_data_user_id',
+            params: { user_id: other_user.id, year: Time.current.year.to_s, match_type: '全て' }
+
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
@@ -185,14 +216,11 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
     end
 
     context 'when not authenticated' do
-      it 'returns error (uses current_api_v1_user without before_action guard)' do
+      it 'returns 401' do
         get '/api/v1/game_results/filtered_game_associated_data',
             params: { year: Time.current.year.to_s, match_type: '全て' }
 
-        # filtered_game_associated_data is not in authenticate_api_v1_user! list
-        # but uses current_api_v1_user, so it may 500 or return empty
-        expect(response).to have_http_status(:internal_server_error)
-          .or have_http_status(:ok)
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end

@@ -2,11 +2,12 @@ module Api
   module V1
     class PitchingResultsController < ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[create update pitching_search current_pitching_result_search]
+      before_action :authenticate_api_v1_user!,
+                    only: %i[create update pitching_search current_pitching_result_search user_pitching_result_search]
       before_action :set_pitching_result, only: %i[update]
 
       def index
-        pitching_result = PitchingResults.includes(:user, :game_result)
+        pitching_result = PitchingResult.includes(:user, :game_result)
         render json: pitching_result
       end
 

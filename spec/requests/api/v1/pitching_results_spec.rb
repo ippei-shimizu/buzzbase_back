@@ -5,11 +5,10 @@ RSpec.describe 'Api::V1::PitchingResults', type: :request do
   let(:other_user) { create(:user) }
 
   describe 'GET /api/v1/pitching_results' do
-    it 'returns 500 due to typo in controller (PitchingResults instead of PitchingResult)' do
+    it 'returns 200 with all pitching results' do
       get '/api/v1/pitching_results'
 
-      # Controller has `PitchingResults` (plural) which is not a valid constant
-      expect(response).to have_http_status(:internal_server_error)
+      expect(response).to have_http_status(:ok)
     end
   end
 
@@ -143,6 +142,30 @@ RSpec.describe 'Api::V1::PitchingResults', type: :request do
       it 'returns 401' do
         get '/api/v1/current_pitching_result_search',
             params: { game_result_id: game_result.id }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe 'GET /api/v1/user_pitching_result_search' do
+    let(:other_game_result) { create(:game_result, user: other_user) }
+    let!(:other_pitching_result) { create(:pitching_result, game_result: other_game_result, user: other_user) }
+
+    context 'when authenticated' do
+      it 'returns 200' do
+        get '/api/v1/user_pitching_result_search',
+            params: { game_result_id: other_game_result.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/user_pitching_result_search',
+            params: { game_result_id: other_game_result.id }
 
         expect(response).to have_http_status(:unauthorized)
       end

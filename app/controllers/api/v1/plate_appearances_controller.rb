@@ -1,7 +1,7 @@
 module Api
   module V1
     class PlateAppearancesController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[create update plate_search current_plate_search]
+      before_action :authenticate_api_v1_user!, only: %i[create update plate_search current_plate_search user_plate_search current_plate_search_user_id]
       before_action :set_plate_appearance, only: %i[update]
 
       def create
@@ -78,6 +78,11 @@ module Api
         user_id = params[:user_id]
         game_result_id = params[:game_result_id]
         if game_result_id.present?
+          game_result = GameResult.find_by(id: game_result_id)
+          if game_result
+            user = game_result.user
+            return render json: { error: 'このアカウントは非公開です' }, status: :forbidden unless user.profile_visible_to?(current_api_v1_user)
+          end
           plate_appearance = PlateAppearance.where(game_result_id:, user_id:)
           if plate_appearance.present?
             render json: plate_appearance

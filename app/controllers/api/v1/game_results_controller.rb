@@ -2,7 +2,9 @@ module Api
   module V1
     class GameResultsController < ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[create update update_batting_average_id game_associated_data_index destroy]
+      before_action :authenticate_api_v1_user!,
+                    only: %i[create update update_batting_average_id game_associated_data_index destroy game_associated_data_index_user_id
+                             filtered_game_associated_data filtered_game_associated_data_user_id]
       before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id destroy]
 
       def all_game_associated_data
