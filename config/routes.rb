@@ -175,6 +175,8 @@ Rails.application.routes.draw do
         end
 
         resources :management_notices, only: %i[index create show update destroy]
+        resources :teams, only: %i[index destroy]
+        resources :groups, only: %i[index destroy]
       end
 
       get 'users/current', to: 'users#show_current'
