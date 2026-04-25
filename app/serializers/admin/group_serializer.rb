@@ -7,7 +7,7 @@ module Admin
     end
 
     def group_users_count
-      object.group_users.size
+      @group_users_count ||= object.group_users.size
     end
 
     def group_invitations_count
