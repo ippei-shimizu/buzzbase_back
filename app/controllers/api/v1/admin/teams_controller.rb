@@ -2,7 +2,7 @@ module Api
   module V1
     module Admin
       class TeamsController < Api::V1::Admin::BaseController
-        before_action :set_team, only: %i[destroy]
+        before_action :set_team, only: %i[show destroy]
 
         DEFAULT_PER_PAGE = 20
         MAX_PER_PAGE = 100
@@ -25,6 +25,12 @@ module Api
               total_count:,
               total_pages: (total_count.to_f / per_page).ceil
             }
+          }
+        end
+
+        def show
+          render json: {
+            team: ::Admin::TeamDetailSerializer.new(@team)
           }
         end
 
