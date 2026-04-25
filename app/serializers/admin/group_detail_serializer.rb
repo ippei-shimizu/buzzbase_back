@@ -23,15 +23,20 @@ module Admin
     end
 
     def members
-      object.group_users.includes(:user).map do |group_user|
-        user = group_user.user
+      creator_user_id = object.group_users.order(:created_at).first&.user_id
+
+      object.group_invitations.includes(:user).where(state: 'accepted').filter_map do |invitation|
+        user = invitation.user
+        next unless user
+
         {
           id: user.id,
           name: user.name,
           email: user.email,
           user_id: user.user_id,
           image_url: user.image&.url,
-          joined_at: group_user.created_at.strftime('%Y年%m月%d日 %H:%M')
+          is_creator: user.id == creator_user_id,
+          joined_at: invitation.sent_at&.strftime('%Y年%m月%d日 %H:%M')
         }
       end
     end
