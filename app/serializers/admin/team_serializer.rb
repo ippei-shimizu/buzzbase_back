@@ -15,7 +15,7 @@ module Admin
     end
 
     def match_results_count
-      MatchResult.where(my_team_id: object.id).or(MatchResult.where(opponent_team_id: object.id)).count
+      @match_results_count ||= MatchResult.where(my_team_id: object.id).or(MatchResult.where(opponent_team_id: object.id)).count
     end
 
     def deletable
