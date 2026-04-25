@@ -4,14 +4,27 @@ module Api
       class TeamsController < Api::V1::Admin::BaseController
         before_action :set_team, only: %i[destroy]
 
+        DEFAULT_PER_PAGE = 20
+        MAX_PER_PAGE = 100
+
         def index
           teams = Team.includes(:category, :prefecture, :user).order(created_at: :desc)
+          total_count = teams.count
+          page = [params[:page].to_i, 1].max
+          per_page = params[:per_page].to_i.between?(1, MAX_PER_PAGE) ? params[:per_page].to_i : DEFAULT_PER_PAGE
+          teams = teams.limit(per_page).offset((page - 1) * per_page)
 
           render json: {
             teams: ActiveModelSerializers::SerializableResource.new(
               teams,
               each_serializer: ::Admin::TeamSerializer
-            )
+            ),
+            pagination: {
+              current_page: page,
+              per_page:,
+              total_count:,
+              total_pages: (total_count.to_f / per_page).ceil
+            }
           }
         end
 
