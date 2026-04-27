@@ -20,6 +20,20 @@ class ApplicationController < ActionController::API
     render json: { errors: [exception.message] }, status: :bad_request
   end
 
+  rescue_from ActiveRecord::RecordInvalid do |exception|
+    if Sentry.initialized?
+      Sentry.capture_message(
+        "Validation failed: #{exception.record.class.name}",
+        level: :info,
+        extra: {
+          errors: exception.record.errors.full_messages,
+          record_class: exception.record.class.name
+        }
+      )
+    end
+    render json: { errors: exception.record.errors.full_messages }, status: :unprocessable_entity
+  end
+
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name user_id])
   end
@@ -40,6 +54,10 @@ class ApplicationController < ActionController::API
     Sentry.set_extras(
       request_id: request.request_id,
       user_agent: request.user_agent
+    )
+    Sentry.set_tags(
+      api_version: request.path.match(%r{/api/(v\d+)/})&.captures&.first || 'unknown',
+      user_type: current_user ? 'user' : 'guest'
     )
   end
 end
