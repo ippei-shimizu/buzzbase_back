@@ -37,9 +37,10 @@ class AppleAuthService
   rescue JWT::DecodeError, JWT::ExpiredSignature, JWT::InvalidIssuerError, JWT::InvalidAudError => e
     raise InvalidToken, "Apple IDトークンの検証に失敗しました: #{e.message}"
   rescue StandardError => e
-    raise InvalidToken, "Apple認証サービスとの通信に失敗しました: #{e.message}" unless e.is_a?(InvalidToken)
+    raise if e.is_a?(InvalidToken)
 
-    raise
+    Sentry.capture_exception(e) if Sentry.initialized?
+    raise InvalidToken, "Apple認証サービスとの通信に失敗しました: #{e.message}"
   end
 
   @mutex = Mutex.new
