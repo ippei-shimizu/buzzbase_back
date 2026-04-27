@@ -34,6 +34,7 @@ module Admin
           error_info = { date:, error: e.message }
           errors << error_info
           Rails.logger.error "Failed to calculate stats for #{date}: #{e.message}"
+          Sentry.capture_exception(e, extra: { target_date: date, batch: true }) if Sentry.initialized?
         end
 
         Rails.logger.info "Batch calculation completed. Success: #{results.count}, Errors: #{errors.count}"
@@ -67,6 +68,7 @@ module Admin
           Rails.logger.info "Backfilled data for #{date}"
         rescue StandardError => e
           Rails.logger.error "Failed to backfill data for #{date}: #{e.message}"
+          Sentry.capture_exception(e, extra: { target_date: date, backfill: true }) if Sentry.initialized?
         end
 
         Rails.logger.info "Backfill completed. Processed: #{backfilled.count}/#{missing_dates.count}"

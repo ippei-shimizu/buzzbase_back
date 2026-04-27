@@ -18,9 +18,10 @@ class GoogleAuthService
       name: payload['name']
     }
   rescue StandardError => e
-    raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}" unless e.is_a?(InvalidToken)
+    raise if e.is_a?(InvalidToken)
 
-    raise
+    Sentry.capture_exception(e) if Sentry.initialized?
+    raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}"
   end
 
   def self.allowed_client_ids

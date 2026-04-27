@@ -50,9 +50,9 @@ module Api
           Sentry.set_user(id: current_admin_user.id, email: current_admin_user.email) if current_admin_user
           Sentry.set_extras(
             request_id: request.request_id,
-            user_agent: request.user_agent,
-            admin_controller: true
+            user_agent: request.user_agent
           )
+          Sentry.set_tags(api_version: 'v1', user_type: 'admin')
         end
       end
     end
