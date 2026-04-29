@@ -20,6 +20,10 @@ class ApplicationController < ActionController::API
     render json: { errors: [exception.message] }, status: :bad_request
   end
 
+  rescue_from ActiveRecord::RecordNotFound do
+    render json: { errors: ['リソースが見つかりません'] }, status: :not_found unless performed?
+  end
+
   rescue_from ActiveRecord::RecordInvalid do |exception|
     if Sentry.initialized?
       Sentry.capture_message(
