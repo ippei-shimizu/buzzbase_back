@@ -5,7 +5,7 @@ module Api
       before_action :set_baseball_note, only: %i[show update destroy]
 
       def index
-        @baseball_notes = current_api_v1_user.baseball_notes.order(date: :desc)
+        @baseball_notes = current_api_v1_user.baseball_notes.order(created_at: :desc)
 
         modified_notes = @baseball_notes.map do |note|
           memo_text = note.extract_and_truncate_memo
