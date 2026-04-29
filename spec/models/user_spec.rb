@@ -113,6 +113,52 @@ RSpec.describe User, type: :model do
         expect(user.reload.id).to eq(original_id)
       end
     end
+
+    # Bug #247 (BUZZBASE-BACKEND-M) リグレッション
+    # ログイン時の save! でレガシー値（バリデーション追加前の short user_id）が
+    # RecordInvalid を発火させて500になっていた。user_id を変更しない save では
+    # バリデーションを走らせないことで grandfather する。
+    describe 'legacy user_id (BUZZBASE-BACKEND-M regression)' do
+      it 'allows save! when legacy user_id is shorter than 3 chars and unchanged' do
+        user = create(:user, user_id: 'valid_id')
+        user.update_column(:user_id, 'ab') # rubocop:disable Rails/SkipsModelValidations
+
+        user.reload
+        expect { user.save! }.not_to raise_error
+      end
+
+      it 'allows save! when legacy user_id is longer than 30 chars and unchanged' do
+        user = create(:user, user_id: 'valid_id')
+        user.update_column(:user_id, 'a' * 35) # rubocop:disable Rails/SkipsModelValidations
+
+        user.reload
+        expect { user.save! }.not_to raise_error
+      end
+
+      it 'still rejects when user_id is being changed to an invalid value' do
+        user = create(:user, user_id: 'valid_id')
+        user.user_id = 'ab'
+        expect(user).not_to be_valid
+        expect(user.errors[:user_id]).to be_present
+      end
+    end
+  end
+
+  describe 'introduction validations' do
+    it 'allows save! when legacy introduction exceeds 100 chars and unchanged' do
+      user = create(:user)
+      user.update_column(:introduction, 'a' * 200) # rubocop:disable Rails/SkipsModelValidations
+
+      user.reload
+      expect { user.save! }.not_to raise_error
+    end
+
+    it 'still rejects when introduction is being changed to over 100 chars' do
+      user = create(:user)
+      user.introduction = 'a' * 101
+      expect(user).not_to be_valid
+      expect(user.errors[:introduction]).to be_present
+    end
   end
 
   describe 'scopes' do
