@@ -41,7 +41,7 @@ class ApplicationController < ActionController::API
   private
 
   def update_last_login_at
-    return unless current_user
+    return unless current_user&.persisted?
     return if current_user.last_login_at&.> 1.hour.ago
 
     current_user.update_column(:last_login_at, Time.current) # rubocop:disable Rails/SkipsModelValidations
