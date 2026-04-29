@@ -35,13 +35,14 @@ class User < ActiveRecord::Base
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
 
+  before_validation :normalize_user_id
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
-  validates :user_id, uniqueness: true, allow_blank: true
-  validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true
-  validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true
-  validates :introduction, length: { maximum: 100 }
+  validates :user_id, uniqueness: true, allow_blank: true, if: :user_id_changed?
+  validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true, if: :user_id_changed?
+  validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true, if: :user_id_changed?
+  validates :introduction, length: { maximum: 100 }, if: :introduction_changed?
 
   def password_required?
     return false if provider.in?(%w[google apple])
@@ -133,6 +134,10 @@ class User < ActiveRecord::Base
   delegate :count, to: :followers, prefix: true
 
   private
+
+  def normalize_user_id
+    self.user_id = nil if user_id.blank?
+  end
 
   def notify_slack_new_user
     SlackNotificationService.notify_new_user(self)

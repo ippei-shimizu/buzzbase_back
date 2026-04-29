@@ -11,8 +11,8 @@ module Api
       end
 
       def create
-        team = Team.find_or_create_by(team_params)
-        if team.persisted?
+        team = Team.find_or_initialize_by(team_params)
+        if team.persisted? || team.save
           render json: team, status: :created
         else
           render json: team.errors, status: :unprocessable_entity
