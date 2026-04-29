@@ -78,6 +78,8 @@ module Api
         else
           render json: { errors: current_api_v1_user.errors.full_messages }, status: :unprocessable_entity
         end
+      rescue ActiveRecord::RecordNotUnique
+        render json: { errors: ['このユーザーIDは既に使われています'] }, status: :unprocessable_entity
       end
 
       def following_users

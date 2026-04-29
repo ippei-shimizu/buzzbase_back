@@ -20,6 +20,22 @@ RSpec.describe User, type: :model do
         user = build(:user, user_id: '')
         expect(user.errors[:user_id]).to be_empty
       end
+
+      it 'normalizes empty string user_id to nil on save' do
+        user = create(:user, user_id: '')
+        expect(user.reload.user_id).to be_nil
+      end
+
+      it 'normalizes whitespace-only user_id to nil on save' do
+        user = create(:user, user_id: '   ')
+        expect(user.reload.user_id).to be_nil
+      end
+
+      it 'allows multiple users with blank user_id (BUZZBASE-BACKEND-P regression)' do
+        create(:user, user_id: '')
+        expect { create(:user, user_id: '') }.not_to raise_error
+        expect(described_class.where(user_id: nil).count).to be >= 2
+      end
     end
 
     describe 'format' do
