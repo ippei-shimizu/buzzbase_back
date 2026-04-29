@@ -38,6 +38,29 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  # Bug #254 (mobile Sentry BUZZBASE-MOBILE-1) リグレッション
+  # ApplicationController に rescue_from RecordNotFound が無く、
+  # 存在しない id への PUT が 500 を返していた。404 にする。
+  describe 'PUT /api/v1/match_results/:id (non-existent id)' do
+    context 'when the match_result does not exist' do
+      it 'returns 404 with a Japanese error message' do
+        put '/api/v1/match_results/999999',
+            params: { match_result: { my_team_score: 5 } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:not_found)
+        expect(response.parsed_body['errors']).to include('リソースが見つかりません')
+      end
+    end
+
+    context 'when the match_result does not exist (DELETE)' do
+      it 'returns 404 instead of 500' do
+        delete '/api/v1/match_results/999999', headers: auth_headers_for(user)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
   describe 'GET /api/v1/user_game_result_search' do
     context 'when authenticated' do
       it 'returns 200' do
