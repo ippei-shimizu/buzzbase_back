@@ -45,6 +45,8 @@ module Api
         render json: match_results
       end
 
+      # GET /api/v1/match_results/available_years
+      # 指定ユーザー（またはログインユーザー）の試合データに紐づく年度一覧を返す
       def available_years
         user = params[:user_id].present? ? User.find_by(id: params[:user_id]) : current_api_v1_user
         return render json: { error: 'ユーザーが存在しません' }, status: :not_found unless user
