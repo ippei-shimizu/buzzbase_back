@@ -12,4 +12,14 @@ class MatchResult < ApplicationRecord
   validates :opponent_team_score, presence: true
   validates :batting_order, presence: true
   validates :defensive_position, presence: true
+
+  # 指定ユーザーの試合データに紐づく年度を新しい順で返す
+  # @param user [User]
+  # @return [Array<Integer>]
+  def self.available_years_for(user)
+    where(user_id: user.id)
+      .pluck(Arel.sql('DISTINCT EXTRACT(YEAR FROM date_and_time)::int'))
+      .sort
+      .reverse
+  end
 end

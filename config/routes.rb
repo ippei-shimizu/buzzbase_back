@@ -65,6 +65,7 @@ Rails.application.routes.draw do
       resources :match_results do
         collection do
           get :current_user_match_index
+          get :available_years
         end
       end
 
