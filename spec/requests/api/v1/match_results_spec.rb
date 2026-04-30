@@ -61,6 +61,85 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'GET /api/v1/match_results/available_years' do
+    # game_result factory が after(:create) で match_result を自動生成するため、
+    # game_result を作成 → 自動生成された match_result の date_and_time を更新
+    def create_match_for(user_record, year:, month: 6, day: 1)
+      gr = create(:game_result, user: user_record)
+      gr.match_result.update!(date_and_time: Time.zone.local(year, month, day))
+      gr.match_result
+    end
+
+    context 'when authenticated and user_id is omitted (current user)' do
+      it 'returns distinct years for current user in descending order' do
+        create_match_for(user, year: 2024, month: 6)
+        create_match_for(user, year: 2024, month: 9)
+        create_match_for(user, year: 2022, month: 4)
+
+        get '/api/v1/match_results/available_years',
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq(%w[2024 2022])
+      end
+    end
+
+    context 'when authenticated and user_id is provided' do
+      it 'returns distinct years for the specified user' do
+        create_match_for(other_user, year: 2023, month: 3)
+
+        get '/api/v1/match_results/available_years',
+            params: { user_id: other_user.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to include('2023')
+      end
+    end
+
+    context 'when the user has no match results' do
+      let(:no_match_user) { create(:user) }
+
+      it 'returns an empty array' do
+        get '/api/v1/match_results/available_years',
+            params: { user_id: no_match_user.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq([])
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/match_results/available_years'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v1/match_results/available_years',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when user_id does not exist' do
+      it 'returns 404' do
+        get '/api/v1/match_results/available_years',
+            params: { user_id: 999_999 },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
   describe 'GET /api/v1/user_game_result_search' do
     context 'when authenticated' do
       it 'returns 200' do
