@@ -24,10 +24,16 @@ class GoogleAuthService
     raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}"
   end
 
+  # Google IDトークンの audience として許容する Client ID 一覧。
+  # iOS は iosClientId を使うため aud=iOS Client ID。
+  # Android は @react-native-google-signin/google-signin が webClientId を使うため
+  # 通常 aud=Web Client ID になるが、ライブラリ設定によっては Android Client ID で
+  # 来るケースもあるため両方を許容する。
   def self.allowed_client_ids
     [
       ENV.fetch('GOOGLE_CLIENT_ID'),
-      ENV.fetch('GOOGLE_IOS_CLIENT_ID', nil)
+      ENV.fetch('GOOGLE_IOS_CLIENT_ID', nil),
+      ENV.fetch('GOOGLE_ANDROID_CLIENT_ID', nil)
     ].compact
   end
 
