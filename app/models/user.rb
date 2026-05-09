@@ -2,7 +2,7 @@ class User < ActiveRecord::Base
   mount_uploader :image, AvatarUploader
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
-  belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :team
+  belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
   has_many :user_awards, dependent: :destroy
   has_many :awards, through: :user_awards
   has_many :active_relationships, class_name: 'Relationship', foreign_key: 'follower_id', dependent: :destroy, inverse_of: :follower
@@ -18,6 +18,9 @@ class User < ActiveRecord::Base
   has_many :group_users, dependent: :destroy
   has_many :groups, through: :group_users
   has_many :group_invitations, dependent: :destroy
+  has_many :group_invite_links, class_name: 'GroupInviteLink', foreign_key: 'inviter_id',
+                                dependent: :destroy, inverse_of: :inviter
+  has_many :group_ranking_snapshots, dependent: :destroy
   has_many :user_notifications, dependent: :destroy
   has_many :notifications, through: :user_notifications
   has_many :actor_notifications, class_name: 'Notification', foreign_key: 'actor_id',
