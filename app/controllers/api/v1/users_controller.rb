@@ -129,7 +129,8 @@ module Api
         current_api_v1_user.destroy!
         render json: { success: true, message: 'アカウントが削除されました' }
       rescue StandardError => e
-        Rails.logger.error "Account deletion failed: #{e.message}"
+        Rails.logger.error "Account deletion failed: #{e.class}: #{e.message}"
+        Sentry.capture_exception(e) if defined?(Sentry) && Sentry.initialized?
         render json: {
           success: false,
           error: 'アカウントの削除に失敗しました。しばらく時間をおいてから再度お試しください。'

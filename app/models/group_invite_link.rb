@@ -3,7 +3,7 @@ class GroupInviteLink < ApplicationRecord
   CODE_LENGTH = 8
 
   belongs_to :group
-  belongs_to :inviter, class_name: 'User'
+  belongs_to :inviter, class_name: 'User', inverse_of: :group_invite_links
 
   validates :code, presence: true, uniqueness: true
 
