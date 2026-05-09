@@ -4,7 +4,8 @@ module Api
       include MatchTypeConvertible
 
       before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years]
-      before_action :set_match_result, only: %i[show update destroy]
+      before_action :set_match_result, only: %i[show]
+      before_action :set_owned_match_result, only: %i[update destroy]
       before_action :normalize_match_type, only: %i[create update]
 
       def index
@@ -13,6 +14,8 @@ module Api
       end
 
       def show
+        return render json: { errors: ['リソースが見つかりません'] }, status: :not_found if @match_result.nil?
+
         render json: @match_result
       end
 
@@ -26,6 +29,8 @@ module Api
       end
 
       def update
+        return render json: { errors: ['リソースが見つかりません'] }, status: :not_found if @match_result.nil?
+
         if @match_result.update(match_results_params)
           render json: @match_result
         else
@@ -33,8 +38,17 @@ module Api
         end
       end
 
+      # DELETE /api/v1/match_results/:id
+      # 冪等化: 既に削除済みでも 200 を返す。所有権スコープは set_owned_match_result で適用済み。
+      # @return [JSON] { message: String } または { errors: Array<String> }
       def destroy
-        @match_result.destroy
+        return render json: { message: '試合情報は既に削除されています' }, status: :ok if @match_result.nil?
+
+        if @match_result.destroy
+          render json: { message: '試合情報を削除しました' }, status: :ok
+        else
+          render json: { errors: @match_result.errors.full_messages }, status: :unprocessable_entity
+        end
       end
 
       def match_index_user_id
@@ -110,8 +124,17 @@ module Api
 
       private
 
+      # show 用: 認証なしでもアクセス可能なため、ユーザースコープで絞らずに取得する。
+      # 取得後の表示可否は、必要に応じて呼び出し元で判断する。
       def set_match_result
-        @match_result = MatchResult.find(params[:id])
+        @match_result = MatchResult.find_by(id: params[:id])
+      end
+
+      # update / destroy 用: 認証ユーザー所有の match_result のみを対象にする。
+      # 他ユーザーのリソースや存在しない id は nil として扱い、各アクションで 404 / 200 にハンドルする。
+      # 「他人のもの」と「存在しない」を区別しないことで、id 列挙によるリソース存在性の漏洩を防ぐ。
+      def set_owned_match_result
+        @match_result = current_api_v1_user.match_results.find_by(id: params[:id])
       end
 
       def normalize_match_type
