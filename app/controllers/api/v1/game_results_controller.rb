@@ -5,7 +5,7 @@ module Api
       before_action :authenticate_api_v1_user!,
                     only: %i[create update update_batting_average_id game_associated_data_index destroy game_associated_data_index_user_id
                              filtered_game_associated_data filtered_game_associated_data_user_id]
-      before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id destroy]
+      before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id]
 
       def all_game_associated_data
         game_results = GameResult.all_game_associated_data
@@ -78,8 +78,17 @@ module Api
         render json: game_results
       end
 
+      # DELETE /api/v1/game_results/:id
+      # 冪等化: 既に削除済み・他ユーザー所有・存在しない id でも 200 を返す。
+      # 理由: DELETE は HTTP 仕様上冪等であるべきで、クライアント側のキャッシュやナビゲーション
+      # パラメータに古い id が残っている場合に 404 連打ループを起こさないため。
+      # @return [JSON] { message: String }
       def destroy
-        if @game_result.destroy
+        game_result = current_api_v1_user.game_results.find_by(id: params[:id])
+
+        return render json: { message: '試合結果は既に削除されています' }, status: :ok if game_result.nil?
+
+        if game_result.destroy
           render json: { message: '試合結果を削除しました' }, status: :ok
         else
           render json: { errors: '試合成績の削除に失敗しました' }, status: :unprocessable_entity
