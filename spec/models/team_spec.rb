@@ -39,5 +39,19 @@ RSpec.describe Team, type: :model do
       team = described_class.new(name: 'テスト', prefecture_id: -1)
       expect(team).not_to be_valid
     end
+
+    it 'is invalid when prefecture_id refers to a non-existent record' do
+      missing_id = Prefecture.maximum(:id).to_i + 9999
+      team = described_class.new(name: 'テスト', prefecture_id: missing_id)
+      expect(team).not_to be_valid
+      expect(team.errors[:prefecture_id]).to include('は存在しない都道府県です')
+    end
+
+    it 'is invalid when category_id refers to a non-existent record' do
+      missing_id = BaseballCategory.maximum(:id).to_i + 9999
+      team = described_class.new(name: 'テスト', category_id: missing_id)
+      expect(team).not_to be_valid
+      expect(team.errors[:category_id]).to include('は存在しないカテゴリです')
+    end
   end
 end

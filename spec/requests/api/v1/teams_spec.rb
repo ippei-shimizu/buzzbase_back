@@ -73,6 +73,44 @@ RSpec.describe 'Api::V1::Teams', type: :request do
       end
     end
 
+    context 'when prefecture_id is a positive integer that does not exist' do
+      it 'returns 422 with a Japanese error message' do
+        missing_id = Prefecture.maximum(:id).to_i + 9999
+        post '/api/v1/teams',
+             params: { team: { name: '存在しない都道府県チーム', category_id: category.id, prefecture_id: missing_id } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['prefecture_id']).to include('は存在しない都道府県です')
+        expect(Team.where(name: '存在しない都道府県チーム')).to be_empty
+      end
+    end
+
+    context 'when category_id is a positive integer that does not exist' do
+      it 'returns 422 with a Japanese error message' do
+        missing_id = BaseballCategory.maximum(:id).to_i + 9999
+        post '/api/v1/teams',
+             params: { team: { name: '存在しないカテゴリチーム', category_id: missing_id, prefecture_id: prefecture.id } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['category_id']).to include('は存在しないカテゴリです')
+        expect(Team.where(name: '存在しないカテゴリチーム')).to be_empty
+      end
+    end
+
+    context 'when ActiveRecord validation is bypassed and FK violation is raised at DB level' do
+      it 'is rescued and returns 422 instead of 500' do
+        allow_any_instance_of(Team).to receive(:valid?).and_return(true) # rubocop:disable RSpec/AnyInstance
+        post '/api/v1/teams',
+             params: { team: { name: 'バリデーションすり抜けチーム', category_id: category.id, prefecture_id: 999_999 } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('指定された関連データが存在しません')
+      end
+    end
+
     context 'when prefecture_id is empty string' do
       it 'creates the team treating it as nil' do
         post '/api/v1/teams',

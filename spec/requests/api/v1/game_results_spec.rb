@@ -202,6 +202,30 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
         expect(response).to have_http_status(:unauthorized)
       end
     end
+
+    context 'when the game result does not exist (idempotent)' do
+      it 'returns 200 with already-deleted message' do
+        delete '/api/v1/game_results/999999', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['message']).to eq('試合結果は既に削除されています')
+      end
+    end
+
+    context 'when the game result belongs to another user (idempotent)' do
+      let(:other_user) { create(:user) }
+      let!(:other_user_game_result) { create(:game_result, user: other_user) }
+
+      it 'returns 200 without deleting the other user\'s record' do
+        delete "/api/v1/game_results/#{other_user_game_result.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['message']).to eq('試合結果は既に削除されています')
+        expect(GameResult.exists?(other_user_game_result.id)).to be true
+      end
+    end
   end
 
   describe 'GET /api/v1/game_results/filtered_game_associated_data' do

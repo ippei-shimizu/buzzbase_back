@@ -74,4 +74,71 @@ RSpec.describe 'Api::V1::Users', type: :request do
       end
     end
   end
+
+  describe 'DELETE /api/v1/user' do
+    let(:user) { create(:user) }
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        delete '/api/v1/user'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when authenticated with no related records' do
+      it 'destroys the user and returns success' do
+        headers = auth_headers_for(user)
+
+        expect do
+          delete '/api/v1/user', headers:
+        end.to change(User, :count).by(-1)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq('success' => true, 'message' => 'アカウントが削除されました')
+        expect(User.exists?(user.id)).to be(false)
+      end
+    end
+
+    # BUZZBASE-MOBILE-1 (issue #288) リグレッション防止:
+    # group_invite_links / group_ranking_snapshots を持つユーザーが
+    # PG::ForeignKeyViolation で削除できなかった問題への回帰テスト
+    context 'when user has a group invite link as inviter (issue #288 regression)' do
+      it 'destroys the user and cascades the invite link' do
+        invite_link = create(:group_invite_link, inviter: user)
+
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(User.exists?(user.id)).to be(false)
+        expect(GroupInviteLink.exists?(invite_link.id)).to be(false)
+      end
+    end
+
+    context 'when user has group ranking snapshots (issue #288 regression)' do
+      it 'destroys the user and cascades the snapshots' do
+        snapshot = create(:group_ranking_snapshot, user:)
+
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(User.exists?(user.id)).to be(false)
+        expect(GroupRankingSnapshot.exists?(snapshot.id)).to be(false)
+      end
+    end
+
+    context 'when destroy! raises an unexpected error' do
+      it 'returns 500 with a localized message instead of leaking the exception' do
+        # Devise が返す current_api_v1_user を直接掴めないため any_instance を許可
+        allow_any_instance_of(User).to receive(:destroy!).and_raise(StandardError, 'boom') # rubocop:disable RSpec/AnyInstance
+
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:internal_server_error)
+        expect(response.parsed_body).to include(
+          'success' => false,
+          'error' => a_string_including('アカウントの削除に失敗しました')
+        )
+      end
+    end
+  end
 end

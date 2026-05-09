@@ -38,6 +38,15 @@ class ApplicationController < ActionController::API
     render json: { errors: exception.record.errors.full_messages }, status: :unprocessable_entity
   end
 
+  # ActiveRecord 層のバリデーションをすり抜けた外部キー違反 (例: 並列削除によるレース、
+  # 新たに追加されたカラムでバリデーション漏れ等) は 500 ではなく 422 として扱い、
+  # ユーザーに「不正な入力」であることが伝わる形で返す。後続調査用に Sentry にも記録。
+  rescue_from ActiveRecord::InvalidForeignKey do |exception|
+    Rails.logger.warn("InvalidForeignKey: #{exception.message}")
+    Sentry.capture_exception(exception) if Sentry.initialized?
+    render json: { errors: ['指定された関連データが存在しません'] }, status: :unprocessable_entity
+  end
+
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name user_id])
   end

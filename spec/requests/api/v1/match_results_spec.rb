@@ -52,11 +52,70 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
         expect(response.parsed_body['errors']).to include('リソースが見つかりません')
       end
     end
+  end
 
-    context 'when the match_result does not exist (DELETE)' do
-      it 'returns 404 instead of 500' do
+  # Bug #287 (mobile Sentry BUZZBASE-MOBILE-8) リグレッション
+  # 既に削除済みリソースへの DELETE で 404 連打ループが発生していた。冪等化する。
+  describe 'DELETE /api/v1/match_results/:id' do
+    let!(:own_game_result) { create(:game_result, user:) }
+    let(:own_match_result) { own_game_result.match_result }
+
+    context 'when authenticated and owner' do
+      it 'destroys the match_result and returns 200' do
+        delete "/api/v1/match_results/#{own_match_result.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['message']).to eq('試合情報を削除しました')
+        expect(MatchResult.exists?(own_match_result.id)).to be false
+      end
+    end
+
+    context 'when the match_result does not exist (idempotent)' do
+      it 'returns 200 with already-deleted message' do
         delete '/api/v1/match_results/999999', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['message']).to eq('試合情報は既に削除されています')
+      end
+    end
+
+    # 他ユーザーの match_result はユーザースコープ外として nil 扱いになるため、
+    # 「既に削除済み」と同じレスポンス (200) を返し、レコードは消えない。
+    context 'when the match_result belongs to another user' do
+      let(:other_match_result) { other_game_result.match_result }
+
+      it 'returns 200 without deleting the record' do
+        delete "/api/v1/match_results/#{other_match_result.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['message']).to eq('試合情報は既に削除されています')
+        expect(MatchResult.exists?(other_match_result.id)).to be true
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        delete "/api/v1/match_results/#{own_match_result.id}"
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe 'PUT /api/v1/match_results/:id (ownership scope)' do
+    # 他ユーザーの match_result はユーザースコープ外として nil 扱いになるため、
+    # update では 404 を返し、レコードは更新されない。
+    context 'when the match_result belongs to another user' do
+      let(:other_match_result) { other_game_result.match_result }
+
+      it 'returns 404 without updating the record' do
+        original_score = other_match_result.my_team_score
+        put "/api/v1/match_results/#{other_match_result.id}",
+            params: { match_result: { my_team_score: original_score + 99 } },
+            headers: auth_headers_for(user)
+
         expect(response).to have_http_status(:not_found)
+        expect(other_match_result.reload.my_team_score).to eq(original_score)
       end
     end
   end
