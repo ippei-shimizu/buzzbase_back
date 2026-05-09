@@ -39,13 +39,16 @@ module Api
       end
 
       # DELETE /api/v1/match_results/:id
-      # 冪等化: 既に削除済みでも 200 を返す。所有権チェックは authorize_match_result_owner! で実施済み。
-      # @return [JSON] { message: String }
+      # 冪等化: 既に削除済みでも 200 を返す。所有権スコープは set_owned_match_result で適用済み。
+      # @return [JSON] { message: String } または { errors: Array<String> }
       def destroy
         return render json: { message: '試合情報は既に削除されています' }, status: :ok if @match_result.nil?
 
-        @match_result.destroy
-        render json: { message: '試合情報を削除しました' }, status: :ok
+        if @match_result.destroy
+          render json: { message: '試合情報を削除しました' }, status: :ok
+        else
+          render json: { errors: @match_result.errors.full_messages }, status: :unprocessable_entity
+        end
       end
 
       def match_index_user_id

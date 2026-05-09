@@ -91,7 +91,7 @@ module Api
         if game_result.destroy
           render json: { message: '試合結果を削除しました' }, status: :ok
         else
-          render json: { errors: '試合成績の削除に失敗しました' }, status: :unprocessable_entity
+          render json: { errors: ['試合成績の削除に失敗しました'] }, status: :unprocessable_entity
         end
       end
 
