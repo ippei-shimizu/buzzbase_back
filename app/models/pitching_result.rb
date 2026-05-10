@@ -4,38 +4,46 @@ class PitchingResult < ApplicationRecord
 
   validate :must_have_any_stats
 
-  INNINGS_PER_GAME = 9
   ZERO = 0
 
+  # 投手集計クエリは ERA / K/9 / BB/9 を「試合のイニング制（match_results.inning_format）で加重平均」する。
+  # 従来の `× 9 / 投球回` 固定ではなく、各試合のイニング制（7 or 9）を係数として掛けることで、
+  # 7回制の試合では「× 7」で換算され、混在試合でも実力が正しく反映される。
+  # match_results は game_result 経由で必ず JOIN する必要がある。
   def self.pitching_aggregate_for_user(user_id)
-    pitching_aggregate_query.where(user_id:)
+    pitching_aggregate_query.where(pitching_results: { user_id: })
   end
 
   def self.pitching_aggregate_for_users(user_ids)
-    pitching_aggregate_query.where(user_id: user_ids)
+    pitching_aggregate_query.where(pitching_results: { user_id: user_ids })
   end
 
   def self.pitching_aggregate_query
-    select(*pitching_aggregate_columns).group('pitching_results.user_id')
+    joins(game_result: :match_result)
+      .select(*pitching_aggregate_columns)
+      .group('pitching_results.user_id')
   end
 
   def self.pitching_aggregate_columns
     ['pitching_results.user_id',
-     'SUM(CASE WHEN innings_pitched > 0 THEN 1 ELSE 0 END) AS number_of_appearances',
-     'SUM(win) AS win',
-     'SUM(CASE WHEN got_to_the_distance THEN 1 ELSE 0 END) AS complete_games',
-     "SUM(CASE WHEN got_to_the_distance = 't' AND run_allowed = 0 THEN 1 ELSE 0 END) AS shutouts",
-     'SUM(loss) AS loss',
-     'SUM(hold) AS hold',
-     'SUM(saves) AS saves',
-     'ROUND(SUM(innings_pitched)::numeric, 2) AS innings_pitched',
-     'SUM(hits_allowed) AS hits_allowed',
-     'SUM(home_runs_hit) AS home_runs_hit',
-     'SUM(strikeouts) AS strikeouts',
-     'SUM(base_on_balls) AS base_on_balls',
-     'SUM(hit_by_pitch) AS hit_by_pitch',
-     'SUM(run_allowed) AS run_allowed',
-     'SUM(earned_run) AS earned_run']
+     'SUM(CASE WHEN pitching_results.innings_pitched > 0 THEN 1 ELSE 0 END) AS number_of_appearances',
+     'SUM(pitching_results.win) AS win',
+     'SUM(CASE WHEN pitching_results.got_to_the_distance THEN 1 ELSE 0 END) AS complete_games',
+     "SUM(CASE WHEN pitching_results.got_to_the_distance = 't' AND pitching_results.run_allowed = 0 THEN 1 ELSE 0 END) AS shutouts",
+     'SUM(pitching_results.loss) AS loss',
+     'SUM(pitching_results.hold) AS hold',
+     'SUM(pitching_results.saves) AS saves',
+     'ROUND(SUM(pitching_results.innings_pitched)::numeric, 2) AS innings_pitched',
+     'SUM(pitching_results.hits_allowed) AS hits_allowed',
+     'SUM(pitching_results.home_runs_hit) AS home_runs_hit',
+     'SUM(pitching_results.strikeouts) AS strikeouts',
+     'SUM(pitching_results.base_on_balls) AS base_on_balls',
+     'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
+     'SUM(pitching_results.run_allowed) AS run_allowed',
+     'SUM(pitching_results.earned_run) AS earned_run',
+     'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
+     'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
+     'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls']
   end
 
   def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
@@ -51,7 +59,7 @@ class PitchingResult < ApplicationRecord
                     .where(pitching_results: { user_id: })
                     .group('pitching_results.user_id').take
     else
-      result = pitching_aggregate_query.find_by(user_id:)
+      result = pitching_aggregate_query.find_by(pitching_results: { user_id: })
     end
 
     return nil unless result
@@ -60,7 +68,7 @@ class PitchingResult < ApplicationRecord
   end
 
   def self.bulk_pitching_stats_for_users(user_ids)
-    results = pitching_aggregate_query.where(user_id: user_ids)
+    results = pitching_aggregate_query.where(pitching_results: { user_id: user_ids })
 
     results.each_with_object({}) do |result, hash|
       hash[result.user_id] = build_pitching_stats_hash(result.user_id, result.attributes)
@@ -80,6 +88,10 @@ class PitchingResult < ApplicationRecord
     scope
   end
 
+  # @param user_id [Integer]
+  # @param stats [Hash] 集計クエリの行（pitching_aggregate_columns で生成された値を含む）
+  # @return [Hash{Symbol=>Numeric}] ERA / K9 / BB9 / WHIP 等の計算済み統計
+  # ERA・K/9・BB/9 は試合のイニング制で加重した分子（weighted_*）を投球回で割って算出する。
   def self.build_pitching_stats_hash(user_id, stats)
     ip = stats['innings_pitched'].to_f
     wins = stats['win'].to_i
@@ -87,13 +99,13 @@ class PitchingResult < ApplicationRecord
 
     {
       user_id:,
-      era: safe_divide_round(stats['earned_run'].to_f * INNINGS_PER_GAME, ip, 2),
+      era: safe_divide_round(stats['weighted_earned_run'].to_f, ip, 2),
       complete_games: stats['complete_games'].to_i,
       shutouts: stats['shutouts'].to_i,
       win_percentage: safe_divide_round(wins.to_f, wins + losses, 3),
-      k_per_nine: safe_divide_round(stats['strikeouts'].to_f * 9, ip, 3),
+      k_per_nine: safe_divide_round(stats['weighted_strikeouts'].to_f, ip, 3),
       whip: safe_divide_round(stats['base_on_balls'].to_f + stats['hits_allowed'].to_f, ip, 3),
-      bb_per_nine: safe_divide_round(stats['base_on_balls'].to_f * 9, ip, 3),
+      bb_per_nine: safe_divide_round(stats['weighted_base_on_balls'].to_f, ip, 3),
       k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3)
     }
   end
