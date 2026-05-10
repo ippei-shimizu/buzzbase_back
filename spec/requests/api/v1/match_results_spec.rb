@@ -266,6 +266,71 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'PUT /api/v1/match_results/:id (appearance_type)' do
+    let(:game_result) { create(:game_result, user:) }
+
+    context 'when appearance_type = pinch_hitter is provided with empty batting_order/defensive_position' do
+      it 'persists the appearance_type without batting_order / defensive_position' do
+        match_result = game_result.match_result
+
+        put "/api/v1/match_results/#{match_result.id}",
+            params: { match_result: {
+              appearance_type: 'pinch_hitter',
+              batting_order: '',
+              defensive_position: ''
+            } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(match_result.reload.appearance_type).to eq('pinch_hitter')
+      end
+    end
+
+    context 'when appearance_type = pinch_runner is provided with empty batting_order/defensive_position' do
+      it 'persists the appearance_type without batting_order / defensive_position' do
+        match_result = game_result.match_result
+
+        put "/api/v1/match_results/#{match_result.id}",
+            params: { match_result: {
+              appearance_type: 'pinch_runner',
+              batting_order: '',
+              defensive_position: ''
+            } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(match_result.reload.appearance_type).to eq('pinch_runner')
+      end
+    end
+
+    context 'when appearance_type = starter and batting_order is missing' do
+      it 'returns 422 because starter requires batting_order' do
+        match_result = game_result.match_result
+
+        put "/api/v1/match_results/#{match_result.id}",
+            params: { match_result: {
+              appearance_type: 'starter',
+              batting_order: ''
+            } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    context 'when appearance_type is invalid (e.g. unknown)' do
+      it 'returns 422 with validation errors' do
+        match_result = game_result.match_result
+
+        put "/api/v1/match_results/#{match_result.id}",
+            params: { match_result: { appearance_type: 'unknown' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
+
   describe 'GET /api/v1/user_game_result_search' do
     context 'when authenticated' do
       it 'returns 200' do
