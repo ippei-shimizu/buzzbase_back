@@ -232,7 +232,7 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
-  describe 'POST /api/v1/match_results (inning_format)' do
+  describe 'PUT /api/v1/match_results/:id (inning_format)' do
     let(:my_team) { create(:team) }
     let(:opponent_team) { create(:team) }
     let(:game_result) { create(:game_result, user:) }

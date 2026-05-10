@@ -17,6 +17,11 @@ RSpec.describe MatchResult, type: :model do
     it { should validate_presence_of(:batting_order) }
     it { should validate_presence_of(:defensive_position) }
     it { should validate_presence_of(:inning_format) }
-    it { should validate_inclusion_of(:inning_format).in_array([7, 9]) }
+
+    it 'validates inning_format inclusion with the Japanese locale message' do
+      expect(described_class.new).to validate_inclusion_of(:inning_format)
+        .in_array([7, 9])
+        .with_message('は7または9を指定してください')
+    end
   end
 end
