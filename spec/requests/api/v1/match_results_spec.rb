@@ -200,27 +200,91 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
   end
 
   describe 'GET /api/v1/match_results/form_defaults' do
-    context 'when the user has no match_results' do
-      it 'returns the default inning_format (9)' do
+    context 'when the user has no match_results and no profile positions' do
+      it 'returns inning_format=9 and nil for the other fields' do
         get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
-        expect(response.parsed_body['inning_format']).to eq(9)
+        body = response.parsed_body
+        expect(body['inning_format']).to eq(9)
+        expect(body['match_type']).to be_nil
+        expect(body['defensive_position']).to be_nil
+        expect(body['batting_order']).to be_nil
       end
     end
 
     context 'when the user has prior match_results' do
-      it 'returns the inning_format of the latest match_result' do
-        gr_old = create(:game_result, user:)
-        gr_old.match_result.update!(date_and_time: Time.zone.local(2024, 1, 1), inning_format: 9)
+      before do
+        old_gr = create(:game_result, user:)
+        old_gr.match_result.update!(date_and_time: Time.zone.local(2024, 1, 1), inning_format: 9,
+                                    match_type: 'open', defensive_position: 'ピッチャー', batting_order: '1')
 
-        gr_latest = create(:game_result, user:)
-        gr_latest.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), inning_format: 7)
+        latest_gr = create(:game_result, user:)
+        latest_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), inning_format: 7,
+                                       match_type: 'regular', defensive_position: 'ショート', batting_order: '4')
+      end
+
+      it 'returns the latest match_result values (match_type humanized to Japanese label)' do
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['inning_format']).to eq(7)
+        expect(body['match_type']).to eq('公式戦')
+        expect(body['defensive_position']).to eq('ショート')
+        expect(body['batting_order']).to eq('4')
+      end
+    end
+
+    context 'when the user has profile positions configured' do
+      it 'returns the profile position as defensive_position regardless of latest match_result' do
+        position = Position.create!(name: 'キャッチャー')
+        UserPosition.create!(user:, position:)
+
+        gr = create(:game_result, user:)
+        gr.match_result.update!(
+          date_and_time: Time.zone.local(2025, 6, 1),
+          defensive_position: 'ショート'
+        )
 
         get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
-        expect(response.parsed_body['inning_format']).to eq(7)
+        expect(response.parsed_body['defensive_position']).to eq('キャッチャー')
+      end
+    end
+
+    context 'when the user has profile positions but no match_results' do
+      it 'returns the profile position as defensive_position' do
+        position = Position.create!(name: 'セカンド')
+        UserPosition.create!(user:, position:)
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['defensive_position']).to eq('セカンド')
+        expect(body['match_type']).to be_nil
+      end
+    end
+
+    context 'when multiple match_results share the same date_and_time' do
+      before do
+        # 同じ日付の試合を順番に作る。最後に作成（id 最大）したのが直近の試合として返るべき。
+        old_gr = create(:game_result, user:)
+        old_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'open', inning_format: 7)
+
+        new_gr = create(:game_result, user:)
+        new_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'regular', inning_format: 9)
+      end
+
+      it 'returns the most recently created match_result (tie-broken by id desc)' do
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['match_type']).to eq('公式戦')
+        expect(body['inning_format']).to eq(9)
       end
     end
 
