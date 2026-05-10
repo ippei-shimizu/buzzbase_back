@@ -15,6 +15,10 @@ ja:
               required: "カテゴリは必須です"
             prefecture:
               required: "都道府県は必須です"
+        match_result:
+          attributes:
+            inning_format:
+              inclusion: "は7または9を指定してください"
   email_authentication_mailer:
     signup_subject: "buzzbaseにご登録ありがとうございます！"
   email_subjects:

@@ -12,6 +12,7 @@ class MatchResult < ApplicationRecord
   validates :opponent_team_score, presence: true
   validates :batting_order, presence: true
   validates :defensive_position, presence: true
+  validates :inning_format, presence: true, inclusion: { in: [7, 9] }
 
   # 指定ユーザーの試合データに紐づく年度を新しい順で返す
   # @param user [User]

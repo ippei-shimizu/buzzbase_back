@@ -2,8 +2,6 @@
 
 module Stats
   class EraTrendService
-    INNINGS_PER_GAME = 9
-
     def initialize(user_id:, year: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
       @year = year
@@ -11,16 +9,20 @@ module Stats
       @tournament_id = tournament_id
     end
 
+    # 月別の防御率推移を返す。
+    # ERA は `SUM(earned_run × match_results.inning_format) / SUM(innings_pitched)` で算出し、
+    # 7回制／9回制が混在しても各試合のイニング制を加重した値で計算する。
+    # @return [Array<Hash{Symbol=>Numeric}>] [{ month: Integer, era: Float }, ...]
     def call
       scope = base_scope
       return [] if scope.none?
 
-      # 月ごとに集計
+      # 月ごとに集計（earned_run には inning_format を係数として掛けて加重する）
       monthly = scope
                 .select(Arel.sql(
                           'EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, ' \
                           'SUM(pitching_results.innings_pitched) AS total_ip, ' \
-                          'SUM(pitching_results.earned_run) AS total_er'
+                          'SUM(pitching_results.earned_run * match_results.inning_format) AS total_weighted_er'
                         ))
                 .group(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int'))
                 .order(Arel.sql('month'))
@@ -29,7 +31,7 @@ module Stats
         ip = r.total_ip.to_f
         next if ip <= 0
 
-        era = (r.total_er.to_f * INNINGS_PER_GAME / ip).round(2)
+        era = (r.total_weighted_er.to_f / ip).round(2)
         { month: r.month, era: }
       end
     end
