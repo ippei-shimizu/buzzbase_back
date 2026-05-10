@@ -155,7 +155,8 @@ module Api
 
       def match_results_params
         params.require(:match_result).permit(:user_id, :game_result_id, :date_and_time, :match_type, :my_team_id, :opponent_team_id, :my_team_score,
-                                             :opponent_team_score, :batting_order, :defensive_position, :tournament_id, :memo, :inning_format)
+                                             :opponent_team_score, :batting_order, :defensive_position, :tournament_id, :memo, :inning_format,
+                                             :appearance_type)
       end
     end
   end
