@@ -123,13 +123,27 @@ module Api
       end
 
       # GET /api/v1/match_results/form_defaults
-      # 試合作成フォームの初期値を返す。現状は直近試合のイニング制（7 or 9）。
-      # 履歴がない場合は 9 をデフォルトとして返す。
+      # 試合作成フォームの初期値を返す。
+      # 直近試合のイニング制／試合種類／打順、およびプロフィールのポジション（未設定なら直近試合の守備位置）を返す。
+      # 履歴がない場合は inning_format のみ 9 を返し、その他は nil。
       # フォーム初期値を増やしたくなった際にこのエンドポイントに値を追加していく想定。
-      # @return [JSON] { inning_format: Integer }
+      # @return [JSON]
+      #   {
+      #     inning_format: Integer,            # 直近試合のイニング制（7/9）。履歴なしは 9
+      #     match_type: String|null,           # 直近試合の試合種類（公式戦/オープン戦/それ以外そのまま）。履歴なしは nil
+      #     defensive_position: String|null,   # プロフィール最優先 → 直近試合の守備位置 → nil
+      #     batting_order: String|null         # 直近試合の打順。履歴なしは nil
+      #   }
       def form_defaults
         latest = current_api_v1_user.match_results.order(date_and_time: :desc).first
-        render json: { inning_format: latest&.inning_format || 9 }
+        profile_position = current_api_v1_user.positions.first&.name
+
+        render json: {
+          inning_format: latest&.inning_format || 9,
+          match_type: humanize_match_type(latest&.match_type),
+          defensive_position: profile_position.presence || latest&.defensive_position,
+          batting_order: latest&.batting_order
+        }
       end
 
       private
