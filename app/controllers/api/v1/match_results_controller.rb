@@ -135,7 +135,9 @@ module Api
       #     batting_order: String|null         # 直近試合の打順。履歴なしは nil
       #   }
       def form_defaults
-        latest = current_api_v1_user.match_results.order(date_and_time: :desc).first
+        # 同日付の試合が複数ある場合に「最も新しく作成された試合」を確実に取得するため、
+        # date_and_time が等しいときは id 降順（= 直近作成）でタイブレークする。
+        latest = current_api_v1_user.match_results.order(date_and_time: :desc, id: :desc).first
         profile_position = current_api_v1_user.positions.first&.name
 
         render json: {

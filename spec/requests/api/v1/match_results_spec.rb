@@ -268,6 +268,26 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
       end
     end
 
+    context 'when multiple match_results share the same date_and_time' do
+      before do
+        # 同じ日付の試合を順番に作る。最後に作成（id 最大）したのが直近の試合として返るべき。
+        old_gr = create(:game_result, user:)
+        old_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'open', inning_format: 7)
+
+        new_gr = create(:game_result, user:)
+        new_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'regular', inning_format: 9)
+      end
+
+      it 'returns the most recently created match_result (tie-broken by id desc)' do
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['match_type']).to eq('公式戦')
+        expect(body['inning_format']).to eq(9)
+      end
+    end
+
     context 'when not authenticated' do
       it 'returns 401' do
         get '/api/v1/match_results/form_defaults'
