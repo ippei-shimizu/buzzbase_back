@@ -3,7 +3,7 @@ module Api
     class MatchResultsController < ApplicationController
       include MatchTypeConvertible
 
-      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years]
+      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years form_defaults]
       before_action :set_match_result, only: %i[show]
       before_action :set_owned_match_result, only: %i[update destroy]
       before_action :normalize_match_type, only: %i[create update]
@@ -122,6 +122,16 @@ module Api
         render json: @match_results
       end
 
+      # GET /api/v1/match_results/form_defaults
+      # 試合作成フォームの初期値を返す。現状は直近試合のイニング制（7 or 9）。
+      # 履歴がない場合は 9 をデフォルトとして返す。
+      # フォーム初期値を増やしたくなった際にこのエンドポイントに値を追加していく想定。
+      # @return [JSON] { inning_format: Integer }
+      def form_defaults
+        latest = current_api_v1_user.match_results.order(date_and_time: :desc).first
+        render json: { inning_format: latest&.inning_format || 9 }
+      end
+
       private
 
       # show 用: 認証なしでもアクセス可能なため、ユーザースコープで絞らずに取得する。
@@ -145,7 +155,7 @@ module Api
 
       def match_results_params
         params.require(:match_result).permit(:user_id, :game_result_id, :date_and_time, :match_type, :my_team_id, :opponent_team_id, :my_team_score,
-                                             :opponent_team_score, :batting_order, :defensive_position, :tournament_id, :memo)
+                                             :opponent_team_score, :batting_order, :defensive_position, :tournament_id, :memo, :inning_format)
       end
     end
   end
