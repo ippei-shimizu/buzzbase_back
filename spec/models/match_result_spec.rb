@@ -16,5 +16,7 @@ RSpec.describe MatchResult, type: :model do
     it { should validate_presence_of(:opponent_team_score) }
     it { should validate_presence_of(:batting_order) }
     it { should validate_presence_of(:defensive_position) }
+    it { should validate_presence_of(:inning_format) }
+    it { should validate_inclusion_of(:inning_format).in_array([7, 9]) }
   end
 end
