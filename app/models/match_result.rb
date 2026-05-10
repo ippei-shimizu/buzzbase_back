@@ -5,14 +5,11 @@ class MatchResult < ApplicationRecord
   belongs_to :tournament, optional: true
   belongs_to :game_result
 
-  # 出場区分: 先発 / 途中出場 / 代打 / 代走 / 未出場。
-  # starter のときのみ batting_order と defensive_position を必須とし、
-  # 途中出場・代打・代走・未出場は打順／守備位置の入力を任意にする。
-  # ※ Rails 7.0 の enum は不正値代入で ArgumentError を投げてしまうため、
-  #   API レイヤで 422 として返したい本ケースでは inclusion バリデーションで弾く方式を採用する。
+  # Rails 7.0 enum は不正値で ArgumentError になるため inclusion バリデーション方式を採用。
   APPEARANCE_TYPES = %w[starter substitute pinch_hitter pinch_runner no_play].freeze
-  APPEARANCE_TYPES.each do |type|
-    define_method("appearance_type_#{type}?") { appearance_type == type }
+
+  def appearance_type_starter?
+    appearance_type == 'starter'
   end
 
   validates :game_result_id, uniqueness: true

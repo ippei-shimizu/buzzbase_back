@@ -19,7 +19,8 @@ RSpec.describe V2::MatchResultSerializer, type: :serializer do
   it 'includes all base attributes' do
     %i[id date_and_time match_type my_team_id opponent_team_id
        my_team_score opponent_team_score batting_order
-       defensive_position tournament_id memo].each do |attr|
+       defensive_position tournament_id memo inning_format
+       appearance_type].each do |attr|
       expect(serialization).to have_key(attr)
     end
   end
