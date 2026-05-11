@@ -138,7 +138,11 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
     end
 
     def create_game_results(users, teams)
-      match_types = %w[練習試合 公式戦 トーナメント リーグ戦 交流戦]
+      # match_results.match_type は本番フォームでは "regular" / "open" の英語キーで
+      # 保存されるため、開発用シードでも同じ値域に揃える。
+      # 過去には日本語値（"練習試合" 等）を使っていたが、表示時の変換が一致せず
+      # バッジが日本語のまま表示される問題があったため英語キーに統一。
+      match_types = %w[regular open]
       users.each do |user|
         rand(3..5).times do
           my_team = teams.sample
