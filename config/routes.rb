@@ -66,6 +66,7 @@ Rails.application.routes.draw do
         collection do
           get :current_user_match_index
           get :available_years
+          get :form_defaults
         end
       end
 

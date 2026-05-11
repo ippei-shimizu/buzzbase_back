@@ -126,6 +126,93 @@ RSpec.describe PitchingResult, type: :model do
     end
   end
 
+  describe 'inning_format weighted aggregation' do
+    # ERA / K9 / BB9 が試合のイニング制（match_results.inning_format）で加重平均されることを検証する。
+    # 7回制で完投2失点（IP=7, ER=2）→ ERA=2.00、K8/BB1 → K/9=8.0, BB/9=1.0 が直感どおりに出ることを確認する。
+    context 'when inning_format = 7' do
+      before do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), inning_format: 7)
+        create(:pitching_result, game_result: gr, user:,
+                                 win: 1, loss: 0, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
+                                 base_on_balls: 1, hits_allowed: 4)
+      end
+
+      it 'calculates ERA using the match inning_format (× 7)' do
+        result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+        # ERA = (ER × inning_format) / IP = (2 × 7) / 7 = 2.0
+        expect(result[:era]).to eq(2.0)
+      end
+
+      it 'calculates K/9 using the match inning_format (× 7)' do
+        result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+        # K/9 = (K × inning_format) / IP = (8 × 7) / 7 = 8.0
+        expect(result[:k_per_nine]).to eq(8.0)
+      end
+
+      it 'calculates BB/9 using the match inning_format (× 7)' do
+        result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+        # BB/9 = (BB × inning_format) / IP = (1 × 7) / 7 = 1.0
+        expect(result[:bb_per_nine]).to eq(1.0)
+      end
+    end
+
+    # 7回制完投2失点 + 9回制完投2失点 → 同じ実力なので ERA=2.00 にブレないことを検証する。
+    # 旧ロジックでは ERA=(2+2)×9/(7+9)=2.25 と過大評価されていた。
+    context 'when 7-inning and 9-inning games are mixed' do
+      before do
+        gr1 = create(:game_result, user:)
+        gr1.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), inning_format: 9)
+        create(:pitching_result, game_result: gr1, user:,
+                                 win: 1, loss: 0, innings_pitched: 9.0, earned_run: 2, strikeouts: 9,
+                                 base_on_balls: 0, hits_allowed: 5)
+
+        gr2 = create(:game_result, user:)
+        gr2.match_result.update!(date_and_time: Time.zone.local(2024, 7, 1), inning_format: 7)
+        create(:pitching_result, game_result: gr2, user:,
+                                 win: 1, loss: 0, innings_pitched: 7.0, earned_run: 2, strikeouts: 7,
+                                 base_on_balls: 0, hits_allowed: 4)
+      end
+
+      it 'computes the weighted ERA as 2.00 (not skewed)' do
+        result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+        # 加重和 ERA = (2×9 + 2×7) / (9+7) = 32 / 16 = 2.0
+        expect(result[:era]).to eq(2.0)
+      end
+
+      it 'keeps K/9 stable across mixed inning formats' do
+        result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+        # 加重和 K/9 = (9×9 + 7×7) / (9+7) = (81+49) / 16 = 8.125
+        expect(result[:k_per_nine]).to eq(8.125)
+      end
+    end
+  end
+
+  describe '.bulk_pitching_stats_for_users' do
+    let(:other_user) { create(:user) }
+
+    before do
+      gr1 = create(:game_result, user:)
+      gr1.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), inning_format: 7)
+      create(:pitching_result, game_result: gr1, user:,
+                               win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
+                               base_on_balls: 1, hits_allowed: 3)
+
+      gr2 = create(:game_result, user: other_user)
+      gr2.match_result.update!(date_and_time: Time.zone.local(2024, 6, 20), inning_format: 9)
+      create(:pitching_result, game_result: gr2, user: other_user,
+                               win: 1, innings_pitched: 9.0, earned_run: 3, strikeouts: 6,
+                               base_on_balls: 2, hits_allowed: 7)
+    end
+
+    it 'returns weighted stats for each user keyed by user_id' do
+      stats = described_class.bulk_pitching_stats_for_users([user.id, other_user.id])
+
+      expect(stats[user.id][:era]).to eq(2.0) # (2×7)/7
+      expect(stats[other_user.id][:era]).to eq(3.0) # (3×9)/9
+    end
+  end
+
   describe 'must_have_any_stats validation' do
     let(:game_result) { create(:game_result, user:) }
 

@@ -12,5 +12,7 @@ FactoryBot.define do
     defensive_position { 'ショート' }
     tournament { nil }
     memo { nil }
+    inning_format { 9 }
+    appearance_type { 'starter' }
   end
 end

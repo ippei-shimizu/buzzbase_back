@@ -4,8 +4,6 @@ module Stats
   class PitchingStatsTableService
     include Concerns::TableServiceConcern
 
-    INNINGS_PER_GAME = 9
-
     PITCHING_FIELDS = %w[
       win loss hold saves complete_games shutouts innings_pitched
       hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run
@@ -73,7 +71,7 @@ module Stats
 
       rows = records.map do |pr|
         mr = pr.game_result.match_result
-        row = compose_row(mr.date_and_time.strftime('%m/%d'), extract_pitching_stats(pr))
+        row = compose_row(mr.date_and_time.strftime('%m/%d'), extract_pitching_stats(pr, mr.inning_format))
         row[:opponent] = mr.opponent_team&.name || '不明'
         row
       end
@@ -90,23 +88,40 @@ module Stats
       compose_row(label, agg.attributes)
     end
 
-    def extract_pitching_stats(pitching_result)
+    # @param pitching_result [PitchingResult]
+    # @param inning_format [Integer] 当該試合のイニング制（7 or 9）
+    # @return [Hash{String=>Numeric}] 個別行のスタッツ。
+    #   weighted_* は集計クエリの加重和カラムと整合させるため、当該試合の inning_format を係数として掛ける。
+    def extract_pitching_stats(pitching_result, inning_format)
+      base_pitching_stats(pitching_result)
+        .merge(weighted_pitching_stats(pitching_result, inning_format))
+    end
+
+    def base_pitching_stats(record)
       {
         'appearances' => 1,
-        'win' => pitching_result.win.to_i,
-        'loss' => pitching_result.loss.to_i,
-        'hold' => pitching_result.hold.to_i,
-        'saves' => pitching_result.saves.to_i,
-        'complete_games' => pitching_result.got_to_the_distance ? 1 : 0,
-        'shutouts' => pitching_result.got_to_the_distance && pitching_result.run_allowed.to_i.zero? ? 1 : 0,
-        'innings_pitched' => pitching_result.innings_pitched.to_f,
-        'hits_allowed' => pitching_result.hits_allowed.to_i,
-        'home_runs_hit' => pitching_result.home_runs_hit.to_i,
-        'strikeouts' => pitching_result.strikeouts.to_i,
-        'base_on_balls' => pitching_result.base_on_balls.to_i,
-        'hit_by_pitch' => pitching_result.hit_by_pitch.to_i,
-        'run_allowed' => pitching_result.run_allowed.to_i,
-        'earned_run' => pitching_result.earned_run.to_i
+        'win' => record.win.to_i,
+        'loss' => record.loss.to_i,
+        'hold' => record.hold.to_i,
+        'saves' => record.saves.to_i,
+        'complete_games' => record.got_to_the_distance ? 1 : 0,
+        'shutouts' => record.got_to_the_distance && record.run_allowed.to_i.zero? ? 1 : 0,
+        'innings_pitched' => record.innings_pitched.to_f,
+        'hits_allowed' => record.hits_allowed.to_i,
+        'home_runs_hit' => record.home_runs_hit.to_i,
+        'strikeouts' => record.strikeouts.to_i,
+        'base_on_balls' => record.base_on_balls.to_i,
+        'hit_by_pitch' => record.hit_by_pitch.to_i,
+        'run_allowed' => record.run_allowed.to_i,
+        'earned_run' => record.earned_run.to_i
+      }
+    end
+
+    def weighted_pitching_stats(record, inning_format)
+      {
+        'weighted_earned_run' => record.earned_run.to_i * inning_format,
+        'weighted_strikeouts' => record.strikeouts.to_i * inning_format,
+        'weighted_base_on_balls' => record.base_on_balls.to_i * inning_format
       }
     end
 
@@ -130,12 +145,15 @@ module Stats
       calculate_pitching_rate_values(innings, strikeouts, walks, stats)
     end
 
+    # ERA / K9 / BB9 は試合ごとのイニング制（match_results.inning_format）で加重した分子を投球回で割る。
+    # 集計クエリでは aggregate_columns に weighted_* を追加し、個別行（daily）では
+    # extract_pitching_stats で当該試合の inning_format を掛けた値を渡す。
     def calculate_pitching_rate_values(innings, strikeouts, walks, stats)
       {
-        era: safe_divide(stats['earned_run'].to_f * INNINGS_PER_GAME, innings, 2),
+        era: safe_divide(stats['weighted_earned_run'].to_f, innings, 2),
         whip: safe_divide(walks.to_f + stats['hits_allowed'].to_f, innings),
-        k_per_nine: safe_divide(strikeouts.to_f * 9, innings),
-        bb_per_nine: safe_divide(walks.to_f * 9, innings),
+        k_per_nine: safe_divide(stats['weighted_strikeouts'].to_f, innings),
+        bb_per_nine: safe_divide(stats['weighted_base_on_balls'].to_f, innings),
         k_bb: safe_divide(strikeouts.to_f, walks),
         win_percentage: safe_divide(stats['win'].to_f, stats['win'].to_i + stats['loss'].to_i)
       }
@@ -153,20 +171,23 @@ module Stats
     def aggregate_columns
       [
         'COUNT(*) AS appearances',
-        'SUM(win) AS win',
-        'SUM(loss) AS loss',
-        'SUM(hold) AS hold',
-        'SUM(saves) AS saves',
-        'SUM(CASE WHEN got_to_the_distance THEN 1 ELSE 0 END) AS complete_games',
-        'SUM(CASE WHEN got_to_the_distance = true AND run_allowed = 0 THEN 1 ELSE 0 END) AS shutouts',
-        'ROUND(SUM(innings_pitched)::numeric, 1) AS innings_pitched',
-        'SUM(hits_allowed) AS hits_allowed',
-        'SUM(home_runs_hit) AS home_runs_hit',
-        'SUM(strikeouts) AS strikeouts',
-        'SUM(base_on_balls) AS base_on_balls',
-        'SUM(hit_by_pitch) AS hit_by_pitch',
-        'SUM(run_allowed) AS run_allowed',
-        'SUM(earned_run) AS earned_run'
+        'SUM(pitching_results.win) AS win',
+        'SUM(pitching_results.loss) AS loss',
+        'SUM(pitching_results.hold) AS hold',
+        'SUM(pitching_results.saves) AS saves',
+        'SUM(CASE WHEN pitching_results.got_to_the_distance THEN 1 ELSE 0 END) AS complete_games',
+        'SUM(CASE WHEN pitching_results.got_to_the_distance = true AND pitching_results.run_allowed = 0 THEN 1 ELSE 0 END) AS shutouts',
+        'ROUND(SUM(pitching_results.innings_pitched)::numeric, 1) AS innings_pitched',
+        'SUM(pitching_results.hits_allowed) AS hits_allowed',
+        'SUM(pitching_results.home_runs_hit) AS home_runs_hit',
+        'SUM(pitching_results.strikeouts) AS strikeouts',
+        'SUM(pitching_results.base_on_balls) AS base_on_balls',
+        'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
+        'SUM(pitching_results.run_allowed) AS run_allowed',
+        'SUM(pitching_results.earned_run) AS earned_run',
+        'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
+        'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
+        'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls'
       ]
     end
   end
