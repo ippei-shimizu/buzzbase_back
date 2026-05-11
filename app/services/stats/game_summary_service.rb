@@ -105,6 +105,7 @@ module Stats
               .select(Arel.sql(
                         'game_results.id AS game_result_id, ' \
                         'match_results.date_and_time, ' \
+                        'match_results.match_type, ' \
                         'teams.name AS opponent_name, ' \
                         'match_results.my_team_score, ' \
                         'match_results.opponent_team_score'
@@ -123,6 +124,7 @@ module Stats
         {
           game_result_id: g.game_result_id,
           date: g.date_and_time.strftime('%m/%d'),
+          match_type: g.match_type,
           opponent: g.opponent_name,
           result:,
           my_score: my,

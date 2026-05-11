@@ -10,7 +10,7 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     gr = create(:game_result, user:)
     gr.match_result.update!(
       date_and_time: Time.zone.local(2024, 7, 10),
-      match_type: '公式戦',
+      match_type: 'regular',
       my_team_score: 5,
       opponent_team_score: 3
     )
@@ -120,6 +120,16 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(json['recent_form']).to be_an(Array)
       expect(json['monthly_games']).to be_an(Array)
       expect(json['opponent_records']).to be_an(Array)
+    end
+
+    it 'includes match_type in each recent_form item' do
+      get('/api/v2/stats/game_summary', headers:)
+
+      json = response.parsed_body
+      expect(json['recent_form'].first).to include(
+        'game_result_id', 'date', 'match_type', 'opponent', 'result', 'my_score', 'opponent_score'
+      )
+      expect(json['recent_form'].first['match_type']).to eq('regular')
     end
   end
 end
