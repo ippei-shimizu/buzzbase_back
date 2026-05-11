@@ -25,7 +25,9 @@ namespace :data do
       next
     end
 
-    updated = target.update_all(match_type: 'open')
+    # バリデーションをスキップして一括更新する。
+    # 既存レコードの他カラムには触れず match_type のみを正規化するためコールバックも不要。
+    updated = target.update_all(match_type: 'open') # rubocop:disable Rails/SkipsModelValidations
     puts "更新完了: #{updated}件"
   end
 end
