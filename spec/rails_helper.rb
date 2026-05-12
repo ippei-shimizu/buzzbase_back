@@ -26,6 +26,9 @@ RSpec.configure do |config|
 
   config.include FactoryBot::Syntax::Methods
   config.include AuthHelpers, type: :request
+  config.include ActiveJob::TestHelper, type: :job
+  config.include ActiveJob::TestHelper, type: :model
+  config.include ActiveJob::TestHelper, type: :request
 end
 
 Shoulda::Matchers.configure do |config|
