@@ -8,6 +8,7 @@ class ManagementNotice < ApplicationRecord
   validates :status, presence: true
 
   before_save :set_published_at
+  after_commit :enqueue_push_notification_if_needed, on: %i[create update]
 
   scope :published, -> { where(status: :published).order(published_at: :desc) }
 
@@ -15,5 +16,14 @@ class ManagementNotice < ApplicationRecord
 
   def set_published_at
     self.published_at = Time.current if status_changed? && published?
+  end
+
+  # ステータスが published へ変わったタイミングでのみプッシュ通知ジョブをenqueueする。
+  # notified_at が既にセットされている場合は重複送信防止のためスキップする。
+  def enqueue_push_notification_if_needed
+    return unless saved_change_to_status?(to: ManagementNotice.statuses[:published])
+    return if notified_at.present?
+
+    ManagementNoticePushJob.perform_later(id)
   end
 end
