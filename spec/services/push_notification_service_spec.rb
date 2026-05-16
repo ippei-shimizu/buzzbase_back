@@ -76,4 +76,91 @@ RSpec.describe PushNotificationService do
       end
     end
   end
+
+  describe '.send_to_all' do
+    let(:client_double) { instance_double(Exponent::Push::Client) }
+    let(:handler_double) { instance_double(Exponent::Push::ResponseHandler, errors?: false) }
+
+    before do
+      allow(Exponent::Push::Client).to receive(:new).and_return(client_double)
+      allow(client_double).to receive(:send_messages).and_return(handler_double)
+    end
+
+    context 'DeviceToken が0件の場合' do
+      it 'send_messages を呼び出さない' do
+        described_class.send_to_all(title: 'タイトル', body: '本文')
+        expect(client_double).not_to have_received(:send_messages)
+      end
+    end
+
+    context 'DeviceToken が99件の場合' do
+      before do
+        users = create_list(:user, 99)
+        users.each_with_index do |u, i|
+          u.device_tokens.create!(token: "ExponentPushToken[t#{i}]", platform: 'ios')
+        end
+      end
+
+      it 'send_messages が1回だけ呼ばれる' do
+        described_class.send_to_all(title: 'タイトル', body: '本文')
+        expect(client_double).to have_received(:send_messages).once
+      end
+    end
+
+    context 'DeviceToken が101件の場合（100件チャンクの境界）' do
+      before do
+        users = create_list(:user, 101)
+        users.each_with_index do |u, i|
+          u.device_tokens.create!(token: "ExponentPushToken[t#{i}]", platform: 'ios')
+        end
+      end
+
+      it 'send_messages が2回呼ばれる（100件 + 1件）' do
+        described_class.send_to_all(title: 'タイトル', body: '本文')
+        expect(client_double).to have_received(:send_messages).twice
+      end
+    end
+
+    context 'ResponseHandler が errors? を返す場合' do
+      let(:handler_double) do
+        instance_double(
+          Exponent::Push::ResponseHandler,
+          errors?: true,
+          errors: [{ message: 'invalid token' }],
+          invalid_push_tokens: ['ExponentPushToken[bad]']
+        )
+      end
+
+      before do
+        user = create(:user)
+        user.device_tokens.create!(token: 'ExponentPushToken[t1]', platform: 'ios')
+        allow(Rails.logger).to receive(:error)
+      end
+
+      it 'エラーをログに記録し、例外を raise しない' do
+        expect do
+          described_class.send_to_all(title: 'タイトル', body: '本文')
+        end.not_to raise_error
+
+        expect(Rails.logger).to have_received(:error).with(/send_to_all errors/)
+      end
+    end
+
+    context 'send_messages が例外を raise した場合' do
+      before do
+        user = create(:user)
+        user.device_tokens.create!(token: 'ExponentPushToken[t1]', platform: 'ios')
+        allow(client_double).to receive(:send_messages).and_raise(StandardError, 'network error')
+        allow(Rails.logger).to receive(:error)
+      end
+
+      it '例外が伝播する' do
+        expect do
+          described_class.send_to_all(title: 'タイトル', body: '本文')
+        end.to raise_error(StandardError, 'network error')
+
+        expect(Rails.logger).to have_received(:error).with(/send_batch failed/)
+      end
+    end
+  end
 end
