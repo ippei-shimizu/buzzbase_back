@@ -26,7 +26,9 @@ RSpec.describe ManagementNotice, type: :model do
     context '新規作成で status: published の場合' do
       it 'ManagementNoticePushJob がenqueueされる' do
         expect do
-          create(:management_notice, :published)
+          # :publishedトレイトはデフォルトで notified_at をセットするため、
+          # 通知ジョブのenqueueをテストする目的で明示的に nil を渡す。
+          create(:management_notice, :published, notified_at: nil)
         end.to have_enqueued_job(ManagementNoticePushJob)
       end
     end
