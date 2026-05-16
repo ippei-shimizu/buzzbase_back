@@ -6,6 +6,13 @@ class ManagementNoticePushJob < ApplicationJob
   # 完了後は update_column で notified_at を更新し、ManagementNotice の
   # after_commit コールバックを再発火させない（無限ループ防止）。
   #
+  # 失敗時のリカバリ:
+  #   :async アダプタは自動リトライしないため、PushNotificationService.send_to_all が
+  #   raise した場合は notified_at が nil のまま残り、ジョブは失敗で終了する。
+  #   ステータスは published のままで after_commit は再発火しないため、自動再送はされない。
+  #   Sentry アラートを受けたら、管理者は Rails コンソールから手動で再送する:
+  #     ManagementNoticePushJob.perform_later(<notice_id>)
+  #
   # @param notice_id [Integer] ManagementNotice の id
   def perform(notice_id)
     notice = ManagementNotice.find_by(id: notice_id)
