@@ -5,7 +5,7 @@ Rails API アプリケーション。
 ## 技術スタック
 
 - **Ruby**: 3.2.2
-- **Rails**: 7.0.x（API モード）
+- **Rails**: 7.1.x（API モード）
 - **DB**: PostgreSQL 15.5
 - **認証**: devise_token_auth（access-token, client, uid ヘッダー）
 - **シリアライザ**: active_model_serializers
