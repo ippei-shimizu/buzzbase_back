@@ -151,6 +151,16 @@ Rails.application.routes.draw do
 
       resources :management_notices, only: %i[index show]
 
+      namespace :pro do
+        resource :status, only: %i[show], controller: 'status'
+        resource :sync, only: %i[create], controller: 'sync'
+        resources :entitlements, only: %i[index]
+      end
+
+      namespace :webhooks do
+        resource :revenuecat, only: %i[create], controller: 'revenuecat'
+      end
+
       namespace :admin do
         resources :analytics, only: [] do
           collection do
