@@ -3,6 +3,21 @@ require 'rails_helper'
 RSpec.describe Entitlement, type: :model do
   let(:user) { create(:user) }
 
+  describe 'feature key constants' do
+    it 'defines exactly 10 free features and 12 pro features' do
+      # %w[] とインラインコメントの混在で feature key が壊れる回帰を防ぐ
+      expect(described_class::FREE_FEATURES.size).to eq 10
+      expect(described_class::PRO_FEATURES.size).to eq 12
+      expect(described_class::ALL_FEATURES.size).to eq 22
+    end
+
+    it 'contains only valid feature key strings (no stray symbols)' do
+      described_class::ALL_FEATURES.each do |key|
+        expect(key).to match(/\A[a-z][a-z0-9_]+\z/), "Invalid feature key: #{key.inspect}"
+      end
+    end
+  end
+
   describe '#has_entitlement?' do
     context 'with a free feature' do
       it 'returns true for a free user' do
