@@ -1,5 +1,9 @@
 class User < ActiveRecord::Base
+  include Entitlement
+  include PlanLimits
+
   mount_uploader :image, AvatarUploader
+  has_one :subscription, dependent: :destroy
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
   belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
@@ -39,6 +43,7 @@ class User < ActiveRecord::Base
   include DeviseTokenAuth::Concerns::User
 
   before_validation :normalize_user_id
+  after_create :create_default_subscription
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -136,6 +141,21 @@ class User < ActiveRecord::Base
 
   delegate :count, to: :followers, prefix: true
 
+  # subscription が未生成の場合に「無料状態」を表す未保存レコードを返す。
+  # API レスポンス時に nil チェックを避ける目的で利用する。
+  # @return [Subscription]
+  def subscription_or_default
+    subscription || Subscription.new(user: self, status: 'free')
+  end
+
+  # Pro 機能が利用可能か。
+  # @return [Boolean]
+  delegate :pro_active?, to: :subscription_or_default
+
+  # トライアル期間中か。
+  # @return [Boolean]
+  delegate :in_trial?, to: :subscription_or_default
+
   private
 
   def normalize_user_id
@@ -144,5 +164,12 @@ class User < ActiveRecord::Base
 
   def notify_slack_new_user
     SlackNotificationService.notify_new_user(self)
+  end
+
+  # subscription が無いユーザー（コールバック前のレコード等）でも nil 安全に動作させる。
+  def create_default_subscription
+    return if subscription.present?
+
+    create_subscription!(status: 'free')
   end
 end
