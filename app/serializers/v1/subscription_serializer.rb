@@ -5,8 +5,13 @@ module V1
   class SubscriptionSerializer < ActiveModel::Serializer
     attributes :status, :plan_type, :platform,
                :started_at, :expires_at,
-               :in_trial, :in_grace_period, :days_remaining,
+               :pro_active, :in_trial, :in_grace_period, :days_remaining,
                :is_early_subscriber, :has_used_trial
+
+    # @return [Boolean] 期限内かつ Pro 加入扱いの status か
+    def pro_active
+      object.pro_active?
+    end
 
     # @return [Boolean]
     def in_trial

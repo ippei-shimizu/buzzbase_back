@@ -11,10 +11,7 @@ module Api
           subscription = user.subscription_or_default
 
           render json: {
-            subscription: ActiveModelSerializers::SerializableResource.new(
-              subscription,
-              serializer: ::V1::SubscriptionSerializer
-            ).as_json,
+            subscription: ::V1::SubscriptionSerializer.new(subscription).as_json,
             entitlements: granted_entitlement_keys(user)
           }, status: :ok
         end

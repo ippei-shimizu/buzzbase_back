@@ -18,6 +18,7 @@ RSpec.describe 'Api::V1::Pro', type: :request do
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
         expect(json['subscription']['status']).to eq 'free'
+        expect(json['subscription']['pro_active']).to be false
         expect(json['subscription']['in_trial']).to be false
         expect(json['subscription']['in_grace_period']).to be false
         expect(json['entitlements']).to include('basic_game_record')
@@ -36,6 +37,7 @@ RSpec.describe 'Api::V1::Pro', type: :request do
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
         expect(json['subscription']['status']).to eq 'active'
+        expect(json['subscription']['pro_active']).to be true
         expect(json['subscription']['days_remaining']).to be > 0
         expect(json['entitlements']).to include('season_transition_graph', 'no_ads', 'basic_game_record')
       end

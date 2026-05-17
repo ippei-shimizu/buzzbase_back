@@ -14,10 +14,7 @@ module Api
           subscription.update!(last_synced_at: Time.current)
 
           render json: {
-            subscription: ActiveModelSerializers::SerializableResource.new(
-              subscription,
-              serializer: ::V1::SubscriptionSerializer
-            ).as_json,
+            subscription: ::V1::SubscriptionSerializer.new(subscription).as_json,
             entitlements: ::Entitlement::ALL_FEATURES.select { |key| user.has_entitlement?(key) }
           }, status: :ok
         end
