@@ -16,6 +16,8 @@ updates:
     commit-message:
       prefix: "Update"
       include: "scope"
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -34,3 +36,5 @@ updates:
     commit-message:
       prefix: "Update"
       include: "scope"
+    cooldown:
+      default-days: 7
