@@ -43,10 +43,12 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
     end
 
     context 'without redirect_url' do
-      it 'returns an error' do
+      it 'returns unauthorized' do
+        # devise_token_auth は redirect_url が欠落している場合 401 を返す
+        # （"リダイレクト URL が与えられていません。" エラー）
         post '/api/v1/auth/password', params: { email: user.email }
 
-        expect(response).to have_http_status(:unauthorized).or have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end

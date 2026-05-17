@@ -60,9 +60,6 @@
 # Configures the ActiveSupport::MessageEncryptor to use AES-GCM-SIV encryption.
 # Rails.application.config.active_support.message_serializer = :json_allow_marshal
 
-# Set `expect` for filtering ActionController::Parameters.
-# Rails.application.config.action_controller.allow_deprecated_parameters_hash_equality = false
-
 # Use sha256 as the default hashing method for `ActiveSupport::Digest`.
 # Rails.application.config.active_support.hash_digest_class = OpenSSL::Digest::SHA256
 
@@ -71,6 +68,3 @@
 
 # Use an empty array as the default value for `ActionController::Parameters#each_pair`.
 # Rails.application.config.action_controller.wrap_parameters_by_default = false
-
-# Specifies if an `ActiveSupport::Cache::Store` will hash keys longer than 64 bytes.
-# Rails.application.config.active_support.cache_format_version = 7.1
