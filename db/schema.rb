@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
+ActiveRecord::Schema[7.0].define(version: 2026_05_17_100004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -342,6 +342,30 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_seasons_on_user_id"
   end
 
+  create_table "subscriptions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "status", default: "free", null: false
+    t.string "plan_type"
+    t.string "platform"
+    t.string "product_id"
+    t.datetime "started_at"
+    t.datetime "expires_at"
+    t.datetime "cancelled_at"
+    t.datetime "refunded_at"
+    t.datetime "billing_issue_at"
+    t.boolean "has_used_trial", default: false, null: false
+    t.string "revenuecat_user_id"
+    t.string "revenuecat_entitlement_id", default: "pro"
+    t.boolean "is_early_subscriber", default: false, null: false
+    t.datetime "last_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_subscriptions_on_expires_at"
+    t.index ["revenuecat_user_id"], name: "index_subscriptions_on_revenuecat_user_id", unique: true
+    t.index ["status"], name: "index_subscriptions_on_status"
+    t.index ["user_id"], name: "index_subscriptions_on_user_id", unique: true
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "category_id"
@@ -385,6 +409,25 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_user_positions_on_user_id"
   end
 
+  create_table "user_subscription_events", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "subscription_id"
+    t.string "event_type", null: false
+    t.string "platform"
+    t.string "product_id"
+    t.string "period_type"
+    t.datetime "occurred_at", null: false
+    t.jsonb "raw_payload"
+    t.string "revenuecat_event_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_user_subscription_events_on_event_type"
+    t.index ["revenuecat_event_id"], name: "index_user_subscription_events_on_revenuecat_event_id", unique: true
+    t.index ["subscription_id"], name: "index_user_subscription_events_on_subscription_id"
+    t.index ["user_id", "occurred_at"], name: "index_user_subscription_events_on_user_id_and_occurred_at"
+    t.index ["user_id"], name: "index_user_subscription_events_on_user_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "provider", default: "email", null: false
     t.string "uid", default: "", null: false
@@ -424,6 +467,20 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
 
+  create_table "webhook_events", force: :cascade do |t|
+    t.string "provider", null: false
+    t.string "external_event_id", null: false
+    t.string "event_type"
+    t.datetime "received_at", null: false
+    t.datetime "processed_at"
+    t.string "status", default: "pending", null: false
+    t.jsonb "payload"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider", "external_event_id"], name: "index_webhook_events_on_provider_and_external_event_id", unique: true
+    t.index ["status"], name: "index_webhook_events_on_status"
+  end
+
   add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
@@ -450,6 +507,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
   add_foreign_key "plate_appearances", "game_results", on_delete: :cascade
   add_foreign_key "plate_appearances", "users"
   add_foreign_key "seasons", "users"
+  add_foreign_key "subscriptions", "users"
   add_foreign_key "teams", "baseball_categories", column: "category_id"
   add_foreign_key "teams", "prefectures"
   add_foreign_key "user_awards", "awards"
@@ -458,4 +516,6 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_12_142637) do
   add_foreign_key "user_notifications", "users"
   add_foreign_key "user_positions", "positions"
   add_foreign_key "user_positions", "users"
+  add_foreign_key "user_subscription_events", "subscriptions"
+  add_foreign_key "user_subscription_events", "users"
 end
