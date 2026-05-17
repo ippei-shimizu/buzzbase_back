@@ -32,6 +32,11 @@ RSpec.describe Subscription, type: :model do
       expect(subscription.pro_active?).to be false
     end
 
+    it 'returns false for pending status (purchase in progress, not yet confirmed)' do
+      subscription = build(:subscription, :pending)
+      expect(subscription.pro_active?).to be false
+    end
+
     it 'returns false when expires_at is in the past even with active status' do
       subscription = build(:subscription, :active, expires_at: 1.minute.ago)
       expect(subscription.pro_active?).to be false
@@ -61,12 +66,24 @@ RSpec.describe Subscription, type: :model do
   end
 
   describe '#in_grace_period?' do
-    it 'returns true for cancelled' do
+    it 'returns true for cancelled within expiration' do
       expect(build(:subscription, :cancelled).in_grace_period?).to be true
     end
 
-    it 'returns true for billing_issue' do
+    it 'returns true for billing_issue within expiration' do
       expect(build(:subscription, :billing_issue).in_grace_period?).to be true
+    end
+
+    # クライアントが in_grace_period を Pro アクセス判定に使うため、
+    # 期限切れの cancelled / billing_issue で true を返してはならない
+    it 'returns false for cancelled whose expires_at has passed' do
+      subscription = build(:subscription, :cancelled, expires_at: 1.minute.ago)
+      expect(subscription.in_grace_period?).to be false
+    end
+
+    it 'returns false for billing_issue whose expires_at has passed' do
+      subscription = build(:subscription, :billing_issue, expires_at: 1.minute.ago)
+      expect(subscription.in_grace_period?).to be false
     end
 
     it 'returns false for active' do
@@ -104,6 +121,23 @@ RSpec.describe Subscription, type: :model do
     it 'returns false when has_used_trial is true' do
       subscription = build(:subscription, :expired, has_used_trial: true)
       expect(subscription.can_use_trial?).to be false
+    end
+  end
+
+  # User の after_create で必ず free な subscription が生成されるため、
+  # 同じユーザーに 2 つ目の subscription を作るとユニーク制約に当たる。
+  # ファクトリ側で「既存 subscription を attributes で上書きする」戦略が
+  # 正しく動いていることを保証する。
+  describe 'factory create behavior' do
+    it 'reuses the auto-created free subscription when create(:subscription, :active) is called' do
+      subscription = create(:subscription, :active)
+      expect(described_class.where(user_id: subscription.user_id).count).to eq 1
+      expect(subscription.status).to eq 'active'
+      expect(subscription.expires_at).to be > Time.current
+    end
+
+    it 'does not raise unique constraint violation on create' do
+      expect { create(:subscription, :trial) }.not_to raise_error
     end
   end
 end

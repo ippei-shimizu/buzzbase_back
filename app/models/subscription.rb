@@ -6,7 +6,23 @@ class Subscription < ApplicationRecord
   PRO_ACTIVE_STATUSES = %w[trial active cancelled billing_issue].freeze
   GRACE_STATUSES = %w[cancelled billing_issue].freeze
 
-  enum status: STATUSES.index_with(&:itself)
+  # status の取りうる値:
+  # - free          : 一度も加入していない、または完全期限切れ
+  # - trial         : トライアル期間中（期限内）
+  # - active        : 通常課金中（期限内）
+  # - cancelled     : 解約申請済み、期限まで利用可
+  # - billing_issue : 課金失敗、Grace Period 中
+  # - expired       : 期限切れ、Pro 機能不可
+  # - pending       : 課金処理中の遷移状態。Pro 機能は不可（PRO_ACTIVE_STATUSES に含めない）
+  enum status: {
+    free: 'free',
+    trial: 'trial',
+    active: 'active',
+    cancelled: 'cancelled',
+    billing_issue: 'billing_issue',
+    expired: 'expired',
+    pending: 'pending'
+  }
   enum plan_type: { monthly: 'monthly', yearly: 'yearly' }, _prefix: :plan
   enum platform: { ios: 'ios', web: 'web', android: 'android' }, _prefix: :platform
 
@@ -27,10 +43,14 @@ class Subscription < ApplicationRecord
     trial? && (expires_at.nil? || expires_at > Time.current)
   end
 
-  # グレースピリオド中か（解約済みだが期限内、または課金失敗中）。
+  # グレースピリオド中か（解約済みだが期限内、または課金失敗中で期限内）。
+  # 「期限切れの cancelled / billing_issue」は無料状態と見なすため false を返す。
+  # クライアントはこのフラグを Pro アクセス判定に直接使ってよい。
   # @return [Boolean]
   def in_grace_period?
-    GRACE_STATUSES.include?(status)
+    return false unless GRACE_STATUSES.include?(status)
+
+    expires_at.nil? || expires_at > Time.current
   end
 
   # 期限までの残日数（負数にはならない）。expires_at が nil なら nil を返す。
