@@ -355,7 +355,7 @@ ActiveRecord::Schema[7.0].define(version: 2026_05_17_100004) do
     t.datetime "billing_issue_at"
     t.boolean "has_used_trial", default: false, null: false
     t.string "revenuecat_user_id"
-    t.string "revenuecat_entitlement_id", default: "pro"
+    t.string "revenuecat_entitlement_id"
     t.boolean "is_early_subscriber", default: false, null: false
     t.datetime "last_synced_at"
     t.datetime "created_at", null: false
