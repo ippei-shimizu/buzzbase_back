@@ -39,10 +39,32 @@ class User < ActiveRecord::Base
   include DeviseTokenAuth::Concerns::User
 
   # devise_token_auth 1.2.6 + Rails 7.1 では `serialize :tokens, coder: TokensSerialization`
-  # が当たるが、`users.tokens` は json 型カラムのためダブルエンコードになり認証が壊れる
-  # (Issue #340)。明示的に json 型を当てて coder を打ち消す。default は devise_token_auth が
-  # `tokens.fetch(...)` を呼ぶ前提のため空ハッシュにしておく。
+  # が json 型カラムに当たって二重シリアライズになり認証が壊れるため、明示的に json 型を当てて
+  # coder を打ち消す。default は devise_token_auth が `tokens.fetch(...)` を呼ぶ前提のため
+  # 空ハッシュにしておく。
   attribute :tokens, ActiveRecord::Type::Json.new, default: -> { {} }
+
+  # devise_token_auth 1.2.6 の clean_old_tokens は (1) `self.tokens = ...to_h` で Hash を
+  # 全置換して attribute tracking と衝突し直前の create_token の代入を消す、(2)
+  # max_lifespan_expiry が TokenFactory.expiry と異なる固定 30.4375 日換算のため月によっては
+  # 新規 token を delete してしまう、の 2 点が壊れているので、in-place mutation のみと
+  # TokenFactory と同式の計算で再実装する。
+  def clean_old_tokens
+    return if tokens.blank? || !max_client_tokens_exceeded?
+
+    # 旧 lifespan (例えば 6.months) で発行されて token_lifespan より先の expiry を持つ
+    # long-lived token を削除する。新規 token の expiry は TokenFactory と同じ式で max と
+    # 揃うため新規分は残る。
+    max_lifespan_expiry = (Time.zone.now + DeviseTokenAuth.token_lifespan).to_i
+    tokens.delete_if { |_cid, v| token_expiry_of(v) > max_lifespan_expiry }
+
+    while max_client_tokens_exceeded?
+      oldest_cid, = tokens.min_by { |_cid, v| token_expiry_of(v) }
+      break unless oldest_cid
+
+      tokens.delete(oldest_cid)
+    end
+  end
 
   before_validation :normalize_user_id
   after_commit :notify_slack_new_user, on: :create
@@ -150,5 +172,13 @@ class User < ActiveRecord::Base
 
   def notify_slack_new_user
     SlackNotificationService.notify_new_user(self)
+  end
+
+  # Symbol/String キーの両方に対応した expiry 取得 (clean_old_tokens で使用)。
+  # 万一 nil entry が混入していた場合は 0 を返し、while ループで最古として確実に削除される。
+  def token_expiry_of(token_entry)
+    return 0 unless token_entry.is_a?(Hash)
+
+    (token_entry[:expiry] || token_entry['expiry']).to_i
   end
 end
