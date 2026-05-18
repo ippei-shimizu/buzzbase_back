@@ -368,4 +368,20 @@ RSpec.describe User, type: :model do
       end
     end
   end
+
+  # Issue #340 (BUZZBASE-BACKEND-T) リグレッション
+  # devise_token_auth 1.2.6 + Rails 7.1 で `users.tokens` (json型) が `serialize :tokens, coder:`
+  # により二重シリアライズされ、`create_new_auth_token` 連続呼び出しで 500 になっていた。
+  describe '#create_new_auth_token (BUZZBASE-BACKEND-T regression)' do
+    let(:user) { create(:user) }
+
+    it 'persists tokens as a Hash without double-encoding on repeated calls' do
+      user.create_new_auth_token
+      user.create_new_auth_token
+
+      user.reload
+      expect(user.tokens).to be_a(Hash)
+      expect(user.tokens.values).to all(be_a(Hash))
+    end
+  end
 end
