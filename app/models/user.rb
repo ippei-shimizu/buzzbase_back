@@ -38,6 +38,12 @@ class User < ActiveRecord::Base
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
 
+  # devise_token_auth 1.2.6 + Rails 7.1 では `serialize :tokens, coder: TokensSerialization`
+  # が当たるが、`users.tokens` は json 型カラムのためダブルエンコードになり認証が壊れる
+  # (Issue #340)。明示的に json 型を当てて coder を打ち消す。default は devise_token_auth が
+  # `tokens.fetch(...)` を呼ぶ前提のため空ハッシュにしておく。
+  attribute :tokens, ActiveRecord::Type::Json.new, default: -> { {} }
+
   before_validation :normalize_user_id
   after_commit :notify_slack_new_user, on: :create
 
