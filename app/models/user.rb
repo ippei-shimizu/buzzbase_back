@@ -52,6 +52,9 @@ class User < ActiveRecord::Base
   def clean_old_tokens
     return if tokens.blank? || !max_client_tokens_exceeded?
 
+    # 旧 lifespan (例えば 6.months) で発行されて token_lifespan より先の expiry を持つ
+    # long-lived token を削除する。新規 token の expiry は TokenFactory と同じ式で max と
+    # 揃うため新規分は残る。
     max_lifespan_expiry = (Time.zone.now + DeviseTokenAuth.token_lifespan).to_i
     tokens.delete_if { |_cid, v| token_expiry_of(v) > max_lifespan_expiry }
 
@@ -171,8 +174,11 @@ class User < ActiveRecord::Base
     SlackNotificationService.notify_new_user(self)
   end
 
-  # Symbol/String キーの両方に対応した expiry 取得 (clean_old_tokens で使用)
+  # Symbol/String キーの両方に対応した expiry 取得 (clean_old_tokens で使用)。
+  # 万一 nil entry が混入していた場合は 0 を返し、while ループで最古として確実に削除される。
   def token_expiry_of(token_entry)
+    return 0 unless token_entry.is_a?(Hash)
+
     (token_entry[:expiry] || token_entry['expiry']).to_i
   end
 end
