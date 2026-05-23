@@ -25,6 +25,8 @@ module App
     config.api_only = true
     config.time_zone = 'Tokyo'
     config.active_record.default_timezone = :local
+    # RevenueCat / Stripe Webhook を 10 秒以内に 200 で返すため、本処理は Solid Queue ジョブへ非同期に渡す。
+    config.active_job.queue_adapter = :solid_queue
     config.i18n.default_locale = :ja
     config.i18n.load_path += Dir[Rails.root.join('config/locales/**/*.{rb,yml}')]
     config.session_store :cookie_store, key: '_interslice_session'

@@ -94,3 +94,13 @@ gem 'sentry-rails', '~> 5.13'
 gem 'kaminari'
 
 gem 'exponent-server-sdk'
+
+# Background job queue (Rails 7.1+)
+gem 'solid_queue'
+
+# Payment processing (Web subscription)
+gem 'stripe'
+
+# Feature flag management
+gem 'flipper'
+gem 'flipper-active_record'
