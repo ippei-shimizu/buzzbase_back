@@ -75,6 +75,27 @@ RSpec.describe PushNotificationService do
         expect(Rails.logger).to have_received(:error).with('Push notification failed: network error')
       end
     end
+
+    context 'when delivery is disabled (e.g. development without ENABLE_PUSH_NOTIFICATIONS)' do
+      before do
+        user.device_tokens.create!(token: 'ExponentPushToken[test-token]', platform: 'ios')
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('ENABLE_PUSH_NOTIFICATIONS').and_return(nil)
+      end
+
+      it 'does not call Expo Push API and logs a warning' do
+        client_double = instance_double(Exponent::Push::Client)
+        allow(Exponent::Push::Client).to receive(:new).and_return(client_double)
+        allow(client_double).to receive(:send_messages)
+        allow(Rails.logger).to receive(:warn)
+
+        described_class.send_to_user(user, title: 'Test', body: 'Test')
+
+        expect(client_double).not_to have_received(:send_messages)
+        expect(Rails.logger).to have_received(:warn).with(/PushNotificationService skipped: scope=user/)
+      end
+    end
   end
 
   describe '.send_to_all' do
@@ -160,6 +181,40 @@ RSpec.describe PushNotificationService do
         end.to raise_error(StandardError, 'network error')
 
         expect(Rails.logger).to have_received(:error).with(/send_batch failed/)
+      end
+    end
+
+    context '配信が無効化されている場合（development かつ ENABLE_PUSH_NOTIFICATIONS 未設定）' do
+      before do
+        user = create(:user)
+        user.device_tokens.create!(token: 'ExponentPushToken[t1]', platform: 'ios')
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('ENABLE_PUSH_NOTIFICATIONS').and_return(nil)
+        allow(Rails.logger).to receive(:warn)
+      end
+
+      it 'Expo Push API を呼ばず、スキップ理由をログに残す' do
+        described_class.send_to_all(title: 'タイトル', body: '本文')
+
+        expect(client_double).not_to have_received(:send_messages)
+        expect(Rails.logger).to have_received(:warn).with(/PushNotificationService skipped: scope=all/)
+      end
+    end
+
+    context '配信が ENABLE_PUSH_NOTIFICATIONS=true で明示的に有効化されている場合' do
+      before do
+        user = create(:user)
+        user.device_tokens.create!(token: 'ExponentPushToken[t1]', platform: 'ios')
+        allow(Rails).to receive(:env).and_return(ActiveSupport::StringInquirer.new('development'))
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:[]).with('ENABLE_PUSH_NOTIFICATIONS').and_return('true')
+      end
+
+      it 'Expo Push API へ送信される' do
+        described_class.send_to_all(title: 'タイトル', body: '本文')
+
+        expect(client_double).to have_received(:send_messages).once
       end
     end
   end

@@ -368,4 +368,60 @@ RSpec.describe User, type: :model do
       end
     end
   end
+
+  describe '#create_new_auth_token' do
+    let(:user) { create(:user) }
+
+    it 'persists tokens as a Hash without double-encoding on repeated calls' do
+      user.create_new_auth_token
+      user.create_new_auth_token
+
+      user.reload
+      expect(user.tokens).to be_a(Hash)
+      expect(user.tokens.values).to all(be_a(Hash))
+    end
+
+    context 'when tokens count is at max_devices' do
+      let(:max_devices) { DeviseTokenAuth.max_number_of_devices }
+
+      before do
+        full_set = (1..max_devices).each_with_object({}) do |i, h|
+          h["client_#{i}"] = { 'token' => 'hash', 'expiry' => Time.now.to_i + 60 + i }
+        end
+        user.update_columns(tokens: full_set) # rubocop:disable Rails/SkipsModelValidations
+        user.reload
+      end
+
+      it 'does not raise when adding a new token' do
+        expect { user.create_new_auth_token }.not_to raise_error
+      end
+
+      it 'keeps the newly created client_id and stays within max_devices' do
+        headers = user.create_new_auth_token
+        user.reload
+        expect(user.tokens.keys.count).to eq(max_devices)
+        expect(user.tokens.keys).to include(headers['client'])
+      end
+    end
+
+    context 'when tokens contain a legacy long-lived entry beyond the current lifespan' do
+      let(:max_devices) { DeviseTokenAuth.max_number_of_devices }
+
+      before do
+        # client_1 だけ旧 6ヶ月 expiry (現行 token_lifespan より遥かに先)、残りは正常範囲
+        full_set = (1..max_devices).each_with_object({}) do |i, h|
+          expiry = i == 1 ? Time.now.to_i + 6.months.to_i : Time.now.to_i + 60 + i
+          h["client_#{i}"] = { 'token' => 'hash', 'expiry' => expiry }
+        end
+        user.update_columns(tokens: full_set) # rubocop:disable Rails/SkipsModelValidations
+        user.reload
+      end
+
+      it 'drops the long-lived entry via delete_if before the max_devices loop' do
+        user.create_new_auth_token
+        user.reload
+        expect(user.tokens.keys).not_to include('client_1')
+      end
+    end
+  end
 end
