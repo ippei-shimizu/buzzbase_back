@@ -2,9 +2,8 @@ module Api
   module V1
     module Webhooks
       # POST /api/v1/webhooks/revenuecat
-      # RevenueCat からの Webhook 受信エンドポイント。
-      # 10 秒以内の 200 OK 返却が求められるため、本処理は Solid Queue 経由で非同期化する。
-      # 冪等性は webhook_events テーブルの (provider, external_event_id) UNIQUE 制約に委ねる。
+      # 10 秒以内に 200 OK を返す必要があるため、受信時は WebhookEvent への記録だけ済ませてジョブに委譲する。
+      # 冪等性は webhook_events の (provider, external_event_id) UNIQUE 制約に委ねる。
       class RevenuecatController < ApplicationController
         skip_before_action :verify_authenticity_token, raise: false
         before_action :verify_signature!
@@ -27,8 +26,7 @@ module Api
             payload: params.to_unsafe_h
           )
 
-          # 既存レコードが返ったときは既にジョブが enqueue 済み（冪等性）。
-          # 新規作成時だけ pending な状態でジョブを enqueue する。
+          # 既存レコードが返ったときはジョブも enqueue 済みなので新規作成時のみ起動する。
           RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.previously_new_record?
 
           head :ok

@@ -1,14 +1,11 @@
-# RevenueCat Webhook の本処理を非同期で実行するジョブ。
-# Webhook 受信は即時 200 を返す必要があるため、controller では Job 化のみ行い、
-# 実際の Subscription 更新はここで RevenueCatWebhookProcessor 経由で行う。
+# Webhook 受信時の 10 秒制限を満たすため、本処理は本ジョブに非同期化する。
 class RevenueCatWebhookJob < ApplicationJob
   queue_as :default
 
-  # ApplicationJob の rescue_from が Sentry 通知付きで例外を再 raise するため、
-  # Solid Queue 側でリトライキューに乗せられる。本ジョブ単独でも指数バックオフで最大 5 回リトライする。
+  # 指数バックオフで最大 5 回リトライ。ApplicationJob の rescue_from で Sentry 通知される。
   retry_on StandardError, wait: :polynomially_longer, attempts: 5
 
-  # webhook_event が DB から消えていても落とさない。Sentry の異常通知だけ済ませて終了する。
+  # DB から webhook_event が消えていても落とさない（手動削除や DB 競合に備える）。
   def perform(webhook_event_id)
     webhook_event = WebhookEvent.find_by(id: webhook_event_id)
     unless webhook_event

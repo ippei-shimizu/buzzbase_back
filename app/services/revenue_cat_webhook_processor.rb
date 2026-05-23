@@ -1,7 +1,5 @@
-# RevenueCat の Webhook payload を受け取って Subscription を更新するエントリポイント。
-# 個別 event_type の handler は #346 で順次実装する。本クラスは冪等性と
-# エラーハンドリング・Sentry 通知の責務だけを持ち、未対応イベントは Sentry に
-# 警告して processed として記録する（再送ループ防止）。
+# RevenueCat Webhook payload を Subscription 更新に変換するエントリポイント。
+# 未対応イベントも Sentry warning を残しつつ processed として記録し、RevenueCat 側の再送ループを防ぐ。
 class RevenueCatWebhookProcessor
   def initialize(webhook_event)
     @webhook_event = webhook_event
@@ -22,14 +20,14 @@ class RevenueCatWebhookProcessor
 
   private
 
-  # event_type ごとの分岐。#346 で各 handler を実装する想定で、現状は未対応扱い。
+  # 既知イベントは受信記録だけ残して processed 扱いにし、未知イベントは Sentry warning に流す。
+  # 個別 event_type の本処理は後続で積み増す。
   def handle_event
     case @event_data['type']
     when 'INITIAL_PURCHASE', 'TRIAL_STARTED',
          'RENEWAL', 'CANCELLATION', 'EXPIRATION',
          'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND',
          'UNCANCELLATION'
-      # #346 で個別 handler を実装する。現状はスタブとして無処理で processed 扱いにする。
       nil
     else
       Sentry.capture_message(
