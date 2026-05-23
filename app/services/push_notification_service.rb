@@ -6,6 +6,8 @@ class PushNotificationService
   # @param title [String] 通知タイトル
   # @param body [String] 通知本文
   def self.send_to_user(user, title:, body:)
+    return log_skipped(scope: :user, user_id: user.id, title:) unless delivery_enabled?
+
     tokens = user.device_tokens.pluck(:token)
     return if tokens.empty?
 
@@ -35,6 +37,8 @@ class PushNotificationService
   # @param title [String] 通知タイトル
   # @param body [String] 通知本文
   def self.send_to_all(title:, body:)
+    return log_skipped(scope: :all, title:) unless delivery_enabled?
+
     client = Exponent::Push::Client.new
     token_batch = []
 
@@ -71,4 +75,35 @@ class PushNotificationService
     raise
   end
   private_class_method :send_batch
+
+  # 実際にExpo Push APIへ送信するかを判定する。
+  # production 以外では誤爆を防ぐため既定で無効化し、開発時に検証したい場合のみ
+  # ENABLE_PUSH_NOTIFICATIONS=true を明示することで有効化できる。
+  # test 環境は spec 側で Exponent::Push::Client を stub しているため許可する。
+  def self.delivery_enabled?
+    return true if Rails.env.production?
+    return true if Rails.env.test?
+
+    ENV['ENABLE_PUSH_NOTIFICATIONS'] == 'true'
+  end
+  private_class_method :delivery_enabled?
+
+  # 送信をスキップした際の理由を可観測な形でログに残す。
+  # Sentry には breadcrumb として残し、後から「ローカルから送信を試みたか」を追跡できるようにする。
+  def self.log_skipped(scope:, **extra)
+    Rails.logger.warn(
+      "PushNotificationService skipped: scope=#{scope} env=#{Rails.env} #{extra.inspect}"
+    )
+    return unless Sentry.initialized?
+
+    Sentry.add_breadcrumb(
+      Sentry::Breadcrumb.new(
+        category: 'push_notification',
+        level: 'info',
+        message: 'PushNotificationService skipped (delivery disabled)',
+        data: { scope:, env: Rails.env.to_s, **extra }
+      )
+    )
+  end
+  private_class_method :log_skipped
 end
