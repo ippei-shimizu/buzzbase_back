@@ -155,10 +155,13 @@ Rails.application.routes.draw do
         resource :status, only: %i[show], controller: 'status'
         resource :sync, only: %i[create], controller: 'sync'
         resources :entitlements, only: %i[index]
+        resource :checkout, only: %i[create], controller: 'checkout'
+        resource :subscription, only: %i[destroy update], controller: 'subscription'
       end
 
       namespace :webhooks do
         resource :revenuecat, only: %i[create], controller: 'revenuecat'
+        resource :stripe, only: %i[create], controller: 'stripe'
       end
 
       namespace :admin do

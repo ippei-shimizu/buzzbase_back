@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_23_220003) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_24_111501) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -497,9 +497,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_23_220003) do
     t.datetime "last_synced_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "stripe_customer_id"
+    t.string "stripe_subscription_id"
     t.index ["expires_at"], name: "index_subscriptions_on_expires_at"
     t.index ["revenuecat_user_id"], name: "index_subscriptions_on_revenuecat_user_id", unique: true
     t.index ["status"], name: "index_subscriptions_on_status"
+    t.index ["stripe_customer_id"], name: "index_subscriptions_on_stripe_customer_id", unique: true, where: "(stripe_customer_id IS NOT NULL)"
+    t.index ["stripe_subscription_id"], name: "index_subscriptions_on_stripe_subscription_id", unique: true, where: "(stripe_subscription_id IS NOT NULL)"
     t.index ["user_id"], name: "index_subscriptions_on_user_id", unique: true
   end
 

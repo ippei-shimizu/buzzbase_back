@@ -29,6 +29,7 @@ RSpec.configure do |config|
   config.include ActiveJob::TestHelper, type: :job
   config.include ActiveJob::TestHelper, type: :model
   config.include ActiveJob::TestHelper, type: :request
+  config.include ActiveSupport::Testing::TimeHelpers
 end
 
 Shoulda::Matchers.configure do |config|
