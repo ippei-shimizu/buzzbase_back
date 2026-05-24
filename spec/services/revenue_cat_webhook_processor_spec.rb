@@ -288,6 +288,79 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'EXPIRATION を受信したとき' do
+      let(:user) { create(:user) }
+      let(:payload) { revenuecat_payload_for('expiration', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'cancelled',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 60.days.ago,
+          expires_at: 1.day.ago,
+          cancelled_at: 10.days.ago
+        )
+      end
+
+      it 'status を expired に遷移させる' do
+        process!
+        expect(user.reload.subscription.status).to eq('expired')
+      end
+
+      it 'UserSubscriptionEvent に expired を記録する' do
+        expect { process! }.to change { user.user_subscription_events.where(event_type: 'expired').count }.by(1)
+      end
+    end
+
+    context 'BILLING_ISSUE を受信したとき' do
+      let(:user) { create(:user) }
+      let(:original_expires_at) { 5.days.from_now }
+      let(:payload) { revenuecat_payload_for('billing_issue', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: original_expires_at
+        )
+      end
+
+      it 'status を billing_issue にし、billing_issue_at をセット、expires_at を維持する' do
+        process!
+        subscription = user.reload.subscription
+        expect(subscription.status).to eq('billing_issue')
+        expect(subscription.billing_issue_at).to be_within(1.second).of(Time.current)
+        expect(subscription.expires_at).to be_within(1.second).of(original_expires_at)
+      end
+
+      it 'UserSubscriptionEvent に billing_issue を記録する' do
+        expect { process! }.to change { user.user_subscription_events.where(event_type: 'billing_issue').count }.by(1)
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {

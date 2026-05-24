@@ -42,10 +42,12 @@ class RevenueCatWebhookProcessor
       handle_renewal
     when 'CANCELLATION'
       handle_cancellation
-    when 'EXPIRATION', 'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND', 'UNCANCELLATION'
+    when 'EXPIRATION'
+      handle_expiration
+    when 'BILLING_ISSUE'
+      handle_billing_issue
+    when 'PRODUCT_CHANGE', 'REFUND', 'UNCANCELLATION'
       # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
-      #   - EXPIRATION: status を expired に
-      #   - BILLING_ISSUE: billing_issue_at をセット、Grace 期間を維持
       #   - PRODUCT_CHANGE: plan_type を切替
       #   - REFUND: status を expired に、expires_at を即時切れに、refunded_at をセット
       #   - UNCANCELLATION: cancelled_at をクリアし active に戻す
@@ -82,6 +84,34 @@ class RevenueCatWebhookProcessor
     )
 
     record_subscription_event(user, is_trial ? 'trial_started' : 'initial_purchase')
+  end
+
+  # EXPIRATION は期限到来時の最終ステータス。Pro 機能を無効化する。
+  def handle_expiration
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.persisted?
+
+    subscription.update!(status: 'expired', last_synced_at: Time.current)
+    record_subscription_event(user, 'expired')
+  end
+
+  # BILLING_ISSUE は課金失敗。Grace Period 中は Pro 機能利用可なので expires_at は変えない。
+  def handle_billing_issue
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.persisted?
+
+    subscription.update!(
+      status: 'billing_issue',
+      billing_issue_at: Time.current,
+      last_synced_at: Time.current
+    )
+    record_subscription_event(user, 'billing_issue')
   end
 
   # CANCELLATION は解約申請。期限まで Pro 機能利用可なので expires_at は変えない。
