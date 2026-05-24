@@ -5,7 +5,7 @@ module App
       # status / plan_type 等の状態遷移は RevenueCat 経由で更新されるため、ここでは Stripe ID のみ保存する。
       class CheckoutSessionCompletedHandler < BaseHandler
         def call
-          user_id = payload.metadata[:user_id] || payload.metadata['user_id']
+          user_id = payload.metadata[:user_id]
           return notify_missing_user_id if user_id.blank?
 
           user = User.find_by(id: user_id)

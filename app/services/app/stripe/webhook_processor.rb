@@ -16,9 +16,19 @@ module App
         EventDispatcher.handler_for(@payload).call
         @webhook_event.mark_processed!
       rescue StandardError => e
-        @webhook_event.mark_failed!(e.message)
+        # mark_failed! 自体が例外で落ちると元の e が握り潰されるため、
+        # 内側を rescue で守って元例外を必ず Sentry に届ける。
+        safely_mark_failed(e.message)
         Sentry.capture_exception(e, tags: { source: 'stripe_webhook' })
         raise
+      end
+
+      private
+
+      def safely_mark_failed(message)
+        @webhook_event.mark_failed!(message)
+      rescue StandardError => e
+        Sentry.capture_exception(e, tags: { source: 'stripe_webhook_mark_failed' })
       end
     end
   end

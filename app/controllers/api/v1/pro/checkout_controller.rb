@@ -20,6 +20,11 @@ module Api
           render json: { error: 'already_subscribed' }, status: :conflict
         rescue App::Stripe::CheckoutSessionBuilder::InvalidPlanError
           render json: { error: 'invalid_plan' }, status: :unprocessable_entity
+        rescue ::Stripe::StripeError => e
+          # Stripe API 側の障害（一時的ネットワーク・キー誤設定・商品ID不正など）。
+          # ユーザーには「決済プロバイダ側の問題」を示し、詳細は Sentry で追えるようにする。
+          Sentry.capture_exception(e, tags: { source: 'pro_checkout_controller' })
+          render json: { error: 'stripe_api_error' }, status: :bad_gateway
         end
       end
     end

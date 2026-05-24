@@ -22,9 +22,10 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
         allow(updater).to receive(:cancel_at_period_end)
       end
 
-      it '200 を返す' do
+      it '200 + 解約申請メッセージを返す' do
         delete '/api/v1/pro/subscription', headers: auth_headers_for(user), as: :json
         expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['message']).to eq('解約申請を受け付けました')
       end
     end
 
@@ -37,6 +38,20 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
         delete '/api/v1/pro/subscription', headers: auth_headers_for(user), as: :json
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['error']).to eq('no_active_subscription')
+      end
+    end
+
+    context 'Stripe API エラーが起きるとき' do
+      before do
+        allow(updater).to receive(:cancel_at_period_end).and_raise(Stripe::APIConnectionError.new('boom'))
+        allow(Sentry).to receive(:capture_exception)
+      end
+
+      it '502 + error: stripe_api_error を返し Sentry 通知' do
+        delete '/api/v1/pro/subscription', headers: auth_headers_for(user), as: :json
+        expect(response).to have_http_status(:bad_gateway)
+        expect(response.parsed_body['error']).to eq('stripe_api_error')
+        expect(Sentry).to have_received(:capture_exception)
       end
     end
   end
@@ -55,10 +70,11 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
         allow(updater).to receive(:change_plan).with('yearly')
       end
 
-      it '200 を返す' do
+      it '200 + プラン変更メッセージを返す' do
         patch '/api/v1/pro/subscription', params: { plan: 'yearly' },
                                           headers: auth_headers_for(user), as: :json
         expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['message']).to eq('プラン変更を受け付けました')
       end
     end
 
@@ -85,6 +101,21 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
                                           headers: auth_headers_for(user), as: :json
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['error']).to eq('no_active_subscription')
+      end
+    end
+
+    context 'Stripe API エラーが起きるとき' do
+      before do
+        allow(updater).to receive(:change_plan).and_raise(Stripe::APIConnectionError.new('boom'))
+        allow(Sentry).to receive(:capture_exception)
+      end
+
+      it '502 + error: stripe_api_error を返し Sentry 通知' do
+        patch '/api/v1/pro/subscription', params: { plan: 'yearly' },
+                                          headers: auth_headers_for(user), as: :json
+        expect(response).to have_http_status(:bad_gateway)
+        expect(response.parsed_body['error']).to eq('stripe_api_error')
+        expect(Sentry).to have_received(:capture_exception)
       end
     end
   end

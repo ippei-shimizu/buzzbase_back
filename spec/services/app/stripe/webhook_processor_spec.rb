@@ -64,6 +64,25 @@ RSpec.describe App::Stripe::WebhookProcessor do
         expect(webhook_event.reload.status).to eq('failed')
         expect(webhook_event.error_message).to include('boom')
       end
+
+      context '更に mark_failed! 自体も例外で落ちるとき' do
+        before do
+          allow(webhook_event).to receive(:mark_failed!).and_raise(StandardError, 'db down')
+        end
+
+        it '元の handler 例外を必ず Sentry に届け、mark_failed! の例外も別タグで通知する' do
+          expect { process! }.to raise_error(StandardError, 'boom')
+
+          expect(Sentry).to have_received(:capture_exception).with(
+            instance_of(StandardError),
+            hash_including(tags: hash_including(source: 'stripe_webhook_mark_failed'))
+          )
+          expect(Sentry).to have_received(:capture_exception).with(
+            having_attributes(message: 'boom'),
+            hash_including(tags: hash_including(source: 'stripe_webhook'))
+          )
+        end
+      end
     end
 
     context '未対応 event_type のとき' do

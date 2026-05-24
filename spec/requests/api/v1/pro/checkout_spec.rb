@@ -61,5 +61,22 @@ RSpec.describe 'Api::V1::Pro::Checkout', type: :request do
         expect(response.parsed_body['error']).to eq('invalid_plan')
       end
     end
+
+    context 'Stripe API エラー（API キー誤設定・ネット障害等）が起きるとき' do
+      let(:builder) { instance_double(App::Stripe::CheckoutSessionBuilder) }
+
+      before do
+        allow(App::Stripe::CheckoutSessionBuilder).to receive(:new).and_return(builder)
+        allow(builder).to receive(:call).and_raise(Stripe::APIConnectionError.new('connection refused'))
+        allow(Sentry).to receive(:capture_exception)
+      end
+
+      it '502 + error: stripe_api_error を返し、Sentry に通知する' do
+        post '/api/v1/pro/checkout', params:, headers: auth_headers_for(user), as: :json
+        expect(response).to have_http_status(:bad_gateway)
+        expect(response.parsed_body['error']).to eq('stripe_api_error')
+        expect(Sentry).to have_received(:capture_exception).with(be_a(Stripe::StripeError), anything)
+      end
+    end
   end
 end

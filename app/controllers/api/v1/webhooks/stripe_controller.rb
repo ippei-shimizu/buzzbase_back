@@ -30,7 +30,9 @@ module Api
 
         # ::Stripe::Webhook.construct_event は raw body と Stripe-Signature ヘッダを必要とする。
         # 検証失敗は SignatureVerificationError、JSON 不正は JSON::ParserError を投げる。
+        # Rails のミドルウェアが先に body を読み終えているケースに備えて rewind を前置する。
         def verify_and_parse_event
+          request.body.rewind
           payload = request.body.read
           sig_header = request.headers['Stripe-Signature']
           ::Stripe::Webhook.construct_event(payload, sig_header, ENV.fetch('STRIPE_WEBHOOK_SECRET'))

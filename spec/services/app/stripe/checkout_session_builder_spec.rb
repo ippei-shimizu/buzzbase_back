@@ -106,10 +106,10 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
   end
 
   def travel_to_inside_early_window
-    allow(Time).to receive(:current).and_return(Time.zone.parse('2026-06-01 12:00 JST'))
+    travel_to Time.zone.parse('2026-06-01 12:00 JST')
   end
 
   def travel_to_outside_early_window
-    allow(Time).to receive(:current).and_return(Time.zone.parse('2026-08-01 12:00 JST'))
+    travel_to Time.zone.parse('2026-08-01 12:00 JST')
   end
 end

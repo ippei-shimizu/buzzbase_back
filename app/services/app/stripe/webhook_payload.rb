@@ -21,10 +21,11 @@ module App
         @event.data&.object || {}
       end
 
-      # data.object.metadata を Hash として返す。未設定時は空 Hash で安全に扱えるようにする。
+      # data.object.metadata を HashWithIndifferentAccess として返す。
+      # Stripe 直送（Symbol キー）と DB 経由（JSON → String キー）の両方を統一して扱えるようにする。
       def metadata
         meta = data_object.respond_to?(:metadata) ? data_object.metadata : nil
-        meta.respond_to?(:to_h) ? meta.to_h : {}
+        (meta.respond_to?(:to_h) ? meta.to_h : {}).with_indifferent_access
       end
 
       def customer_id

@@ -9,18 +9,24 @@ module Api
 
         def update
           App::Stripe::SubscriptionUpdater.new(current_api_v1_user).change_plan(params[:plan])
-          head :ok
+          render json: { message: 'プラン変更を受け付けました' }, status: :ok
         rescue App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError
           render json: { error: 'no_active_subscription' }, status: :unprocessable_entity
         rescue App::Stripe::SubscriptionUpdater::InvalidPlanError
           render json: { error: 'invalid_plan' }, status: :unprocessable_entity
+        rescue ::Stripe::StripeError => e
+          Sentry.capture_exception(e, tags: { source: 'pro_subscription_controller', action: 'update' })
+          render json: { error: 'stripe_api_error' }, status: :bad_gateway
         end
 
         def destroy
           App::Stripe::SubscriptionUpdater.new(current_api_v1_user).cancel_at_period_end
-          head :ok
+          render json: { message: '解約申請を受け付けました' }, status: :ok
         rescue App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError
           render json: { error: 'no_active_subscription' }, status: :unprocessable_entity
+        rescue ::Stripe::StripeError => e
+          Sentry.capture_exception(e, tags: { source: 'pro_subscription_controller', action: 'destroy' })
+          render json: { error: 'stripe_api_error' }, status: :bad_gateway
         end
       end
     end
