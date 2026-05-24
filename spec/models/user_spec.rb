@@ -424,4 +424,60 @@ RSpec.describe User, type: :model do
       end
     end
   end
+
+  describe '#sync_stripe_customer_email (after_update)' do
+    let(:user) { create(:user, email: 'old@example.com') }
+    let(:job) { instance_double(StripeCustomerUpdateJob, perform: nil) }
+
+    before do
+      allow(StripeCustomerUpdateJob).to receive(:new).and_return(job)
+    end
+
+    context 'Web ユーザーで stripe_customer_id が紐付き、email が変わったとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'StripeCustomerUpdateJob を起動する' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).to have_received(:perform).with(user.id)
+      end
+    end
+
+    context 'iOS ユーザーのとき' do
+      before do
+        user.subscription.update!(platform: 'ios', stripe_customer_id: 'cus_ios_abc')
+      end
+
+      it 'Stripe Customer 同期を起動しない（Apple ID 側で管理される）' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+
+    context 'stripe_customer_id が未紐付のとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: nil)
+      end
+
+      it 'Stripe Customer 同期を起動しない' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+
+    context 'email を変えていないとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'Stripe Customer 同期を起動しない' do
+        user.update!(name: '別名前')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+  end
 end

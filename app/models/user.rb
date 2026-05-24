@@ -73,6 +73,7 @@ class User < ActiveRecord::Base
 
   before_validation :normalize_user_id
   after_create :create_default_subscription
+  after_update :sync_stripe_customer_email, if: :saved_change_to_email?
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -200,6 +201,16 @@ class User < ActiveRecord::Base
     return if subscription.present?
 
     create_subscription!(status: 'free')
+  end
+
+  # email 変更時に Stripe Customer.email を追従させる。
+  # iOS / Android ユーザーは Apple ID / Google アカウント側で管理されるため対象外。
+  # 同期実行だが Job 内で rescue しているため User#update! を巻き込まない。
+  def sync_stripe_customer_email
+    return unless subscription&.platform_web?
+    return if subscription.stripe_customer_id.blank?
+
+    StripeCustomerUpdateJob.new.perform(id)
   end
 
   # Symbol/String キーの両方に対応した expiry 取得 (clean_old_tokens で使用)。
