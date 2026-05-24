@@ -6,42 +6,42 @@ class SubscriptionMailer < ApplicationMailer
   def trial_expiring_soon(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】トライアル終了 3 日前のお知らせ'
+    mail to: user.email
   end
 
   def pro_expiring_soon(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】Pro 期間終了 3 日前のお知らせ'
+    mail to: user.email
   end
 
   def cancelled(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】解約申請を受け付けました'
+    mail to: user.email
   end
 
   def expired(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】Pro 期間が終了しました'
+    mail to: user.email
   end
 
   def billing_issue(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】決済情報の確認をお願いします'
+    mail to: user.email
   end
 
   def refunded(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】返金が完了しました'
+    mail to: user.email
   end
 
   def recovered(user)
     @user = user
     @subscription = user.subscription
-    mail to: user.email, subject: '【BUZZ BASE Pro】決済が完了し Pro 機能を再開しました'
+    mail to: user.email
   end
 end
