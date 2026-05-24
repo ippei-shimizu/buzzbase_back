@@ -398,6 +398,98 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'UNCANCELLATION を受信したとき' do
+      let(:user) { create(:user) }
+      let(:payload) { revenuecat_payload_for('uncancellation', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      context '直前が cancelled のとき' do
+        before do
+          user.subscription.update!(
+            status: 'cancelled',
+            plan_type: 'monthly',
+            platform: 'ios',
+            product_id: 'buzzbase_pro_monthly',
+            revenuecat_user_id: user.id.to_s,
+            has_used_trial: true,
+            started_at: 30.days.ago,
+            expires_at: 5.days.from_now,
+            cancelled_at: 2.days.ago
+          )
+        end
+
+        it 'active に戻し cancelled_at をクリアする' do
+          process!
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('active')
+          expect(subscription.cancelled_at).to be_nil
+        end
+
+        it 'UserSubscriptionEvent に uncancelled を記録する' do
+          expect { process! }.to change { user.user_subscription_events.where(event_type: 'uncancelled').count }.by(1)
+        end
+      end
+
+      context '直前が active で UNCANCELLATION 受信したとき（冪等性）' do
+        before do
+          user.subscription.update!(
+            status: 'active',
+            plan_type: 'monthly',
+            platform: 'ios',
+            revenuecat_user_id: user.id.to_s,
+            has_used_trial: true,
+            expires_at: 5.days.from_now
+          )
+        end
+
+        it '状態を変えない' do
+          expect { process! }.not_to(change { user.reload.subscription.attributes.except('updated_at', 'last_synced_at') })
+        end
+      end
+    end
+
+    context 'PRODUCT_CHANGE を受信したとき' do
+      let(:user) { create(:user) }
+      let(:payload) { revenuecat_payload_for('product_change', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: 30.days.from_now
+        )
+      end
+
+      it 'plan_type と product_id を新しい商品に切り替える' do
+        process!
+        subscription = user.reload.subscription
+        expect(subscription.plan_type).to eq('yearly')
+        expect(subscription.product_id).to eq('buzzbase_pro_yearly')
+      end
+
+      it 'UserSubscriptionEvent に product_changed を記録する' do
+        expect { process! }.to change { user.user_subscription_events.where(event_type: 'product_changed').count }.by(1)
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {

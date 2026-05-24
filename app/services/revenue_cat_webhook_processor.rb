@@ -48,11 +48,10 @@ class RevenueCatWebhookProcessor
       handle_billing_issue
     when 'REFUND'
       handle_refund
-    when 'PRODUCT_CHANGE', 'UNCANCELLATION'
-      # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
-      #   - PRODUCT_CHANGE: plan_type を切替
-      #   - UNCANCELLATION: cancelled_at をクリアし active に戻す
-      nil
+    when 'UNCANCELLATION'
+      handle_uncancellation
+    when 'PRODUCT_CHANGE'
+      handle_product_change
     else
       Sentry.capture_message(
         "RevenueCat unknown event_type: #{@event_data['type'].inspect}",
@@ -131,6 +130,34 @@ class RevenueCatWebhookProcessor
       last_synced_at: now
     )
     record_subscription_event(user, 'refunded')
+  end
+
+  # UNCANCELLATION は「自動更新 ON に戻す」操作。cancelled でないときは何もしない（冪等性）。
+  def handle_uncancellation
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.cancelled?
+
+    subscription.update!(status: 'active', cancelled_at: nil, last_synced_at: Time.current)
+    record_subscription_event(user, 'uncancelled')
+  end
+
+  # PRODUCT_CHANGE は月額↔年額のプラン変更。proration / expires_at の調整は Apple/Stripe 側に任せる。
+  def handle_product_change
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.persisted?
+
+    subscription.update!(
+      plan_type: detect_plan_type(@event_data['product_id']),
+      product_id: @event_data['product_id'],
+      last_synced_at: Time.current
+    )
+    record_subscription_event(user, 'product_changed')
   end
 
   # CANCELLATION は解約申請。期限まで Pro 機能利用可なので expires_at は変えない。
