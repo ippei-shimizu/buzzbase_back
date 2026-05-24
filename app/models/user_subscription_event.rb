@@ -1,11 +1,10 @@
-# Pro 加入状態に関する監査ログ。
-# 書き込みロジック（Webhook 受信時の event 記録）は #318 で実装する。
-# 本 Issue ではモデルクラスのみ用意し、Subscription / User からの関連を成立させる。
+# Pro 加入状態に関する監査ログ。Webhook 受信時に各イベントを追記する。
 class UserSubscriptionEvent < ApplicationRecord
   belongs_to :user
   belongs_to :subscription, optional: true
 
   EVENT_TYPES = %w[
+    initial_purchase
     trial_started
     purchased
     renewed
@@ -14,6 +13,8 @@ class UserSubscriptionEvent < ApplicationRecord
     refunded
     billing_issue
     recovered
+    uncancelled
+    product_changed
   ].freeze
 
   validates :event_type, presence: true

@@ -1,0 +1,12 @@
+{
+  "event": {
+    "id": "evt_cancellation_001",
+    "type": "CANCELLATION",
+    "app_user_id": "1",
+    "event_timestamp_ms": 1750000000000,
+    "expiration_at_ms": 1751353200000,
+    "product_id": "buzzbase_pro_monthly",
+    "store": "APP_STORE",
+    "period_type": "NORMAL"
+  }
+}
