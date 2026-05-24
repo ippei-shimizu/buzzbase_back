@@ -40,11 +40,10 @@ class RevenueCatWebhookProcessor
       handle_initial_purchase
     when 'RENEWAL'
       handle_renewal
-    when 'CANCELLATION', 'EXPIRATION',
-         'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND',
-         'UNCANCELLATION'
+    when 'CANCELLATION'
+      handle_cancellation
+    when 'EXPIRATION', 'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND', 'UNCANCELLATION'
       # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
-      #   - CANCELLATION: cancelled_at をセット、expires_at は維持
       #   - EXPIRATION: status を expired に
       #   - BILLING_ISSUE: billing_issue_at をセット、Grace 期間を維持
       #   - PRODUCT_CHANGE: plan_type を切替
@@ -83,6 +82,23 @@ class RevenueCatWebhookProcessor
     )
 
     record_subscription_event(user, is_trial ? 'trial_started' : 'initial_purchase')
+  end
+
+  # CANCELLATION は解約申請。期限まで Pro 機能利用可なので expires_at は変えない。
+  def handle_cancellation
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.persisted?
+
+    subscription.update!(
+      status: 'cancelled',
+      cancelled_at: Time.current,
+      last_synced_at: Time.current
+    )
+
+    record_subscription_event(user, 'cancelled')
   end
 
   # RENEWAL は順序逆転に強い実装が必要。古い expires_at のイベントが後から届いても巻き戻さない。

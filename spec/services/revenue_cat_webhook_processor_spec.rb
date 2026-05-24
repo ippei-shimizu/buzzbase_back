@@ -250,6 +250,44 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'CANCELLATION を受信したとき' do
+      let(:user) { create(:user) }
+      let(:original_expires_at) { Time.zone.parse('2026-07-01 12:00 JST') }
+      let(:payload) { revenuecat_payload_for('cancellation', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: original_expires_at
+        )
+      end
+
+      it 'status を cancelled にし、expires_at は維持する' do
+        process!
+        subscription = user.reload.subscription
+        expect(subscription.status).to eq('cancelled')
+        expect(subscription.expires_at).to be_within(1.second).of(original_expires_at)
+        expect(subscription.cancelled_at).to be_within(1.second).of(Time.current)
+      end
+
+      it 'UserSubscriptionEvent に cancelled を記録する' do
+        expect { process! }.to change { user.user_subscription_events.where(event_type: 'cancelled').count }.by(1)
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {
