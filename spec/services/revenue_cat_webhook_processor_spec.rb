@@ -361,6 +361,43 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'REFUND を受信したとき' do
+      let(:user) { create(:user) }
+      let(:payload) { revenuecat_payload_for('refund', user:) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: 30.days.from_now
+        )
+      end
+
+      it 'status を expired にし、expires_at を即時切れ、refunded_at をセットする' do
+        process!
+        subscription = user.reload.subscription
+        expect(subscription.status).to eq('expired')
+        expect(subscription.expires_at).to be_within(1.second).of(Time.current)
+        expect(subscription.refunded_at).to be_within(1.second).of(Time.current)
+      end
+
+      it 'UserSubscriptionEvent に refunded を記録する' do
+        expect { process! }.to change { user.user_subscription_events.where(event_type: 'refunded').count }.by(1)
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {

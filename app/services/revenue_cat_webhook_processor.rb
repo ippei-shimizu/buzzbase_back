@@ -46,10 +46,11 @@ class RevenueCatWebhookProcessor
       handle_expiration
     when 'BILLING_ISSUE'
       handle_billing_issue
-    when 'PRODUCT_CHANGE', 'REFUND', 'UNCANCELLATION'
+    when 'REFUND'
+      handle_refund
+    when 'PRODUCT_CHANGE', 'UNCANCELLATION'
       # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
       #   - PRODUCT_CHANGE: plan_type を切替
-      #   - REFUND: status を expired に、expires_at を即時切れに、refunded_at をセット
       #   - UNCANCELLATION: cancelled_at をクリアし active に戻す
       nil
     else
@@ -112,6 +113,24 @@ class RevenueCatWebhookProcessor
       last_synced_at: Time.current
     )
     record_subscription_event(user, 'billing_issue')
+  end
+
+  # REFUND は返金確定。Pro 機能を即時無効化するため expires_at を現在に詰める。
+  def handle_refund
+    user = find_user
+    return notify_unknown_user unless user
+
+    subscription = user.subscription_or_default
+    return unless subscription.persisted?
+
+    now = Time.current
+    subscription.update!(
+      status: 'expired',
+      refunded_at: now,
+      expires_at: now,
+      last_synced_at: now
+    )
+    record_subscription_event(user, 'refunded')
   end
 
   # CANCELLATION は解約申請。期限まで Pro 機能利用可なので expires_at は変えない。
