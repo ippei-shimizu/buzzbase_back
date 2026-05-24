@@ -9,15 +9,14 @@ module Api
         before_action :verify_signature!
 
         def create
-          event_params = params[:event]
-          event_id = event_params.is_a?(ActionController::Parameters) || event_params.is_a?(Hash) ? event_params[:id] : nil
+          event_id = params.dig(:event, :id)
 
           if event_id.blank?
             Sentry.capture_message('RevenueCat webhook: event.id missing in payload', level: :warning)
             return head :unprocessable_entity
           end
 
-          event_type = event_params[:type]
+          event_type = params.dig(:event, :type)
 
           webhook_event = WebhookEvent.find_or_create_pending!(
             provider: 'revenuecat',
@@ -38,12 +37,11 @@ module Api
         private
 
         # Authorization: Bearer <REVENUECAT_WEBHOOK_SECRET> を期待する。
-        # 共有秘密のタイミング攻撃を避けるため、長さを揃えてから secure_compare する。
+        # 長さの違いをタイミング情報として漏らさないよう、両辺を SHA256 で固定長化してから比較する。
         def verify_signature!
-          expected = "Bearer #{ENV.fetch('REVENUECAT_WEBHOOK_SECRET', nil)}"
-          provided = request.headers['Authorization'].to_s
-          return if provided.bytesize == expected.bytesize &&
-                    ActiveSupport::SecurityUtils.secure_compare(provided, expected)
+          expected = Digest::SHA256.hexdigest("Bearer #{ENV.fetch('REVENUECAT_WEBHOOK_SECRET', nil)}")
+          provided = Digest::SHA256.hexdigest(request.headers['Authorization'].to_s)
+          return if ActiveSupport::SecurityUtils.fixed_length_secure_compare(provided, expected)
 
           head :unauthorized
         end

@@ -7,6 +7,7 @@ class RevenueCatWebhookProcessor
     @event_data = @payload['event'] || {}
   end
 
+  # failed のレコードは手動で再 enqueue されたとき再処理する設計のため processed のみガードする。
   def process
     return if @webhook_event.processed?
 
