@@ -1,0 +1,12 @@
+{
+  "event": {
+    "id": "evt_expiration_001",
+    "type": "EXPIRATION",
+    "app_user_id": "1",
+    "event_timestamp_ms": 1751353200000,
+    "expiration_at_ms": 1751353200000,
+    "product_id": "buzzbase_pro_monthly",
+    "store": "APP_STORE",
+    "period_type": "NORMAL"
+  }
+}

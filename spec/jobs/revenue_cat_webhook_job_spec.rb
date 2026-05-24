@@ -4,9 +4,9 @@ RSpec.describe RevenueCatWebhookJob, type: :job do
   let(:webhook_event) { create(:webhook_event) }
 
   describe '#perform' do
-    it 'RevenueCatWebhookProcessor#process を呼び出す' do
-      processor = instance_double(RevenueCatWebhookProcessor, process: nil)
-      allow(RevenueCatWebhookProcessor).to receive(:new).with(webhook_event).and_return(processor)
+    it 'RevenueCat::WebhookProcessor#process を呼び出す' do
+      processor = instance_double(RevenueCat::WebhookProcessor, process: nil)
+      allow(RevenueCat::WebhookProcessor).to receive(:new).with(webhook_event).and_return(processor)
 
       described_class.new.perform(webhook_event.id)
       expect(processor).to have_received(:process)
