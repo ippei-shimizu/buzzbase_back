@@ -63,6 +63,117 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'INITIAL_PURCHASE を受信したとき' do
+      let(:user) { create(:user) }
+      let(:fixture_name) { 'initial_purchase_normal' }
+      let(:overrides) { {} }
+      let(:payload) { revenuecat_payload_for(fixture_name, user:, **overrides) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      context 'period_type が NORMAL のとき' do
+        it 'subscription を active 状態に遷移させ、product / platform / 期限を更新する' do
+          process!
+          subscription = user.reload.subscription
+          expect(subscription).to have_attributes(
+            status: 'active',
+            plan_type: 'monthly',
+            platform: 'ios',
+            product_id: 'buzzbase_pro_monthly'
+          )
+          expect(subscription.started_at).to be_within(1.second).of(Time.zone.at(payload['event']['event_timestamp_ms'] / 1000))
+          expect(subscription.expires_at).to be_within(1.second).of(Time.zone.at(payload['event']['expiration_at_ms'] / 1000))
+        end
+
+        it 'has_used_trial を立てない（通常購入はトライアル消化扱いにしない）' do
+          process!
+          expect(user.reload.subscription.has_used_trial).to be(false)
+        end
+
+        it 'revenuecat_user_id を Subscription にセットして次回以降の照合に使える状態にする' do
+          process!
+          expect(user.reload.subscription.revenuecat_user_id).to eq(user.id.to_s)
+        end
+
+        it 'UserSubscriptionEvent に initial_purchase イベントを記録する' do
+          expect { process! }.to change { user.user_subscription_events.where(event_type: 'initial_purchase').count }.by(1)
+        end
+      end
+
+      context 'period_type が TRIAL のとき' do
+        let(:fixture_name) { 'initial_purchase_trial' }
+
+        it 'subscription を trial 状態にし、has_used_trial を立てる' do
+          process!
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('trial')
+          expect(subscription.has_used_trial).to be(true)
+        end
+
+        it 'UserSubscriptionEvent に trial_started イベントを記録する' do
+          expect { process! }.to change { user.user_subscription_events.where(event_type: 'trial_started').count }.by(1)
+        end
+      end
+
+      context 'event_timestamp_ms が早期特典窓内のとき' do
+        let(:overrides) do
+          # 2026-06-01 12:00 JST → epoch ms
+          { event_timestamp_ms: Time.zone.parse('2026-06-01 12:00 JST').to_i * 1000 }
+        end
+
+        it 'is_early_subscriber を true にする' do
+          process!
+          expect(user.reload.subscription.is_early_subscriber).to be(true)
+        end
+      end
+
+      context 'event_timestamp_ms が早期特典窓外のとき' do
+        let(:overrides) do
+          { event_timestamp_ms: Time.zone.parse('2026-08-01 12:00 JST').to_i * 1000 }
+        end
+
+        it 'is_early_subscriber を false に保つ' do
+          process!
+          expect(user.reload.subscription.is_early_subscriber).to be(false)
+        end
+      end
+
+      context '同一 event_id で 2 回受信されたとき' do
+        it 'UserSubscriptionEvent は 1 件のまま（RecordNotUnique を握り潰す）' do
+          described_class.new(webhook_event).process
+
+          duplicated = create(:webhook_event,
+                              provider: 'revenuecat',
+                              external_event_id: "#{payload['event']['id']}-dup-wh",
+                              event_type: payload['event']['type'],
+                              payload:)
+          described_class.new(duplicated).process
+
+          expect(user.user_subscription_events.where(event_type: 'initial_purchase').count).to eq(1)
+        end
+      end
+
+      context '未知の app_user_id を受信したとき' do
+        let(:overrides) { { app_user_id: '9999999' } }
+
+        it 'Sentry に warning を残し、Subscription を更新しない' do
+          allow(Sentry).to receive(:capture_message)
+          process!
+          expect(Sentry).to have_received(:capture_message).with(
+            a_string_including('user not found'),
+            hash_including(level: :warning)
+          )
+          expect(user.reload.subscription.status).to eq('free')
+          expect(webhook_event.reload.status).to eq('processed')
+        end
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {
