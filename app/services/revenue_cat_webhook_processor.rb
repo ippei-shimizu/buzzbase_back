@@ -38,11 +38,12 @@ class RevenueCatWebhookProcessor
     case @event_data['type']
     when 'INITIAL_PURCHASE', 'TRIAL_STARTED'
       handle_initial_purchase
-    when 'RENEWAL', 'CANCELLATION', 'EXPIRATION',
+    when 'RENEWAL'
+      handle_renewal
+    when 'CANCELLATION', 'EXPIRATION',
          'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND',
          'UNCANCELLATION'
       # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
-      #   - RENEWAL: expires_at を更新（古いイベントなら無視して順序非依存性を担保）
       #   - CANCELLATION: cancelled_at をセット、expires_at は維持
       #   - EXPIRATION: status を expired に
       #   - BILLING_ISSUE: billing_issue_at をセット、Grace 期間を維持
@@ -84,6 +85,29 @@ class RevenueCatWebhookProcessor
     record_subscription_event(user, is_trial ? 'trial_started' : 'initial_purchase')
   end
 
+  # RENEWAL は順序逆転に強い実装が必要。古い expires_at のイベントが後から届いても巻き戻さない。
+  # billing_issue → active への遷移時は recovered イベントも同時に記録する。
+  def handle_renewal
+    user = find_user
+    return notify_unknown_user unless user
+
+    new_expires_at = epoch_ms_to_time(@event_data['expiration_at_ms'])
+    subscription = user.subscription_or_default
+
+    return if subscription.expires_at.present? && new_expires_at.present? && subscription.expires_at >= new_expires_at
+
+    was_billing_issue = subscription.billing_issue?
+    subscription.update!(
+      status: 'active',
+      expires_at: new_expires_at,
+      last_synced_at: Time.current
+    )
+
+    record_subscription_event(user, 'renewed')
+    # 派生イベント recovered は monitoring 用に別レコードで残す。元イベントとは別 ID にして uniqueness 衝突を回避する。
+    record_subscription_event(user, 'recovered', event_id: "#{@event_data['id']}-recovered") if was_billing_issue
+  end
+
   # app_user_id は mobile/front から `user.id.to_s` を渡す前提。
   # 初回 INITIAL_PURCHASE 前は subscription.revenuecat_user_id が nil のため User.id で fallback する。
   def find_user
@@ -117,7 +141,8 @@ class RevenueCatWebhookProcessor
   end
 
   # 監査ログに同一 revenuecat_event_id が既に書かれていれば握り潰す（冪等性確保）。
-  def record_subscription_event(user, event_type)
+  # event_id は派生イベント（例: recovered）で suffix 付き ID を渡せるよう引数化する。
+  def record_subscription_event(user, event_type, event_id: @event_data['id'])
     UserSubscriptionEvent.create!(
       user:,
       subscription: user.subscription,
@@ -127,7 +152,7 @@ class RevenueCatWebhookProcessor
       period_type: @event_data['period_type'],
       occurred_at: epoch_ms_to_time(@event_data['event_timestamp_ms']) || Time.current,
       raw_payload: @event_data,
-      revenuecat_event_id: @event_data['id']
+      revenuecat_event_id: event_id
     )
   rescue ActiveRecord::RecordNotUnique
     nil

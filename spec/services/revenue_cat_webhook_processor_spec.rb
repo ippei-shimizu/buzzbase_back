@@ -174,6 +174,82 @@ RSpec.describe RevenueCatWebhookProcessor do
       end
     end
 
+    context 'RENEWAL を受信したとき' do
+      let(:user) { create(:user) }
+      let(:existing_expires_at) { Time.zone.parse('2026-07-01 12:00 JST') }
+      let(:overrides) { {} }
+      let(:payload) { revenuecat_payload_for('renewal', user:, **overrides) }
+      let(:webhook_event) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: payload['event']['id'],
+               event_type: payload['event']['type'],
+               payload:)
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'buzzbase_pro_monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: existing_expires_at
+        )
+      end
+
+      context '新しい expires_at が現状より後（通常のリニューアル）' do
+        let(:overrides) do
+          { expiration_at_ms: (existing_expires_at + 30.days).to_i * 1000 }
+        end
+
+        it 'expires_at を伸ばし status を active に保つ' do
+          process!
+          subscription = user.reload.subscription
+          expect(subscription.expires_at).to be_within(1.second).of(existing_expires_at + 30.days)
+          expect(subscription.status).to eq('active')
+        end
+
+        it 'UserSubscriptionEvent に renewed を記録する' do
+          expect { process! }.to change { user.user_subscription_events.where(event_type: 'renewed').count }.by(1)
+        end
+      end
+
+      context '古い expires_at（順序逆転で過去のイベントが届いた）' do
+        let(:overrides) do
+          { expiration_at_ms: (existing_expires_at - 10.days).to_i * 1000 }
+        end
+
+        it 'subscription.expires_at を巻き戻さない' do
+          process!
+          expect(user.reload.subscription.expires_at).to be_within(1.second).of(existing_expires_at)
+        end
+
+        it 'UserSubscriptionEvent も記録しない（純粋スキップ）' do
+          expect { process! }.not_to(change { user.user_subscription_events.count })
+        end
+      end
+
+      context 'billing_issue 状態からリニューアルが成功したとき' do
+        before do
+          user.subscription.update!(status: 'billing_issue', billing_issue_at: 1.day.ago)
+        end
+
+        let(:overrides) do
+          { expiration_at_ms: (existing_expires_at + 30.days).to_i * 1000 }
+        end
+
+        it 'active に復帰し recovered イベントも記録する' do
+          process!
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('active')
+          expect(user.user_subscription_events.where(event_type: 'recovered').count).to eq(1)
+        end
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {
