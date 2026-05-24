@@ -56,7 +56,7 @@ class RevenueCatWebhookProcessor
   # rubocop:enable Metrics/CyclomaticComplexity
 
   # INITIAL_PURCHASE / TRIAL_STARTED 兼用。period_type で trial / active を出し分け、
-  # 早期特典窓内のタイムスタンプなら is_early_subscriber を立てる。
+  # 早期特典期間内のタイムスタンプなら is_early_subscriber を立てる。
   def handle_initial_purchase
     with_resolved_subscription(require_persisted: false) do |user, subscription|
       is_trial = @event_data['period_type'] == 'TRIAL'

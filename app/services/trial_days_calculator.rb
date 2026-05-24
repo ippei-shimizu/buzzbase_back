@@ -1,7 +1,7 @@
-# 早期特典窓を含むトライアル日数判定の単一ソース。
+# 早期特典期間を含むトライアル日数判定の単一ソース。
 # Webhook handler / Stripe Checkout の双方から参照されるため、副作用のないクラスメソッドのみ提供する。
 class TrialDaysCalculator
-  # Pro リリース日（2026-05-31）から 7 日間の早期特典窓。
+  # Pro リリース日（2026-05-31）から 7 日間の早期特典期間。
   # リリース日が後ろ倒しになる可能性があるため、確定までは ENV
   # (EARLY_SUBSCRIBER_WINDOW_START / END) で実環境ごとに override する運用とし、
   # 最終リリース日が決まった段階で本定数を更新する。
@@ -19,7 +19,7 @@ class TrialDaysCalculator
     in_early_window?(at) ? EARLY_TRIAL_DAYS : NORMAL_TRIAL_DAYS
   end
 
-  # 早期特典窓内かを判定する。窓は ENV で override 可能（緊急時に運営が前後に伸ばすため）。
+  # 与えられた時刻が早期特典期間内かを判定する。期間は ENV で override 可能（緊急時に運営が前後に伸ばすため）。
   # @param at [Time] 判定対象の時刻
   # @return [Boolean]
   def self.in_early_window?(at = Time.current)

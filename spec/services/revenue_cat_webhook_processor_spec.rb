@@ -120,7 +120,7 @@ RSpec.describe RevenueCatWebhookProcessor do
         end
       end
 
-      context 'event_timestamp_ms が早期特典窓内のとき' do
+      context 'event_timestamp_ms が早期特典期間内のとき' do
         let(:overrides) do
           # 2026-06-01 12:00 JST → epoch ms
           { event_timestamp_ms: Time.zone.parse('2026-06-01 12:00 JST').to_i * 1000 }
@@ -132,7 +132,7 @@ RSpec.describe RevenueCatWebhookProcessor do
         end
       end
 
-      context 'event_timestamp_ms が早期特典窓外のとき' do
+      context 'event_timestamp_ms が早期特典期間外のとき' do
         let(:overrides) do
           { event_timestamp_ms: Time.zone.parse('2026-08-01 12:00 JST').to_i * 1000 }
         end
