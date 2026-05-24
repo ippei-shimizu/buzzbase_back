@@ -13,6 +13,6 @@ class RevenueCatWebhookJob < ApplicationJob
       return
     end
 
-    RevenueCatWebhookProcessor.new(webhook_event).process
+    RevenueCat::WebhookProcessor.new(webhook_event).process
   end
 end

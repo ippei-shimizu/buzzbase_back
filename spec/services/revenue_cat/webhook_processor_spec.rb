@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe RevenueCatWebhookProcessor do
+RSpec.describe RevenueCat::WebhookProcessor do
   let(:event_id) { 'evt_initial_purchase_001' }
   let(:payload) do
     {
@@ -44,15 +44,16 @@ RSpec.describe RevenueCatWebhookProcessor do
     end
 
     context 'handler 実装中に例外が発生したとき' do
-      let(:processor) { described_class.new(webhook_event) }
+      let(:failing_handler) { instance_double(RevenueCat::Handlers::InitialPurchaseHandler) }
 
       before do
-        allow(processor).to receive(:handle_event).and_raise(StandardError, 'boom')
+        allow(failing_handler).to receive(:call).and_raise(StandardError, 'boom')
+        allow(RevenueCat::EventDispatcher).to receive(:handler_for).and_return(failing_handler)
         allow(Sentry).to receive(:capture_exception)
       end
 
       it 'webhook_event を failed 状態に遷移させて Sentry に通知し、例外を再 raise する' do
-        expect { processor.process }.to raise_error(StandardError, 'boom')
+        expect { process! }.to raise_error(StandardError, 'boom')
 
         expect(Sentry).to have_received(:capture_exception).with(
           instance_of(StandardError),
