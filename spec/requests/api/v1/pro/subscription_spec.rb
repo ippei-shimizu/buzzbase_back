@@ -2,6 +2,11 @@ require 'rails_helper'
 
 RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
   let(:user) { create(:user) }
+  let(:updater) { instance_double(App::Stripe::SubscriptionUpdater) }
+
+  before do
+    allow(App::Stripe::SubscriptionUpdater).to receive(:new).and_return(updater)
+  end
 
   describe 'DELETE /api/v1/pro/subscription' do
     context '未認証のとき' do
@@ -14,7 +19,7 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
     context '認証済みかつ Stripe Subscription 紐付け済み' do
       before do
         user.subscription.update!(stripe_subscription_id: 'sub_test_abc')
-        allow_any_instance_of(App::Stripe::SubscriptionUpdater).to receive(:cancel_at_period_end)
+        allow(updater).to receive(:cancel_at_period_end)
       end
 
       it '200 を返す' do
@@ -25,9 +30,7 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
 
     context 'Stripe Subscription 未紐付' do
       before do
-        allow_any_instance_of(App::Stripe::SubscriptionUpdater)
-          .to receive(:cancel_at_period_end)
-          .and_raise(App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError)
+        allow(updater).to receive(:cancel_at_period_end).and_raise(App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError)
       end
 
       it '422 + error: no_active_subscription を返す' do
@@ -49,7 +52,7 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
     context '正常なプラン変更リクエスト' do
       before do
         user.subscription.update!(stripe_subscription_id: 'sub_test_abc')
-        allow_any_instance_of(App::Stripe::SubscriptionUpdater).to receive(:change_plan).with('yearly')
+        allow(updater).to receive(:change_plan).with('yearly')
       end
 
       it '200 を返す' do
@@ -61,9 +64,7 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
 
     context '不正な plan' do
       before do
-        allow_any_instance_of(App::Stripe::SubscriptionUpdater)
-          .to receive(:change_plan)
-          .and_raise(App::Stripe::SubscriptionUpdater::InvalidPlanError)
+        allow(updater).to receive(:change_plan).and_raise(App::Stripe::SubscriptionUpdater::InvalidPlanError)
       end
 
       it '422 + error: invalid_plan を返す' do
@@ -76,9 +77,7 @@ RSpec.describe 'Api::V1::Pro::Subscription', type: :request do
 
     context 'Stripe Subscription 未紐付' do
       before do
-        allow_any_instance_of(App::Stripe::SubscriptionUpdater)
-          .to receive(:change_plan)
-          .and_raise(App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError)
+        allow(updater).to receive(:change_plan).and_raise(App::Stripe::SubscriptionUpdater::NoStripeSubscriptionError)
       end
 
       it '422 + error: no_active_subscription を返す' do

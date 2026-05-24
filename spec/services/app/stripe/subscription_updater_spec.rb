@@ -32,7 +32,10 @@ RSpec.describe App::Stripe::SubscriptionUpdater do
 
   describe '#change_plan' do
     let(:stripe_subscription_item) { instance_double(Stripe::SubscriptionItem, id: 'si_test_abc') }
-    let(:stripe_subscription) { instance_double(Stripe::Subscription, items: double(data: [stripe_subscription_item])) }
+    # Stripe::ListObject#data は method_missing 経由のため verified double できない。
+    # 必要なインターフェース (.data) のみ持つ軽量 Struct で代替する。
+    let(:stripe_items) { Struct.new(:data).new([stripe_subscription_item]) }
+    let(:stripe_subscription) { instance_double(Stripe::Subscription, items: stripe_items) }
 
     context 'stripe_subscription_id が紐付いていないとき' do
       it 'NoStripeSubscriptionError を raise する' do

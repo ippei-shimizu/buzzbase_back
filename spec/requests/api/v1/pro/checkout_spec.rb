@@ -20,10 +20,9 @@ RSpec.describe 'Api::V1::Pro::Checkout', type: :request do
 
     context '認証済みかつ未加入のとき' do
       let(:stripe_session) { instance_double(Stripe::Checkout::Session, url: 'https://checkout.stripe.com/c/pay/sess_abc') }
+      let(:builder) { instance_double(App::Stripe::CheckoutSessionBuilder, call: stripe_session) }
 
-      before do
-        allow_any_instance_of(App::Stripe::CheckoutSessionBuilder).to receive(:call).and_return(stripe_session)
-      end
+      before { allow(App::Stripe::CheckoutSessionBuilder).to receive(:new).and_return(builder) }
 
       it 'checkout_url を含む 200 レスポンスを返す' do
         post '/api/v1/pro/checkout', params:, headers: auth_headers_for(user), as: :json
@@ -33,10 +32,11 @@ RSpec.describe 'Api::V1::Pro::Checkout', type: :request do
     end
 
     context '既加入で AlreadySubscribedError が起きるとき' do
+      let(:builder) { instance_double(App::Stripe::CheckoutSessionBuilder) }
+
       before do
-        allow_any_instance_of(App::Stripe::CheckoutSessionBuilder)
-          .to receive(:call)
-          .and_raise(App::Stripe::CheckoutSessionBuilder::AlreadySubscribedError)
+        allow(App::Stripe::CheckoutSessionBuilder).to receive(:new).and_return(builder)
+        allow(builder).to receive(:call).and_raise(App::Stripe::CheckoutSessionBuilder::AlreadySubscribedError)
       end
 
       it '409 + error: already_subscribed を返す' do
@@ -47,10 +47,11 @@ RSpec.describe 'Api::V1::Pro::Checkout', type: :request do
     end
 
     context '不正な plan で InvalidPlanError が起きるとき' do
+      let(:builder) { instance_double(App::Stripe::CheckoutSessionBuilder) }
+
       before do
-        allow_any_instance_of(App::Stripe::CheckoutSessionBuilder)
-          .to receive(:call)
-          .and_raise(App::Stripe::CheckoutSessionBuilder::InvalidPlanError)
+        allow(App::Stripe::CheckoutSessionBuilder).to receive(:new).and_return(builder)
+        allow(builder).to receive(:call).and_raise(App::Stripe::CheckoutSessionBuilder::InvalidPlanError)
       end
 
       it '422 + error: invalid_plan を返す' do
