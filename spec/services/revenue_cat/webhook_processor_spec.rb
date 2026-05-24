@@ -263,6 +263,12 @@ RSpec.describe RevenueCat::WebhookProcessor do
           expect(subscription.status).to eq('active')
           expect(user.user_subscription_events.where(event_type: 'recovered').count).to eq(1)
         end
+
+        it 'RecoveredNotificationJob を perform_now で呼び出す' do
+          allow(RecoveredNotificationJob).to receive(:perform_now)
+          process!
+          expect(RecoveredNotificationJob).to have_received(:perform_now).with(user.id)
+        end
       end
     end
 
@@ -302,6 +308,12 @@ RSpec.describe RevenueCat::WebhookProcessor do
       it 'UserSubscriptionEvent に cancelled を記録する' do
         expect { process! }.to change { user.user_subscription_events.where(event_type: 'cancelled').count }.by(1)
       end
+
+      it 'SubscriptionCancelledNotificationJob を perform_now で呼び出す' do
+        allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+        process!
+        expect(SubscriptionCancelledNotificationJob).to have_received(:perform_now).with(user.id)
+      end
     end
 
     context 'EXPIRATION を受信したとき' do
@@ -336,6 +348,12 @@ RSpec.describe RevenueCat::WebhookProcessor do
 
       it 'UserSubscriptionEvent に expired を記録する' do
         expect { process! }.to change { user.user_subscription_events.where(event_type: 'expired').count }.by(1)
+      end
+
+      it 'SubscriptionExpiredNotificationJob を perform_now で呼び出す' do
+        allow(SubscriptionExpiredNotificationJob).to receive(:perform_now)
+        process!
+        expect(SubscriptionExpiredNotificationJob).to have_received(:perform_now).with(user.id)
       end
     end
 
@@ -375,6 +393,12 @@ RSpec.describe RevenueCat::WebhookProcessor do
       it 'UserSubscriptionEvent に billing_issue を記録する' do
         expect { process! }.to change { user.user_subscription_events.where(event_type: 'billing_issue').count }.by(1)
       end
+
+      it 'BillingIssueNotificationJob を perform_now で呼び出す' do
+        allow(BillingIssueNotificationJob).to receive(:perform_now)
+        process!
+        expect(BillingIssueNotificationJob).to have_received(:perform_now).with(user.id)
+      end
     end
 
     context 'REFUND を受信したとき' do
@@ -411,6 +435,12 @@ RSpec.describe RevenueCat::WebhookProcessor do
 
       it 'UserSubscriptionEvent に refunded を記録する' do
         expect { process! }.to change { user.user_subscription_events.where(event_type: 'refunded').count }.by(1)
+      end
+
+      it 'RefundNotificationJob を perform_now で呼び出す' do
+        allow(RefundNotificationJob).to receive(:perform_now)
+        process!
+        expect(RefundNotificationJob).to have_received(:perform_now).with(user.id)
       end
     end
 

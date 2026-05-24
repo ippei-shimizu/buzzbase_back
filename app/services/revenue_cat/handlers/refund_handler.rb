@@ -7,6 +7,7 @@ module RevenueCat
           now = Time.current
           subscription.update!(status: 'expired', refunded_at: now, expires_at: now, last_synced_at: now)
           event_recorder.record(user, subscription, 'refunded')
+          RefundNotificationJob.perform_now(user.id)
         end
       end
     end

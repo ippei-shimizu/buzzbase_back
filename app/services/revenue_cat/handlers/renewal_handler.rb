@@ -11,7 +11,10 @@ module RevenueCat
           was_billing_issue = subscription.billing_issue?
           subscription.update!(status: 'active', expires_at: new_expires_at, last_synced_at: Time.current)
           event_recorder.record(user, subscription, 'renewed')
-          record_recovery(user, subscription) if was_billing_issue
+          if was_billing_issue
+            record_recovery(user, subscription)
+            RecoveredNotificationJob.perform_now(user.id)
+          end
         end
       end
 
