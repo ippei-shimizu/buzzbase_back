@@ -5,7 +5,7 @@ module RevenueCat
       def call
         with_resolved_subscription do |user, subscription|
           subscription.update!(status: 'expired', last_synced_at: Time.current)
-          event_recorder.record(user, 'expired')
+          event_recorder.record(user, subscription, 'expired')
         end
       end
     end

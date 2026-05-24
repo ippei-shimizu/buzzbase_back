@@ -4,12 +4,13 @@ module RevenueCat
     class CancellationHandler < BaseHandler
       def call
         with_resolved_subscription do |user, subscription|
+          # Job リトライによる時刻ズレを避けるため、cancelled_at は Webhook payload のイベント時刻を採用する。
           subscription.update!(
             status: 'cancelled',
-            cancelled_at: Time.current,
+            cancelled_at: payload.event_timestamp || Time.current,
             last_synced_at: Time.current
           )
-          event_recorder.record(user, 'cancelled')
+          event_recorder.record(user, subscription, 'cancelled')
         end
       end
     end

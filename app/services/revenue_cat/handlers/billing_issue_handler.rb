@@ -4,12 +4,13 @@ module RevenueCat
     class BillingIssueHandler < BaseHandler
       def call
         with_resolved_subscription do |user, subscription|
+          # Job リトライによる時刻ズレを避けるため、billing_issue_at は Webhook payload のイベント時刻を採用する。
           subscription.update!(
             status: 'billing_issue',
-            billing_issue_at: Time.current,
+            billing_issue_at: payload.event_timestamp || Time.current,
             last_synced_at: Time.current
           )
-          event_recorder.record(user, 'billing_issue')
+          event_recorder.record(user, subscription, 'billing_issue')
         end
       end
     end

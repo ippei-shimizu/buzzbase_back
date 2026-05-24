@@ -23,6 +23,12 @@ RSpec.describe UserSubscriptionEvent, type: :model do
       expect(record.errors[:event_type]).to be_present
     end
 
+    it 'EVENT_TYPES に含まれない event_type は invalid' do
+      record = described_class.new(base_attrs.merge(event_type: 'unknown_event'))
+      expect(record).not_to be_valid
+      expect(record.errors[:event_type]).to be_present
+    end
+
     it 'occurred_at が欠けていると invalid' do
       record = described_class.new(base_attrs.merge(occurred_at: nil))
       expect(record).not_to be_valid

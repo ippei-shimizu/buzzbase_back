@@ -39,6 +39,8 @@ module RevenueCat
       epoch_ms_to_time(@event['event_timestamp_ms'])
     end
 
+    # RevenueCat payload の `expiration_at_ms` に対応する getter。
+    # Subscription モデル側の `expires_at` カラムにそのままマップして使う。
     def expiration_at
       epoch_ms_to_time(@event['expiration_at_ms'])
     end

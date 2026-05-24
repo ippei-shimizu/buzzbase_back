@@ -173,6 +173,21 @@ RSpec.describe RevenueCat::WebhookProcessor do
           expect(webhook_event.reload.status).to eq('processed')
         end
       end
+
+      context 'PlanCatalog に未登録の product_id を受信したとき' do
+        let(:overrides) { { product_id: 'buzzbase_pro_unknown' } }
+
+        it 'Sentry に warning を残し、Subscription を更新しない（silent corruption を防ぐ）' do
+          allow(Sentry).to receive(:capture_message)
+          process!
+          expect(Sentry).to have_received(:capture_message).with(
+            a_string_including('unknown product_id'),
+            hash_including(level: :warning)
+          )
+          expect(user.reload.subscription.status).to eq('free')
+          expect(webhook_event.reload.status).to eq('processed')
+        end
+      end
     end
 
     context 'RENEWAL を受信したとき' do
@@ -281,7 +296,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
         subscription = user.reload.subscription
         expect(subscription.status).to eq('cancelled')
         expect(subscription.expires_at).to be_within(1.second).of(original_expires_at)
-        expect(subscription.cancelled_at).to be_within(1.second).of(Time.current)
+        expect(subscription.cancelled_at).to be_within(1.second).of(Time.zone.at(payload['event']['event_timestamp_ms'] / 1000))
       end
 
       it 'UserSubscriptionEvent に cancelled を記録する' do
@@ -353,7 +368,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
         process!
         subscription = user.reload.subscription
         expect(subscription.status).to eq('billing_issue')
-        expect(subscription.billing_issue_at).to be_within(1.second).of(Time.current)
+        expect(subscription.billing_issue_at).to be_within(1.second).of(Time.zone.at(payload['event']['event_timestamp_ms'] / 1000))
         expect(subscription.expires_at).to be_within(1.second).of(original_expires_at)
       end
 

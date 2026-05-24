@@ -10,8 +10,8 @@ module RevenueCat
 
           was_billing_issue = subscription.billing_issue?
           subscription.update!(status: 'active', expires_at: new_expires_at, last_synced_at: Time.current)
-          event_recorder.record(user, 'renewed')
-          record_recovery(user) if was_billing_issue
+          event_recorder.record(user, subscription, 'renewed')
+          record_recovery(user, subscription) if was_billing_issue
         end
       end
 
@@ -22,8 +22,8 @@ module RevenueCat
       end
 
       # 派生イベントは uniqueness 衝突を避けるため、元イベント ID にサフィックスを付ける。
-      def record_recovery(user)
-        event_recorder.record(user, 'recovered', event_id: "#{payload.event_id}-recovered")
+      def record_recovery(user, subscription)
+        event_recorder.record(user, subscription, 'recovered', event_id: "#{payload.event_id}-recovered")
       end
     end
   end

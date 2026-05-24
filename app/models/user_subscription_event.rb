@@ -17,6 +17,6 @@ class UserSubscriptionEvent < ApplicationRecord
     product_changed
   ].freeze
 
-  validates :event_type, presence: true
+  validates :event_type, presence: true, inclusion: { in: EVENT_TYPES }
   validates :occurred_at, presence: true
 end

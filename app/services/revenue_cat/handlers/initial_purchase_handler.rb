@@ -4,7 +4,7 @@ module RevenueCat
     # 早期特典期間内のタイムスタンプなら is_early_subscriber を立てる。
     class InitialPurchaseHandler < BaseHandler
       def call
-        with_resolved_subscription(require_persisted: false) do |user, subscription|
+        with_resolved_subscription(require_persisted: false, require_known_product: true) do |user, subscription|
           is_trial = payload.trial?
           started_at = payload.event_timestamp
 
@@ -20,7 +20,7 @@ module RevenueCat
             revenuecat_user_id: payload.app_user_id,
             last_synced_at: Time.current
           )
-          event_recorder.record(user, is_trial ? 'trial_started' : 'initial_purchase')
+          event_recorder.record(user, subscription, is_trial ? 'trial_started' : 'initial_purchase')
         end
       end
     end

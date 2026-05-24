@@ -7,7 +7,7 @@ module RevenueCat
           next unless subscription.cancelled?
 
           subscription.update!(status: 'active', cancelled_at: nil, last_synced_at: Time.current)
-          event_recorder.record(user, 'uncancelled')
+          event_recorder.record(user, subscription, 'uncancelled')
         end
       end
     end
