@@ -21,13 +21,21 @@ class RevenueCatWebhookProcessor
   private
 
   # 既知イベントは受信記録だけ残して processed 扱いにし、未知イベントは Sentry warning に流す。
-  # 個別 event_type の本処理は後続で積み増す。
   def handle_event
     case @event_data['type']
     when 'INITIAL_PURCHASE', 'TRIAL_STARTED',
          'RENEWAL', 'CANCELLATION', 'EXPIRATION',
          'BILLING_ISSUE', 'PRODUCT_CHANGE', 'REFUND',
          'UNCANCELLATION'
+      # TODO: 各 event_type ごとに Subscription を更新する handler を実装する
+      #   - INITIAL_PURCHASE / TRIAL_STARTED: subscription を trial / active に遷移、has_used_trial を true
+      #   - RENEWAL: expires_at を更新（古いイベントなら無視して順序非依存性を担保）
+      #   - CANCELLATION: cancelled_at をセット、expires_at は維持
+      #   - EXPIRATION: status を expired に
+      #   - BILLING_ISSUE: billing_issue_at をセット、Grace 期間を維持
+      #   - PRODUCT_CHANGE: plan_type を切替
+      #   - REFUND: status を expired に、expires_at を即時切れに、refunded_at をセット
+      #   - UNCANCELLATION: cancelled_at をクリアし active に戻す
       nil
     else
       Sentry.capture_message(
