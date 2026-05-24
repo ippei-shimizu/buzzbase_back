@@ -1,6 +1,10 @@
 # 早期特典窓を含むトライアル日数判定の単一ソース。
 # Webhook handler / Stripe Checkout の双方から参照されるため、副作用のないクラスメソッドのみ提供する。
 class TrialDaysCalculator
+  # Pro リリース日（2026-05-31）から 7 日間の早期特典窓。
+  # リリース日が後ろ倒しになる可能性があるため、確定までは ENV
+  # (EARLY_SUBSCRIBER_WINDOW_START / END) で実環境ごとに override する運用とし、
+  # 最終リリース日が決まった段階で本定数を更新する。
   DEFAULT_WINDOW_START = '2026-05-31 00:00:00 +0900'.freeze
   DEFAULT_WINDOW_END   = '2026-06-06 23:59:59 +0900'.freeze
   NORMAL_TRIAL_DAYS = 7
