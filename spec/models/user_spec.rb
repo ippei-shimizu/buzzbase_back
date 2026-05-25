@@ -444,6 +444,14 @@ RSpec.describe User, type: :model do
       end
     end
 
+    context 'Apple private relay のメールアドレス（大文字混在）' do
+      let(:email) { 'AbC.DeF@PrivateRelay.AppleID.com' }
+
+      it 'false を返す（大文字小文字を区別しない）' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
     context 'email が空文字' do
       let(:email) { '' }
 
