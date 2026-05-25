@@ -5,7 +5,9 @@ class ProExpiringReminderJob < ApplicationJob
   queue_as :default
 
   def perform
+    # find_each バッチ単位で includes が効くため、subscription.user の N+1 を回避できる。
     Subscription
+      .includes(:user)
       .where(status: %w[cancelled billing_issue])
       .where(expires_at: 3.days.from_now.all_day)
       .find_each { |subscription| notify(subscription) }

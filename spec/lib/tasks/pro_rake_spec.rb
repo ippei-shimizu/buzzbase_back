@@ -12,12 +12,10 @@ RSpec.describe 'pro:* rake tasks' do
 
     before { task.reenable }
 
-    it 'TrialExpiringReminderJob#perform を呼び出す' do
-      job_instance = instance_double(TrialExpiringReminderJob, perform: nil)
-      allow(TrialExpiringReminderJob).to receive(:new).and_return(job_instance)
-
+    it 'TrialExpiringReminderJob.perform_now を呼び出す' do
+      allow(TrialExpiringReminderJob).to receive(:perform_now)
       task.invoke
-      expect(job_instance).to have_received(:perform)
+      expect(TrialExpiringReminderJob).to have_received(:perform_now)
     end
   end
 
@@ -26,12 +24,10 @@ RSpec.describe 'pro:* rake tasks' do
 
     before { task.reenable }
 
-    it 'ProExpiringReminderJob#perform を呼び出す' do
-      job_instance = instance_double(ProExpiringReminderJob, perform: nil)
-      allow(ProExpiringReminderJob).to receive(:new).and_return(job_instance)
-
+    it 'ProExpiringReminderJob.perform_now を呼び出す' do
+      allow(ProExpiringReminderJob).to receive(:perform_now)
       task.invoke
-      expect(job_instance).to have_received(:perform)
+      expect(ProExpiringReminderJob).to have_received(:perform_now)
     end
   end
 end

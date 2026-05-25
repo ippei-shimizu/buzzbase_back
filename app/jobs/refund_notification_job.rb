@@ -1,4 +1,6 @@
-# 返金完了時にメール通知する。Push なし（即時無効化の Pro 機能停止と並走させない）。
+# 返金完了時にメール通知する。
+# Push は送らない: 返金はユーザーが Apple/Stripe で申請した結果であり、
+# それぞれの決済プロバイダから別途通知が届くため二重通知を避ける。
 class RefundNotificationJob < ApplicationJob
   queue_as :default
 
