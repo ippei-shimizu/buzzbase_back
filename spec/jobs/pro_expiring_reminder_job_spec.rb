@@ -14,7 +14,7 @@ RSpec.describe ProExpiringReminderJob, type: :job do
     context '3 日後に期限切れる cancelled ユーザー' do
       let!(:cancelled_user) do
         user = create(:user)
-        user.subscription.update!(status: 'cancelled', expires_at: 3.days.from_now + 6.hours, cancelled_at: 2.days.ago)
+        user.subscription.update!(status: 'cancelled', expires_at: 3.days.from_now.beginning_of_day + 6.hours, cancelled_at: 2.days.ago)
         user
       end
 
@@ -31,7 +31,8 @@ RSpec.describe ProExpiringReminderJob, type: :job do
     context '3 日後に期限切れる billing_issue ユーザー' do
       let!(:billing_issue_user) do
         user = create(:user)
-        user.subscription.update!(status: 'billing_issue', expires_at: 3.days.from_now + 8.hours, billing_issue_at: 1.day.ago)
+        user.subscription.update!(status: 'billing_issue', expires_at: 3.days.from_now.beginning_of_day + 8.hours,
+                                  billing_issue_at: 1.day.ago)
         user
       end
 

@@ -425,6 +425,19 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe 'has_many :cancellation_feedbacks (dependent: :destroy)' do
+    let(:user) { create(:user) }
+
+    before do
+      create(:cancellation_feedback, user:, reason: 'expensive')
+      create(:cancellation_feedback, user:, reason: 'other')
+    end
+
+    it 'User を destroy すると関連する cancellation_feedbacks も削除される' do
+      expect { user.destroy }.to change { CancellationFeedback.where(user_id: user.id).count }.from(2).to(0)
+    end
+  end
+
   describe '#prevent_destroy_if_pro_active (before_destroy)' do
     let(:user) { create(:user) }
 

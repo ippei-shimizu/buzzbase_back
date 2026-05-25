@@ -14,7 +14,7 @@ RSpec.describe TrialExpiringReminderJob, type: :job do
     context '3 日後ピッタリに期限切れる trial ユーザーが居るとき' do
       let!(:target_user) do
         user = create(:user)
-        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now + 12.hours)
+        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now.beginning_of_day + 12.hours)
         user
       end
 
@@ -52,12 +52,12 @@ RSpec.describe TrialExpiringReminderJob, type: :job do
     context '1 ユーザーへの送信が例外を投げたとき' do
       let!(:failing_user) do
         user = create(:user)
-        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now + 12.hours)
+        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now.beginning_of_day + 12.hours)
         user
       end
       let!(:other_user) do
         user = create(:user)
-        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now + 13.hours)
+        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now.beginning_of_day + 13.hours)
         user
       end
 
