@@ -5,8 +5,7 @@ RSpec.describe 'Api::V1::FeatureFlags', type: :request do
   let(:other_user) { create(:user) }
 
   after do
-    Flipper.disable(:pro_features)
-    Flipper.disable(:cancellation_survey)
+    Api::V1::FeatureFlagsController::PUBLIC_KEYS.each { |key| Flipper.disable(key.to_sym) }
   end
 
   describe 'GET /api/v1/feature_flags' do
