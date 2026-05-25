@@ -4,7 +4,6 @@ class TrialExpiringReminderJob < ApplicationJob
   queue_as :default
 
   def perform
-    # find_each バッチ単位で includes が効くため、subscription.user の N+1 を回避できる。
     Subscription
       .includes(:user)
       .where(status: 'trial')
