@@ -6,7 +6,7 @@ class BillingIssueNotificationJob < ApplicationJob
     user = User.find_by(id: user_id)
     return unless user
 
-    SubscriptionMailer.billing_issue(user).deliver_now
+    SubscriptionMailer.billing_issue(user).deliver_now if user.email_deliverable?
     PushNotificationService.send_to_user(
       user,
       title: '【BUZZ BASE Pro】決済情報を確認してください',

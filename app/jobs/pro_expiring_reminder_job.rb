@@ -15,7 +15,7 @@ class ProExpiringReminderJob < ApplicationJob
   private
 
   def notify(subscription)
-    SubscriptionMailer.pro_expiring_soon(subscription.user).deliver_now
+    SubscriptionMailer.pro_expiring_soon(subscription.user).deliver_now if subscription.user.email_deliverable?
     PushNotificationService.send_to_user(
       subscription.user,
       title: '【BUZZ BASE Pro】Pro 期間終了 3 日前',

@@ -96,6 +96,13 @@ class User < ActiveRecord::Base
     provider == 'apple'
   end
 
+  # Apple private relay (@privaterelay.appleid.com) はフォワード不達 + SMTP 上限浪費のため対象外とする。
+  def email_deliverable?
+    return false if email.blank?
+
+    !email.downcase.end_with?('@privaterelay.appleid.com')
+  end
+
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }
