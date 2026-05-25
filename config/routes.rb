@@ -151,6 +151,8 @@ Rails.application.routes.draw do
 
       resources :management_notices, only: %i[index show]
 
+      resources :feature_flags, only: %i[index]
+
       namespace :pro do
         resource :status, only: %i[show], controller: 'status'
         resource :sync, only: %i[create], controller: 'sync'
