@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :cancellation_feedback do
-    association :user
+    user
     subscription { user.subscription }
     reason { 'expensive' }
     note { nil }
