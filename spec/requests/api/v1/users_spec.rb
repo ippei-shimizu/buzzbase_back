@@ -140,5 +140,23 @@ RSpec.describe 'Api::V1::Users', type: :request do
         )
       end
     end
+
+    context 'when the user is Pro active' do
+      before do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      end
+
+      it 'returns 422 with error: pro_active and does not destroy the user' do
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body).to include(
+          'success' => false,
+          'error' => 'pro_active',
+          'message' => 'Pro 加入中のため、先に解約してください'
+        )
+        expect(User.exists?(user.id)).to be(true)
+      end
+    end
   end
 end

@@ -61,3 +61,8 @@ RSpec/ContextWording:
 
 RSpec/IteratedExpectation:
   Enabled: false
+
+# rake task の spec は class でも module でもないため文字列 describe を許容する
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/lib/tasks/**/*'

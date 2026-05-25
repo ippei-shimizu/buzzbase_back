@@ -1,6 +1,7 @@
 class User < ActiveRecord::Base
   include Entitlement
   include PlanLimits
+  include SubscriptionCallbacks
 
   mount_uploader :image, AvatarUploader
   has_one :subscription, dependent: :destroy
@@ -72,7 +73,6 @@ class User < ActiveRecord::Base
   end
 
   before_validation :normalize_user_id
-  after_create :create_default_subscription
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -193,13 +193,6 @@ class User < ActiveRecord::Base
 
   def notify_slack_new_user
     SlackNotificationService.notify_new_user(self)
-  end
-
-  # subscription が無いユーザー（コールバック前のレコード等）でも nil 安全に動作させる。
-  def create_default_subscription
-    return if subscription.present?
-
-    create_subscription!(status: 'free')
   end
 
   # Symbol/String キーの両方に対応した expiry 取得 (clean_old_tokens で使用)。

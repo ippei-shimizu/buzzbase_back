@@ -11,6 +11,7 @@ module RevenueCat
             last_synced_at: Time.current
           )
           event_recorder.record(user, subscription, 'cancelled')
+          SubscriptionCancelledNotificationJob.perform_now(user.id)
         end
       end
     end

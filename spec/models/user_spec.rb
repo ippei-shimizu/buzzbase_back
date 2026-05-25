@@ -424,4 +424,105 @@ RSpec.describe User, type: :model do
       end
     end
   end
+
+  describe '#prevent_destroy_if_pro_active (before_destroy)' do
+    let(:user) { create(:user) }
+
+    context 'pro_active な subscription を持つとき' do
+      it 'trial 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'trial', expires_at: 7.days.from_now)
+        expect(user.destroy).to be false
+        expect(user.errors[:base]).to include('Pro 加入中のため、先に解約してください')
+        expect(described_class.exists?(user.id)).to be true
+      end
+
+      it 'active 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+        expect(user.destroy).to be false
+      end
+
+      it 'cancelled 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'cancelled', expires_at: 5.days.from_now, cancelled_at: 1.day.ago)
+        expect(user.destroy).to be false
+      end
+
+      it 'billing_issue 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'billing_issue', expires_at: 3.days.from_now, billing_issue_at: 1.day.ago)
+        expect(user.destroy).to be false
+      end
+    end
+
+    context 'pro_active でない subscription のとき' do
+      it 'free 状態なら削除される' do
+        expect(user.destroy).to be_truthy
+        expect(described_class.exists?(user.id)).to be false
+      end
+
+      it 'expired 状態なら削除される' do
+        user.subscription.update!(status: 'expired', expires_at: 1.day.ago)
+        expect(user.destroy).to be_truthy
+      end
+
+      it 'cancelled だが期限切れなら削除される' do
+        user.subscription.update!(status: 'cancelled', expires_at: 1.day.ago, cancelled_at: 5.days.ago)
+        expect(user.destroy).to be_truthy
+      end
+    end
+  end
+
+  describe '#sync_stripe_customer_email (after_update)' do
+    let(:user) { create(:user, email: 'old@example.com') }
+    let(:job) { instance_double(StripeCustomerUpdateJob, perform: nil) }
+
+    before do
+      allow(StripeCustomerUpdateJob).to receive(:new).and_return(job)
+    end
+
+    context 'Web ユーザーで stripe_customer_id が紐付き、email が変わったとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'StripeCustomerUpdateJob を起動する' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).to have_received(:perform).with(user.id)
+      end
+    end
+
+    context 'iOS ユーザーのとき' do
+      before do
+        user.subscription.update!(platform: 'ios', stripe_customer_id: 'cus_ios_abc')
+      end
+
+      it 'Stripe Customer 同期を起動しない（Apple ID 側で管理される）' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+
+    context 'stripe_customer_id が未紐付のとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: nil)
+      end
+
+      it 'Stripe Customer 同期を起動しない' do
+        user.skip_reconfirmation!
+        user.update!(email: 'new@example.com')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+
+    context 'email を変えていないとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'Stripe Customer 同期を起動しない' do
+        user.update!(name: '別名前')
+        expect(job).not_to have_received(:perform)
+      end
+    end
+  end
 end

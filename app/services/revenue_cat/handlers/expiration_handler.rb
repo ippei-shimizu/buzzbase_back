@@ -6,6 +6,7 @@ module RevenueCat
         with_resolved_subscription do |user, subscription|
           subscription.update!(status: 'expired', last_synced_at: Time.current)
           event_recorder.record(user, subscription, 'expired')
+          SubscriptionExpiredNotificationJob.perform_now(user.id)
         end
       end
     end

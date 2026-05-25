@@ -1,7 +1,7 @@
 require 'rails_helper'
 require 'rake'
 
-RSpec.describe 'data:repair_double_encoded_tokens' do # rubocop:disable RSpec/DescribeClass
+RSpec.describe 'data:repair_double_encoded_tokens' do
   before(:all) do # rubocop:disable RSpec/BeforeAfterAll
     Rails.application.load_tasks if Rake::Task.tasks.empty?
   end
