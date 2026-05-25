@@ -10,10 +10,16 @@ module Api
         def create
           return head :not_found unless Flipper.enabled?(:cancellation_survey, current_api_v1_user)
 
+          # enum 範囲外の値は build 時に ArgumentError を投げるため、事前にホワイトリストで弾いて
+          # 422 invalid_reason に揃える。nil / blank は通常の presence バリデーションに任せる。
+          reason = feedback_params[:reason]
+          if reason.present? && CancellationFeedback::REASONS.exclude?(reason)
+            return render json: { error: 'invalid_reason' }, status: :unprocessable_entity
+          end
+
           feedback = current_api_v1_user.cancellation_feedbacks.build(
             subscription: current_api_v1_user.subscription,
-            reason: params[:reason],
-            note: params[:note]
+            **feedback_params.to_h.symbolize_keys
           )
 
           if feedback.save
@@ -21,12 +27,13 @@ module Api
           else
             render json: { error: error_code_for(feedback) }, status: :unprocessable_entity
           end
-        rescue ArgumentError
-          # enum 外の値が来ると ArgumentError になるため、422 + invalid_reason として返す。
-          render json: { error: 'invalid_reason' }, status: :unprocessable_entity
         end
 
         private
+
+        def feedback_params
+          params.permit(:reason, :note)
+        end
 
         # クライアントへ「何が原因で失敗したか」をシンプルなコード文字列で返す。
         # i18n 化されたエラーメッセージに依存せず、属性値で reason の状態を判定する。
