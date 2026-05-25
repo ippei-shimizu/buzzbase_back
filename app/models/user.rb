@@ -6,6 +6,7 @@ class User < ActiveRecord::Base
   mount_uploader :image, AvatarUploader
   has_one :subscription, dependent: :destroy
   has_many :user_subscription_events, dependent: :destroy
+  has_many :cancellation_feedbacks, dependent: :destroy
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
   belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
