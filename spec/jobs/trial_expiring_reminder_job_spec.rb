@@ -25,6 +25,20 @@ RSpec.describe TrialExpiringReminderJob, type: :job do
       end
     end
 
+    context '3 日後ピッタリに期限切れる trial ユーザーが private relay アドレスのとき' do
+      let!(:relay_user) do
+        user = create(:user, email: 'abc.def@privaterelay.appleid.com')
+        user.subscription.update!(status: 'trial', expires_at: 3.days.from_now.beginning_of_day + 12.hours)
+        user
+      end
+
+      it 'メールはスキップし Push のみ送信する' do
+        job.perform
+        expect(SubscriptionMailer).not_to have_received(:trial_expiring_soon)
+        expect(PushNotificationService).to have_received(:send_to_user).with(relay_user, hash_including(:title, :body))
+      end
+    end
+
     context '期限が 3 日後の範囲外のとき' do
       before do
         create(:user).subscription.update!(status: 'trial', expires_at: 5.days.from_now)

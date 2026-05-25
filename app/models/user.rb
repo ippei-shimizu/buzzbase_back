@@ -96,6 +96,17 @@ class User < ActiveRecord::Base
     provider == 'apple'
   end
 
+  # 通常メール送信の対象とすべきユーザーかを判定する。
+  # Apple Sign-In で「Hide My Email」を選んだユーザーには privaterelay.appleid.com のランダム
+  # アドレスが入る。本来は Apple がフォワードするが、ユーザーが普段見るメールボックスに
+  # 入らず実質「捨てメアド」化するうえ、Gmail SMTP の月次送信上限を浪費するため送信しない。
+  # Push 通知は本メソッドの結果に関わらず別途送る前提（呼び出し側で gate しない）。
+  def email_deliverable?
+    return false if email.blank?
+
+    !email.end_with?('@privaterelay.appleid.com')
+  end
+
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }

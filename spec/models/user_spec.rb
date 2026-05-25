@@ -425,6 +425,50 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe '#email_deliverable?' do
+    let(:user) { build(:user, email:) }
+
+    context '通常のメールアドレス' do
+      let(:email) { 'taro@example.com' }
+
+      it 'true を返す' do
+        expect(user.email_deliverable?).to be true
+      end
+    end
+
+    context 'Apple private relay のメールアドレス' do
+      let(:email) { 'abc123.def456@privaterelay.appleid.com' }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context 'email が空文字' do
+      let(:email) { '' }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context 'email が nil' do
+      let(:email) { nil }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context '通常の iCloud メールアドレス（Apple Sign-In で本来メールを共有したケース）' do
+      let(:email) { 'ippei@icloud.com' }
+
+      it 'true を返す（@icloud.com は relay ドメインではない）' do
+        expect(user.email_deliverable?).to be true
+      end
+    end
+  end
+
   describe 'has_many :cancellation_feedbacks (dependent: :destroy)' do
     let(:user) { create(:user) }
 

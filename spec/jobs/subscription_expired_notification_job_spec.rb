@@ -19,6 +19,17 @@ RSpec.describe SubscriptionExpiredNotificationJob, type: :job do
         .with(user, hash_including(:title, :body))
     end
 
+    context 'Apple private relay のユーザー' do
+      let(:user) { create(:user, email: 'abc.def@privaterelay.appleid.com') }
+
+      it 'メールはスキップし Push のみ送信する' do
+        described_class.new.perform(user.id)
+
+        expect(SubscriptionMailer).not_to have_received(:expired)
+        expect(PushNotificationService).to have_received(:send_to_user)
+      end
+    end
+
     context 'user_id が見つからないとき' do
       it '例外を投げず処理を終える' do
         expect { described_class.new.perform(0) }.not_to raise_error

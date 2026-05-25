@@ -28,6 +28,20 @@ RSpec.describe ProExpiringReminderJob, type: :job do
       end
     end
 
+    context '3 日後に期限切れる cancelled ユーザーが private relay アドレスのとき' do
+      let!(:relay_user) do
+        user = create(:user, email: 'abc.def@privaterelay.appleid.com')
+        user.subscription.update!(status: 'cancelled', expires_at: 3.days.from_now.beginning_of_day + 6.hours, cancelled_at: 2.days.ago)
+        user
+      end
+
+      it 'メールはスキップし Push のみ送信する' do
+        job.perform
+        expect(SubscriptionMailer).not_to have_received(:pro_expiring_soon)
+        expect(PushNotificationService).to have_received(:send_to_user).with(relay_user, hash_including(:title, :body))
+      end
+    end
+
     context '3 日後に期限切れる billing_issue ユーザー' do
       let!(:billing_issue_user) do
         user = create(:user)

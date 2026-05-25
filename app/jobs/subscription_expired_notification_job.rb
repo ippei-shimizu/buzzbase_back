@@ -6,7 +6,7 @@ class SubscriptionExpiredNotificationJob < ApplicationJob
     user = User.find_by(id: user_id)
     return unless user
 
-    SubscriptionMailer.expired(user).deliver_now
+    SubscriptionMailer.expired(user).deliver_now if user.email_deliverable?
     PushNotificationService.send_to_user(
       user,
       title: '【BUZZ BASE Pro】Pro 期間が終了しました',

@@ -14,7 +14,7 @@ class TrialExpiringReminderJob < ApplicationJob
   private
 
   def notify(user)
-    SubscriptionMailer.trial_expiring_soon(user).deliver_now
+    SubscriptionMailer.trial_expiring_soon(user).deliver_now if user.email_deliverable?
     PushNotificationService.send_to_user(
       user,
       title: '【BUZZ BASE Pro】トライアル終了 3 日前',
