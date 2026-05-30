@@ -46,15 +46,19 @@ module MasterData
 
     # シーケンスを MAX(id) まで進める。
     def self.reset_sequence(connection, table)
+      quoted_table = connection.quote_table_name(table)
+      table_literal = connection.quote(table)
       connection.execute(<<~SQL.squish)
         SELECT setval(
-          pg_get_serial_sequence('#{table}', 'id'),
-          (SELECT COALESCE(MAX(id), 1) FROM #{table})
+          pg_get_serial_sequence(#{table_literal}, 'id'),
+          (SELECT COALESCE(MAX(id), 1) FROM #{quoted_table})
         )
       SQL
     end
 
     # Ruby の値を SQL リテラルに変換する。Hash / Array は jsonb キャストする。
+    # 文字列リテラルは connection.quote 経由でエスケープする（ドル引用符固定だと
+    # マスタ名に '$TXT$' 等が含まれた場合に構文崩壊するため）。
     def self.sql_literal(value)
       case value
       when nil
@@ -62,9 +66,9 @@ module MasterData
       when Integer, Float, TrueClass, FalseClass
         value.to_s
       when Hash, Array
-        "$JSON$#{value.to_json}$JSON$::jsonb"
+        "#{ActiveRecord::Base.connection.quote(value.to_json)}::jsonb"
       else
-        "$TXT$#{value}$TXT$"
+        ActiveRecord::Base.connection.quote(value.to_s)
       end
     end
   end
