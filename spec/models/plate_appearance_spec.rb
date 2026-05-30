@@ -77,4 +77,30 @@ RSpec.describe PlateAppearance, type: :model do
       expect(pa.opponent_memo).to eq('右投げ、変化球多め')
     end
   end
+
+  describe 'hit_location の範囲バリデーション' do
+    let(:pa) { build(:plate_appearance) }
+
+    it '0.0〜1.0 の範囲内は valid' do
+      pa.assign_attributes(hit_location_x: 0.5, hit_location_y: 0.0)
+      expect(pa).to be_valid
+    end
+
+    it '範囲外（負値）は invalid' do
+      pa.assign_attributes(hit_location_x: -0.1, hit_location_y: 0.5)
+      expect(pa).not_to be_valid
+      expect(pa.errors[:hit_location_x]).to be_present
+    end
+
+    it '範囲外（1超過）は invalid' do
+      pa.assign_attributes(hit_location_x: 0.5, hit_location_y: 1.5)
+      expect(pa).not_to be_valid
+      expect(pa.errors[:hit_location_y]).to be_present
+    end
+
+    it 'nil は valid（既存レコード互換）' do
+      pa.assign_attributes(hit_location_x: nil, hit_location_y: nil)
+      expect(pa).to be_valid
+    end
+  end
 end
