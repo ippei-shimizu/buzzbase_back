@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_30_120008) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -144,6 +144,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_batting_averages_on_user_id"
   end
 
+  create_table "cancellation_feedbacks", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "subscription_id"
+    t.string "reason", null: false
+    t.text "note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["subscription_id"], name: "index_cancellation_feedbacks_on_subscription_id"
+    t.index ["user_id"], name: "index_cancellation_feedbacks_on_user_id"
+  end
+
+  create_table "contact_qualities", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_contact_qualities_on_display_order"
+    t.index ["name"], name: "index_contact_qualities_on_name", unique: true
+  end
+
   create_table "device_tokens", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "token", null: false
@@ -152,6 +172,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.index ["token"], name: "index_device_tokens_on_token", unique: true
     t.index ["user_id"], name: "index_device_tokens_on_user_id"
+  end
+
+  create_table "flipper_features", force: :cascade do |t|
+    t.string "key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_flipper_features_on_key", unique: true
+  end
+
+  create_table "flipper_gates", force: :cascade do |t|
+    t.string "feature_key", null: false
+    t.string "key", null: false
+    t.text "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
   create_table "game_results", force: :cascade do |t|
@@ -225,6 +261,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "hit_depths", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_hit_depths_on_display_order"
+    t.index ["name"], name: "index_hit_depths_on_name", unique: true
+  end
+
+  create_table "hit_directions", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.jsonb "zone_polygon"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_hit_directions_on_display_order"
+    t.index ["name"], name: "index_hit_directions_on_name", unique: true
+  end
+
   create_table "management_notices", force: :cascade do |t|
     t.string "title", null: false
     t.text "body", null: false
@@ -254,9 +309,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.integer "inning_format", default: 9, null: false
     t.string "appearance_type", default: "starter", null: false
+    t.bigint "stadium_id"
     t.index ["game_result_id"], name: "index_match_results_on_game_result_id_unique", unique: true, where: "(game_result_id IS NOT NULL)"
     t.index ["my_team_id"], name: "index_match_results_on_my_team_id"
     t.index ["opponent_team_id"], name: "index_match_results_on_opponent_team_id"
+    t.index ["stadium_id"], name: "index_match_results_on_stadium_id"
     t.index ["user_id"], name: "index_match_results_on_user_id"
   end
 
@@ -268,6 +325,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.datetime "read_at"
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
+  end
+
+  create_table "pitch_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_pitch_types_on_display_order"
+    t.index ["name"], name: "index_pitch_types_on_name", unique: true
   end
 
   create_table "pitching_results", force: :cascade do |t|
@@ -303,8 +369,43 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.integer "batting_position_id"
     t.integer "plate_result_id"
     t.integer "hit_direction_id"
+    t.integer "out_type"
+    t.integer "hit_type"
+    t.integer "rbi"
+    t.integer "run_scored"
+    t.integer "stolen_bases"
+    t.integer "caught_stealing"
+    t.integer "final_balls"
+    t.integer "final_strikes"
+    t.integer "final_outs"
+    t.boolean "first_pitch_swing"
+    t.integer "runners_state"
+    t.integer "inning"
+    t.bigint "contact_quality_id"
+    t.bigint "timing_id"
+    t.bigint "pitch_type_id"
+    t.bigint "hit_depth_id"
+    t.text "self_analysis_memo"
+    t.text "opponent_memo"
+    t.decimal "hit_location_x", precision: 4, scale: 3
+    t.decimal "hit_location_y", precision: 4, scale: 3
+    t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
+    t.index ["hit_depth_id"], name: "index_plate_appearances_on_hit_depth_id"
+    t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
+    t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
+  end
+
+  create_table "plate_results", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.boolean "hit_direction_required", default: false, null: false
+    t.boolean "counted_in_at_bats", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_plate_results_on_display_order"
+    t.index ["name"], name: "index_plate_results_on_name", unique: true
   end
 
   create_table "positions", force: :cascade do |t|
@@ -342,6 +443,166 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_seasons_on_user_id"
   end
 
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "concurrency_key", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
+  end
+
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.string "class_name", null: false
+    t.text "arguments"
+    t.integer "priority", default: 0, null: false
+    t.string "active_job_id"
+    t.datetime "scheduled_at"
+    t.datetime "finished_at"
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
+  end
+
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.datetime "created_at", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
+  end
+
+  create_table "solid_queue_processes", force: :cascade do |t|
+    t.string "kind", null: false
+    t.datetime "last_heartbeat_at", null: false
+    t.bigint "supervisor_id"
+    t.integer "pid", null: false
+    t.string "hostname"
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.index ["last_heartbeat_at"], name: "index_solid_queue_processes_on_last_heartbeat_at"
+    t.index ["name", "supervisor_id"], name: "index_solid_queue_processes_on_name_and_supervisor_id", unique: true
+    t.index ["supervisor_id"], name: "index_solid_queue_processes_on_supervisor_id"
+  end
+
+  create_table "solid_queue_ready_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_ready_executions_on_job_id", unique: true
+    t.index ["priority", "job_id"], name: "index_solid_queue_poll_all"
+    t.index ["queue_name", "priority", "job_id"], name: "index_solid_queue_poll_by_queue"
+  end
+
+  create_table "solid_queue_recurring_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "task_key", null: false
+    t.datetime "run_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_recurring_executions_on_job_id", unique: true
+    t.index ["task_key", "run_at"], name: "index_solid_queue_recurring_executions_on_task_key_and_run_at", unique: true
+  end
+
+  create_table "solid_queue_recurring_tasks", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "schedule", null: false
+    t.string "command", limit: 2048
+    t.string "class_name"
+    t.text "arguments"
+    t.string "queue_name"
+    t.integer "priority", default: 0
+    t.boolean "static", default: true, null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_solid_queue_recurring_tasks_on_key", unique: true
+    t.index ["static"], name: "index_solid_queue_recurring_tasks_on_static"
+  end
+
+  create_table "solid_queue_scheduled_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.datetime "scheduled_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_scheduled_executions_on_job_id", unique: true
+    t.index ["scheduled_at", "priority", "job_id"], name: "index_solid_queue_dispatch_all"
+  end
+
+  create_table "solid_queue_semaphores", force: :cascade do |t|
+    t.string "key", null: false
+    t.integer "value", default: 1, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
+    t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
+    t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
+  end
+
+  create_table "stadiums", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "prefecture_id"
+    t.bigint "created_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_user_id"], name: "index_stadiums_on_created_by_user_id"
+    t.index ["name"], name: "index_stadiums_on_name"
+    t.index ["prefecture_id"], name: "index_stadiums_on_prefecture_id"
+  end
+
+  create_table "subscriptions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "status", default: "free", null: false
+    t.string "plan_type"
+    t.string "platform"
+    t.string "product_id"
+    t.datetime "started_at"
+    t.datetime "expires_at"
+    t.datetime "cancelled_at"
+    t.datetime "refunded_at"
+    t.datetime "billing_issue_at"
+    t.boolean "has_used_trial", default: false, null: false
+    t.string "revenuecat_user_id"
+    t.string "revenuecat_entitlement_id"
+    t.boolean "is_early_subscriber", default: false, null: false
+    t.datetime "last_synced_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "stripe_customer_id"
+    t.string "stripe_subscription_id"
+    t.index ["expires_at"], name: "index_subscriptions_on_expires_at"
+    t.index ["revenuecat_user_id"], name: "index_subscriptions_on_revenuecat_user_id", unique: true
+    t.index ["status"], name: "index_subscriptions_on_status"
+    t.index ["stripe_customer_id"], name: "index_subscriptions_on_stripe_customer_id", unique: true, where: "(stripe_customer_id IS NOT NULL)"
+    t.index ["stripe_subscription_id"], name: "index_subscriptions_on_stripe_subscription_id", unique: true, where: "(stripe_subscription_id IS NOT NULL)"
+    t.index ["user_id"], name: "index_subscriptions_on_user_id", unique: true
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "category_id"
@@ -350,6 +611,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.index ["category_id"], name: "index_teams_on_category_id"
     t.index ["prefecture_id"], name: "index_teams_on_prefecture_id"
+  end
+
+  create_table "timings", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_timings_on_display_order"
+    t.index ["name"], name: "index_timings_on_name", unique: true
   end
 
   create_table "tournaments", force: :cascade do |t|
@@ -383,6 +653,25 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.index ["position_id"], name: "index_user_positions_on_position_id"
     t.index ["user_id"], name: "index_user_positions_on_user_id"
+  end
+
+  create_table "user_subscription_events", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "subscription_id"
+    t.string "event_type", null: false
+    t.string "platform"
+    t.string "product_id"
+    t.string "period_type"
+    t.datetime "occurred_at", null: false
+    t.jsonb "raw_payload"
+    t.string "revenuecat_event_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["event_type"], name: "index_user_subscription_events_on_event_type"
+    t.index ["revenuecat_event_id"], name: "index_user_subscription_events_on_revenuecat_event_id", unique: true
+    t.index ["subscription_id"], name: "index_user_subscription_events_on_subscription_id"
+    t.index ["user_id", "occurred_at"], name: "index_user_subscription_events_on_user_id_and_occurred_at"
+    t.index ["user_id"], name: "index_user_subscription_events_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -424,9 +713,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
 
+  create_table "webhook_events", force: :cascade do |t|
+    t.string "provider", null: false
+    t.string "external_event_id", null: false
+    t.string "event_type"
+    t.datetime "received_at", null: false
+    t.datetime "processed_at"
+    t.string "status", default: "pending", null: false
+    t.jsonb "payload"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "error_message"
+    t.index ["provider", "external_event_id"], name: "index_webhook_events_on_provider_and_external_event_id", unique: true
+    t.index ["status"], name: "index_webhook_events_on_status"
+  end
+
   add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
+  add_foreign_key "cancellation_feedbacks", "subscriptions", on_delete: :nullify
+  add_foreign_key "cancellation_feedbacks", "users"
   add_foreign_key "device_tokens", "users"
   add_foreign_key "game_results", "batting_averages"
   add_foreign_key "game_results", "match_results", on_delete: :cascade
@@ -442,14 +748,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
   add_foreign_key "management_notices", "admin_users", column: "created_by_id"
+  add_foreign_key "match_results", "stadiums"
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "pitching_results", "users"
+  add_foreign_key "plate_appearances", "contact_qualities"
   add_foreign_key "plate_appearances", "game_results", on_delete: :cascade
+  add_foreign_key "plate_appearances", "hit_depths"
+  add_foreign_key "plate_appearances", "pitch_types"
+  add_foreign_key "plate_appearances", "timings"
   add_foreign_key "plate_appearances", "users"
   add_foreign_key "seasons", "users"
+  add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "stadiums", "prefectures"
+  add_foreign_key "stadiums", "users", column: "created_by_user_id"
+  add_foreign_key "subscriptions", "users"
   add_foreign_key "teams", "baseball_categories", column: "category_id"
   add_foreign_key "teams", "prefectures"
   add_foreign_key "user_awards", "awards"
@@ -458,4 +778,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
   add_foreign_key "user_notifications", "users"
   add_foreign_key "user_positions", "positions"
   add_foreign_key "user_positions", "users"
+  add_foreign_key "user_subscription_events", "subscriptions"
+  add_foreign_key "user_subscription_events", "users"
 end
