@@ -21,6 +21,8 @@ namespace :dev_data do
     DevDataCreator.create_baseball_categories
     DevDataCreator.create_admin_user
 
+    Rake::Task['masters:reseed'].invoke
+
     Rails.logger.debug 'Master data creation completed!'
   end
 

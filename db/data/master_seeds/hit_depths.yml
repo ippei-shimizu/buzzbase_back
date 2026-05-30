@@ -1,0 +1,9 @@
+- id: 1
+  name: 内野
+  display_order: 1
+- id: 2
+  name: 外野
+  display_order: 2
+- id: 3
+  name: フェンス際
+  display_order: 3
