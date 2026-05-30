@@ -1,0 +1,15 @@
+- id: 1
+  name: 真芯
+  display_order: 1
+- id: 2
+  name: 先っぽ
+  display_order: 2
+- id: 3
+  name: 詰まり
+  display_order: 3
+- id: 4
+  name: 擦り
+  display_order: 4
+- id: 5
+  name: ドライブ
+  display_order: 5
