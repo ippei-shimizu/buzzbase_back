@@ -26,4 +26,9 @@ class PlateAppearance < ApplicationRecord
     second_third: 6,
     bases_loaded: 7
   }, _prefix: true
+
+  # 打球位置は正規化座標 (0.0〜1.0) で保存する仕様 (docs/.../03-ground-zones.md §2.1)。
+  # DB の precision: 4, scale: 3 は範囲外値を許してしまうため、モデル側で防ぐ。
+  validates :hit_location_x, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
+  validates :hit_location_y, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
 end
