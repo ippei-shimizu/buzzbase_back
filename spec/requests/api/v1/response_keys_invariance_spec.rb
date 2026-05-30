@@ -29,7 +29,7 @@ RSpec.describe 'v1 API レスポンスキー集合の不変性', type: :request 
   end
 
   describe 'GET /api/v1/plate_appearances （show系の代表として user_plate_search を使用）' do
-    let!(:plate_appearance) do
+    before do
       create(:plate_appearance, game_result:, user:,
                                 plate_result_id: 7, hit_direction_id: 10,
                                 batting_position_id: 8, batting_result: '中安')
@@ -42,7 +42,7 @@ RSpec.describe 'v1 API レスポンスキー集合の不変性', type: :request 
 
       expect(response).to have_http_status(:ok)
       first = response.parsed_body.is_a?(Array) ? response.parsed_body.first : response.parsed_body
-      next if first.blank?
+      skip 'レスポンスが空のため以降の検証をスキップ（テストデータ設計の見直しが必要）' if first.blank?
 
       expect(first).to include(
         'id', 'batter_box_number', 'batting_result',
@@ -57,9 +57,8 @@ RSpec.describe 'v1 API レスポンスキー集合の不変性', type: :request 
   end
 
   describe 'BattingAverage のレスポンス構造' do
-    let!(:batting_average) { create(:batting_average, game_result:, user:) }
-
     it 'batting_averages テーブルには新カラムを追加していないので、レスポンスキーは既存のまま' do
+      create(:batting_average, game_result:, user:)
       # BattingAverage モデルのカラム自体に新カラムを追加していないことを確認
       new_columns = %w[out_type hit_type rbi runners_state contact_quality_id]
       expect(BattingAverage.column_names & new_columns).to be_empty
