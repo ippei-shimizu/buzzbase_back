@@ -6,8 +6,11 @@ RSpec.describe 'Api::V2::Stadiums', type: :request do
   describe 'GET /api/v2/stadiums' do
     let!(:tokyo) { Prefecture.create!(name: 'スタジアム検証_東京') }
     let!(:osaka) { Prefecture.create!(name: 'スタジアム検証_大阪') }
-    let!(:tokyo_dome) { Stadium.create!(name: 'テスト東京ドーム', prefecture: tokyo, created_by_user: user) }
-    let!(:osaka_dome) { Stadium.create!(name: 'テスト京セラドーム', prefecture: osaka, created_by_user: user) }
+
+    before do
+      Stadium.create!(name: 'テスト東京ドーム', prefecture: tokyo, created_by_user: user)
+      Stadium.create!(name: 'テスト京セラドーム', prefecture: osaka, created_by_user: user)
+    end
 
     context 'when authenticated' do
       it 'returns 200 with paginated stadiums' do
@@ -21,14 +24,14 @@ RSpec.describe 'Api::V2::Stadiums', type: :request do
 
       it 'q パラメータで部分一致検索ができる' do
         get '/api/v2/stadiums', params: { q: '京セラ' }, headers: auth_headers_for(user)
-        names = response.parsed_body['data'].map { |item| item['name'] }
+        names = response.parsed_body['data'].pluck('name')
         expect(names).to include('テスト京セラドーム')
         expect(names).not_to include('テスト東京ドーム')
       end
 
       it 'prefecture_id で都道府県絞り込みができる' do
         get '/api/v2/stadiums', params: { prefecture_id: tokyo.id }, headers: auth_headers_for(user)
-        names = response.parsed_body['data'].map { |item| item['name'] }
+        names = response.parsed_body['data'].pluck('name')
         expect(names).to include('テスト東京ドーム')
         expect(names).not_to include('テスト京セラドーム')
       end

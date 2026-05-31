@@ -15,15 +15,15 @@ RSpec.describe ContactQuality, type: :model do
 
   describe 'seed data' do
     it '5種類の打球の質が投入されている' do
-      expect(ContactQuality.count).to be >= 5
+      expect(described_class.count).to be >= 5
     end
 
     it '固定IDで投入されている' do
-      expect(ContactQuality.find(1).name).to eq('真芯')
-      expect(ContactQuality.find(2).name).to eq('先っぽ')
-      expect(ContactQuality.find(3).name).to eq('詰まり')
-      expect(ContactQuality.find(4).name).to eq('擦り')
-      expect(ContactQuality.find(5).name).to eq('ドライブ')
+      expect(described_class.find(1).name).to eq('真芯')
+      expect(described_class.find(2).name).to eq('先っぽ')
+      expect(described_class.find(3).name).to eq('詰まり')
+      expect(described_class.find(4).name).to eq('擦り')
+      expect(described_class.find(5).name).to eq('ドライブ')
     end
   end
 end

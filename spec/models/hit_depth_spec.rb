@@ -15,13 +15,13 @@ RSpec.describe HitDepth, type: :model do
 
   describe 'seed data' do
     it '3種類の打球の深さが投入されている' do
-      expect(HitDepth.count).to be >= 3
+      expect(described_class.count).to be >= 3
     end
 
     it '固定IDで投入されている' do
-      expect(HitDepth.find(1).name).to eq('内野')
-      expect(HitDepth.find(2).name).to eq('外野')
-      expect(HitDepth.find(3).name).to eq('フェンス際')
+      expect(described_class.find(1).name).to eq('内野')
+      expect(described_class.find(2).name).to eq('外野')
+      expect(described_class.find(3).name).to eq('フェンス際')
     end
   end
 end
