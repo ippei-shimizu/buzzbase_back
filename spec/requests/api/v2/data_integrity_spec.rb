@@ -11,14 +11,15 @@ RSpec.describe 'v2 経由打席操作の既存データ保全', type: :request d
 
   describe '旧仕様試合（is_new_format=false の打席のみ）の batting_average を v2 が改変しない' do
     let(:old_format_game) { create(:game_result, user:) }
-    let!(:old_plate_appearance) do
-      create(:plate_appearance, game_result: old_format_game, user:, plate_result_id: 7,
-                                hit_direction_id: 10, is_new_format: false, batting_result: '中安')
-    end
     let!(:old_batting_average) do
       # フロントから直接保存された既存値（サーバー計算とは異なる値を意図的に設定）
       create(:batting_average, game_result: old_format_game, user:,
                                at_bats: 99, hit: 88, total_bases: 77)
+    end
+
+    before do
+      create(:plate_appearance, game_result: old_format_game, user:, plate_result_id: 7,
+                                hit_direction_id: 10, is_new_format: false, batting_result: '中安')
     end
 
     it '別試合に v2 で新仕様の打席を作成しても、旧仕様試合の batting_average は不変' do
@@ -68,7 +69,8 @@ RSpec.describe 'v2 経由打席操作の既存データ保全', type: :request d
   describe 'ユーザー通算打率が新旧の batting_average を合算して算出される' do
     let(:old_game) { create(:game_result, user:) }
     let(:new_game) { create(:game_result, user:) }
-    let!(:old_batting_average) do
+
+    before do
       create(:batting_average, game_result: old_game, user:,
                                at_bats: 3, hit: 1, two_base_hit: 0, three_base_hit: 0, home_run: 0,
                                total_bases: 1, runs_batted_in: 0, strike_out: 1, base_on_balls: 0,

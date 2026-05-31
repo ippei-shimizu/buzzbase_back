@@ -38,26 +38,15 @@ RSpec.describe 'マイグレーション後の既存データ保全', type: :mod
 
     it '新カラムは NULL のまま残る' do
       plate_appearance.reload
-      expect(plate_appearance.out_type).to be_nil
-      expect(plate_appearance.hit_type).to be_nil
-      expect(plate_appearance.rbi).to be_nil
-      expect(plate_appearance.run_scored).to be_nil
-      expect(plate_appearance.stolen_bases).to be_nil
-      expect(plate_appearance.caught_stealing).to be_nil
-      expect(plate_appearance.final_balls).to be_nil
-      expect(plate_appearance.final_strikes).to be_nil
-      expect(plate_appearance.final_outs).to be_nil
-      expect(plate_appearance.first_pitch_swing).to be_nil
-      expect(plate_appearance.runners_state).to be_nil
-      expect(plate_appearance.inning).to be_nil
-      expect(plate_appearance.contact_quality_id).to be_nil
-      expect(plate_appearance.timing_id).to be_nil
-      expect(plate_appearance.pitch_type_id).to be_nil
-      expect(plate_appearance.hit_depth_id).to be_nil
-      expect(plate_appearance.self_analysis_memo).to be_nil
-      expect(plate_appearance.opponent_memo).to be_nil
-      expect(plate_appearance.hit_location_x).to be_nil
-      expect(plate_appearance.hit_location_y).to be_nil
+      new_columns = %i[out_type hit_type rbi run_scored stolen_bases caught_stealing
+                       final_balls final_strikes final_outs first_pitch_swing runners_state inning
+                       contact_quality_id timing_id pitch_type_id hit_depth_id
+                       self_analysis_memo opponent_memo hit_location_x hit_location_y]
+      aggregate_failures do
+        new_columns.each do |column|
+          expect(plate_appearance.public_send(column)).to be_nil, "expected #{column} to be nil"
+        end
+      end
     end
   end
 

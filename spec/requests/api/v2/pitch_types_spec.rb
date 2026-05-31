@@ -13,7 +13,7 @@ RSpec.describe 'Api::V2::PitchTypes', type: :request do
         expect(json).to have_key('pitch_types')
         expect(json['pitch_types'].size).to eq(10)
         expect(json['pitch_types'].first).to include('id' => 1, 'name' => 'ストレート系', 'display_order' => 1)
-        expect(json['pitch_types'].map { |item| item['display_order'] }).to eq((1..10).to_a)
+        expect(json['pitch_types'].pluck('display_order')).to eq((1..10).to_a)
       end
     end
 
