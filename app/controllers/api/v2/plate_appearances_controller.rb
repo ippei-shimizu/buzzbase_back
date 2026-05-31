@@ -19,7 +19,7 @@ module Api
         plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(plate_appearance)
 
         if plate_appearance.save
-          recalculate_batting_average(plate_appearance.game_result_id)
+          recalculate_batting_average(plate_appearance.game_result_id, user_id: current_api_v1_user.id)
           render json: plate_appearance, serializer: ::V2::PlateAppearanceSerializer, status: :created
         else
           render json: { errors: plate_appearance.errors.full_messages }, status: :unprocessable_entity
@@ -33,7 +33,7 @@ module Api
         @plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(@plate_appearance)
 
         if @plate_appearance.save
-          recalculate_batting_average(@plate_appearance.game_result_id)
+          recalculate_batting_average(@plate_appearance.game_result_id, user_id: current_api_v1_user.id)
           render json: @plate_appearance, serializer: ::V2::PlateAppearanceSerializer
         else
           render json: { errors: @plate_appearance.errors.full_messages }, status: :unprocessable_entity
@@ -42,13 +42,18 @@ module Api
 
       def destroy
         game_result_id = @plate_appearance.game_result_id
+        # 削除する打席が新仕様だった場合、最後の1件であれば対応する batting_average も
+        # 削除する必要がある（孤立レコード防止）。was_new_format を Recalculator に渡して判断させる。
+        was_new_format = @plate_appearance.is_new_format
         @plate_appearance.destroy!
-        recalculate_batting_average(game_result_id)
+        recalculate_batting_average(game_result_id, user_id: current_api_v1_user.id, cleanup_orphan: was_new_format)
         render json: { message: '打席結果を削除しました' }
       end
 
       def by_game
         game_result = GameResult.find(params[:game_result_id])
+        # render_forbidden_if_private! は非公開アカウントへのアクセスを 403 で render し true を返す。
+        # 呼び出し側は戻り値で短絡（early return）して以降の処理をスキップする。
         return if render_forbidden_if_private!(game_result.user)
 
         plate_appearances = PlateAppearance.where(game_result_id: game_result.id)
@@ -83,8 +88,8 @@ module Api
         )
       end
 
-      def recalculate_batting_average(game_result_id)
-        ::Stats::BattingAverageRecalculator.new(game_result_id:).call
+      def recalculate_batting_average(game_result_id, user_id:, cleanup_orphan: false)
+        ::Stats::BattingAverageRecalculator.new(game_result_id:, user_id:, cleanup_orphan:).call
       end
     end
   end
