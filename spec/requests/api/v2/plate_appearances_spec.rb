@@ -27,13 +27,13 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:created)
         json = response.parsed_body
         expect(json['batting_result']).to eq('中安')
-        expect(json['is_new_format']).to eq(true)
+        expect(json['is_new_format']).to be(true)
       end
 
       it '作成された打席は is_new_format=true で保存される' do
         post '/api/v2/plate_appearances', params: base_params, headers: auth_headers_for(user)
         created = PlateAppearance.find(response.parsed_body['id'])
-        expect(created.is_new_format).to eq(true)
+        expect(created.is_new_format).to be(true)
       end
 
       it 'batting_average が再集計されて作成される' do
@@ -46,10 +46,12 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(batting_average.at_bats).to eq(1)
       end
 
-      it 'バリデーションエラーは 422' do
-        bad_params = { plate_appearance: { game_result_id: nil } }
+      it '他ユーザーの game_result_id を指定すると 404（IDOR防止）' do
+        other_user = create(:user)
+        other_game = create(:game_result, user: other_user)
+        bad_params = { plate_appearance: { game_result_id: other_game.id, batter_box_number: 1 } }
         post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:not_found)
       end
     end
 
@@ -118,11 +120,9 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
   end
 
   describe 'GET /api/v2/plate_appearances/by_game/:game_result_id' do
-    let!(:plate_appearance_1) do
+    before do
       create(:plate_appearance, game_result:, user:, plate_result_id: 7,
                                 hit_direction_id: 10, is_new_format: true, batter_box_number: 1)
-    end
-    let!(:plate_appearance_2) do
       create(:plate_appearance, game_result:, user:, plate_result_id: 1,
                                 hit_direction_id: 1, is_new_format: true, batter_box_number: 2)
     end
@@ -134,7 +134,7 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:ok)
         items = response.parsed_body['plate_appearances']
         expect(items.size).to eq(2)
-        expect(items.map { |item| item['batter_box_number'] }).to eq([1, 2])
+        expect(items.pluck('batter_box_number')).to eq([1, 2])
       end
 
       it '非公開ユーザーの試合は 403' do

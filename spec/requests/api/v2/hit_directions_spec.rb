@@ -27,7 +27,7 @@ RSpec.describe 'Api::V2::HitDirections', type: :request do
         get '/api/v2/hit_directions', headers: auth_headers_for(user)
         outfield = response.parsed_body['hit_directions'].find { |item| item['id'] == 10 }
         expect(outfield['zone_polygon']).to be_an(Array)
-        expect(outfield['zone_polygon'].map { |zone| zone['depth_id'] }).to contain_exactly(1, 2, 3)
+        expect(outfield['zone_polygon'].pluck('depth_id')).to contain_exactly(1, 2, 3)
       end
     end
 

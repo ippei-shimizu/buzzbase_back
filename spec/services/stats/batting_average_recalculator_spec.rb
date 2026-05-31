@@ -30,18 +30,20 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
         described_class.new(game_result_id: game_result.id).call
         batting_average = BattingAverage.find_by(game_result_id: game_result.id)
 
-        expect(batting_average.plate_appearances).to eq(4)
-        expect(batting_average.at_bats).to eq(3)              # 7,8,13 が counted_in_at_bats: true（15=四球は false）
-        expect(batting_average.times_at_bat).to eq(3)
-        expect(batting_average.hit).to eq(2)                  # 7 (単打) + 8 (二塁打)
-        expect(batting_average.two_base_hit).to eq(1)
-        expect(batting_average.three_base_hit).to eq(0)
-        expect(batting_average.home_run).to eq(0)
-        expect(batting_average.total_bases).to eq(3)          # 単打 1 + 二塁打 2
-        expect(batting_average.strike_out).to eq(1)
-        expect(batting_average.base_on_balls).to eq(1)
-        expect(batting_average.runs_batted_in).to eq(3)       # rbi の sum
-        expect(batting_average.stealing_base).to eq(1)
+        aggregate_failures do
+          expect(batting_average.plate_appearances).to eq(4)
+          expect(batting_average.at_bats).to eq(3)              # 7,8,13 が counted_in_at_bats: true（15=四球は false）
+          expect(batting_average.times_at_bat).to eq(3)
+          expect(batting_average.hit).to eq(2)                  # 7 (単打) + 8 (二塁打)
+          expect(batting_average.two_base_hit).to eq(1)
+          expect(batting_average.three_base_hit).to eq(0)
+          expect(batting_average.home_run).to eq(0)
+          expect(batting_average.total_bases).to eq(3)          # 単打 1 + 二塁打 2
+          expect(batting_average.strike_out).to eq(1)
+          expect(batting_average.base_on_balls).to eq(1)
+          expect(batting_average.runs_batted_in).to eq(3)       # rbi の sum
+          expect(batting_average.stealing_base).to eq(1)
+        end
       end
 
       it '同 game_result_id に再度呼ばれても結果は安定する（idempotent）' do
@@ -56,13 +58,14 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
     end
 
     context '旧仕様試合（すべての打席が is_new_format=false）' do
-      let!(:existing_plate_appearance) do
-        create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
-                                  is_new_format: false, batting_result: '中安')
-      end
       let!(:existing_batting_average) do
         create(:batting_average, game_result:, user:,
                                  at_bats: 99, hit: 88, total_bases: 77)
+      end
+
+      before do
+        create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
+                                  is_new_format: false, batting_result: '中安')
       end
 
       it 'call は nil を返し、既存 batting_average の値を改変しない' do
@@ -77,7 +80,7 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
     end
 
     context '新仕様試合で batting_average レコードがまだ無い場合' do
-      let!(:plate_appearance) do
+      before do
         create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
                                   is_new_format: true)
       end

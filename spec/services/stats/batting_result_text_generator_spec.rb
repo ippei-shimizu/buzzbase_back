@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe Stats::BattingResultTextGenerator, type: :service do
   describe '.generate' do
     # mobile/constants/battingData.ts:100-107 の getResultText と同じ出力になることを担保
+    # rubocop:disable Style/HashEachMethods
     {
       [10, 7] => '中安', # 中 + ヒット
       [1, 1] => '投ゴ', # 投 + ゴロ
@@ -24,6 +25,7 @@ RSpec.describe Stats::BattingResultTextGenerator, type: :service do
         expect(described_class.generate(plate_appearance)).to eq(expected_text)
       end
     end
+    # rubocop:enable Style/HashEachMethods
 
     context '打球方向なし結果（hit_direction が nil）' do
       it '三振は短縮形のみ（hit_direction が nil）' do

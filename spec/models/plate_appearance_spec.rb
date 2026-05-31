@@ -107,18 +107,18 @@ RSpec.describe PlateAppearance, type: :model do
   describe 'is_new_format フラグ' do
     it 'デフォルトは false' do
       plate_appearance = create(:plate_appearance)
-      expect(plate_appearance.is_new_format).to eq(false)
+      expect(plate_appearance.is_new_format).to be(false)
     end
 
     it 'true でセット可能' do
       plate_appearance = create(:plate_appearance, is_new_format: true)
-      expect(plate_appearance.is_new_format).to eq(true)
+      expect(plate_appearance.is_new_format).to be(true)
     end
 
     it '既存レコード（旧仕様）は false のまま残る' do
       plate_appearance = create(:plate_appearance)
       plate_appearance.reload
-      expect(plate_appearance.is_new_format).to eq(false)
+      expect(plate_appearance.is_new_format).to be(false)
     end
   end
 end

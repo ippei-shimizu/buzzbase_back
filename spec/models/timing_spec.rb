@@ -15,13 +15,13 @@ RSpec.describe Timing, type: :model do
 
   describe 'seed data' do
     it '3種類のタイミングが投入されている' do
-      expect(Timing.count).to be >= 3
+      expect(described_class.count).to be >= 3
     end
 
     it '固定IDで投入されている' do
-      expect(Timing.find(1).name).to eq('ドンピシャ')
-      expect(Timing.find(2).name).to eq('泳ぎ気味')
-      expect(Timing.find(3).name).to eq('遅れ気味')
+      expect(described_class.find(1).name).to eq('ドンピシャ')
+      expect(described_class.find(2).name).to eq('泳ぎ気味')
+      expect(described_class.find(3).name).to eq('遅れ気味')
     end
   end
 end
