@@ -24,11 +24,20 @@ module Api
       end
 
       # 非公開アカウントへのアクセスを 403 で拒否する共通ガード。
-      # 表示可能なら何もせず、そのまま続行する。
+      # 表示可能ならそのまま続行する。
+      #
+      # @param user [User] アクセス対象のユーザー
+      # @return [TrueClass, nil] 非公開で render した場合 truthy / 公開で何もしない場合 nil
+      #
+      # 呼び出し側は戻り値で短絡（early return）すること:
+      #   return if render_forbidden_if_private!(target_user)
+      #
+      # （`render` 後に追加の `render` を呼ぶと DoubleRenderError になるため）
       def render_forbidden_if_private!(user)
         return if user.profile_visible_to?(current_api_v1_user)
 
         render json: { error: 'このアカウントは非公開です' }, status: :forbidden
+        true
       end
     end
   end
