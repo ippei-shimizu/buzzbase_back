@@ -91,5 +91,35 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
         end.to change { BattingAverage.where(game_result_id: game_result.id).count }.from(0).to(1)
       end
     end
+
+    context '新仕様試合の最後の打席が削除されて新仕様打席がゼロになった場合' do
+      let!(:orphan_batting_average) { create(:batting_average, game_result:, user:, at_bats: 1, hit: 1) }
+
+      # 削除後を想定して plate_appearance は作成しない（new_format_game? = false）
+
+      it 'cleanup_orphan: true で対応する batting_average を削除する（孤立レコード防止）' do
+        expect do
+          described_class.new(game_result_id: game_result.id, cleanup_orphan: true).call
+        end.to change { BattingAverage.where(id: orphan_batting_average.id).count }.from(1).to(0)
+      end
+
+      it 'cleanup_orphan: false（デフォルト）の場合は触らない（旧仕様試合の batting_average 保護）' do
+        described_class.new(game_result_id: game_result.id).call
+        expect(BattingAverage.find_by(id: orphan_batting_average.id)).to be_present
+      end
+    end
+
+    context 'user_id を引数で渡した場合' do
+      before do
+        create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
+                                  is_new_format: true)
+      end
+
+      it 'GameResult への追加クエリなしで batting_average.user_id を設定する' do
+        described_class.new(game_result_id: game_result.id, user_id: user.id).call
+        batting_average = BattingAverage.find_by(game_result_id: game_result.id)
+        expect(batting_average.user_id).to eq(user.id)
+      end
+    end
   end
 end
