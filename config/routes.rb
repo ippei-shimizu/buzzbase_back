@@ -221,6 +221,18 @@ Rails.application.routes.draw do
         get :era_trend, on: :member
         get :game_summary, on: :member
       end
+
+      resources :plate_appearances, only: %i[create update destroy] do
+        collection do
+          get 'by_game/:game_result_id', action: :by_game
+        end
+      end
+      resources :stadiums, only: %i[index create]
+      resources :pitch_types, only: :index
+      resources :contact_qualities, only: :index
+      resources :timings, only: :index
+      resources :hit_depths, only: :index
+      resources :hit_directions, only: :index
     end
   end
 
