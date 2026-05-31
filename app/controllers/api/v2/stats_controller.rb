@@ -1,6 +1,6 @@
 module Api
   module V2
-    class StatsController < ApplicationController
+    class StatsController < Api::V2::ApplicationController
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!
 

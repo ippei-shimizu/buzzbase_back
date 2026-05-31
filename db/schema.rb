@@ -8,9 +8,9 @@
 # migrations from scratch. Old migrations may fail to apply correctly if those
 # migrations use external dependencies or application code.
 #
-# It"s strongly recommended that you check this file into your version control system.
+# It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
+ActiveRecord::Schema[7.1].define(version: 20_260_531_120_000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -48,7 +48,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["month_start_date"], name: "index_admin_monthly_statistics_on_month_start_date"
-    t.index %w[year month], name: "index_admin_monthly_statistics_on_year_and_month", unique: true
+    t.index ["year", "month"], name: "index_admin_monthly_statistics_on_year_and_month", unique: true
   end
 
   create_table "admin_refresh_tokens", force: :cascade do |t|
@@ -58,7 +58,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.datetime "revoked_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index %w[admin_user_id expires_at], name: "index_admin_refresh_tokens_on_admin_user_id_and_expires_at"
+    t.index ["admin_user_id", "expires_at"], name: "index_admin_refresh_tokens_on_admin_user_id_and_expires_at"
     t.index ["admin_user_id"], name: "index_admin_refresh_tokens_on_admin_user_id"
     t.index ["expires_at"], name: "index_admin_refresh_tokens_on_expires_at"
     t.index ["jti"], name: "index_admin_refresh_tokens_on_jti", unique: true
@@ -198,7 +198,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["code"], name: "index_group_invite_links_on_code", unique: true
-    t.index %w[group_id is_active], name: "index_group_invite_links_on_group_id_and_is_active"
+    t.index ["group_id", "is_active"], name: "index_group_invite_links_on_group_id_and_is_active"
     t.index ["group_id"], name: "index_group_invite_links_on_group_id"
     t.index ["inviter_id"], name: "index_group_invite_links_on_inviter_id"
   end
@@ -212,7 +212,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.date "snapshot_date", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index %w[group_id user_id stat_type snapshot_date], name: "idx_group_ranking_snapshots_unique", unique: true
+    t.index ["group_id", "user_id", "stat_type", "snapshot_date"], name: "idx_group_ranking_snapshots_unique", unique: true
     t.index ["group_id"], name: "index_group_ranking_snapshots_on_group_id"
     t.index ["snapshot_date"], name: "index_group_ranking_snapshots_on_snapshot_date"
     t.index ["user_id"], name: "index_group_ranking_snapshots_on_user_id"
@@ -262,7 +262,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "notified_at"
-    t.index %w[status published_at], name: "index_management_notices_on_status_and_published_at"
+    t.index ["status", "published_at"], name: "index_management_notices_on_status_and_published_at"
   end
 
   create_table "match_results", force: :cascade do |t|
@@ -362,9 +362,11 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.text "opponent_memo"
     t.decimal "hit_location_x", precision: 4, scale: 3
     t.decimal "hit_location_y", precision: 4, scale: 3
+    t.boolean "is_new_format", default: false, null: false
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
     t.index ["hit_depth_id"], name: "index_plate_appearances_on_hit_depth_id"
+    t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
@@ -402,7 +404,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "status", default: 1, null: false
-    t.index %w[followed_id status], name: "index_relationships_on_followed_id_and_status"
+    t.index ["followed_id", "status"], name: "index_relationships_on_followed_id_and_status"
     t.index ["followed_id"], name: "index_relationships_on_followed_id"
     t.index ["follower_id"], name: "index_relationships_on_follower_id"
   end
@@ -412,7 +414,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index %w[user_id name], name: "index_seasons_on_user_id_and_name", unique: true
+    t.index ["user_id", "name"], name: "index_seasons_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_seasons_on_user_id"
   end
 
@@ -514,7 +516,7 @@ ActiveRecord::Schema[7.1].define(version: 20_260_530_120_008) do
     t.index ["last_login_at"], name: "index_users_on_last_login_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["suspended_at"], name: "index_users_on_suspended_at"
-    t.index %w[uid provider], name: "index_users_on_uid_and_provider", unique: true
+    t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
 
