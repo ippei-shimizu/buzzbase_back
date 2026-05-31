@@ -109,6 +109,12 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:ok)
         expect(PlateAppearance.where(id: plate_appearance.id)).not_to exist
       end
+
+      it '新仕様試合の最後の打席を削除すると孤立する batting_average も削除される' do
+        create(:batting_average, game_result:, user:, at_bats: 1, hit: 1)
+        delete "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(user)
+        expect(BattingAverage.where(game_result_id: game_result.id)).not_to exist
+      end
     end
 
     context 'when not authenticated' do
