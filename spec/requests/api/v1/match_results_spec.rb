@@ -120,6 +120,38 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  # issue #332: 試合基本情報入力で球場（任意項目）を保存できるようにするため、
+  # v1 match_results_controller の strong params に :stadium_id を追加した。
+  # 既存の MatchResult create フローは GameResult 経由（factory が match_result を自動生成）
+  # で行われるため、ここでは PUT による permit 経路を検証することで stadium_id の保存可否を担保する。
+  describe 'stadium_id 保存サポート' do
+    let(:prefecture) { Prefecture.create!(name: 'spec用都道府県') }
+    let(:stadium) { Stadium.create!(name: 'spec用球場', prefecture:, created_by_user: user) }
+    let(:match_result) do
+      game_result = create(:game_result, user:)
+      game_result.match_result
+    end
+
+    it 'PUT 時に stadium_id を更新できる（permit 経路を担保）' do
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: stadium.id } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to eq(stadium.id)
+    end
+
+    it 'PUT で stadium_id を nil に戻せる（球場を未指定に変更）' do
+      match_result.update!(stadium_id: stadium.id)
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: nil } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to be_nil
+    end
+  end
+
   describe 'GET /api/v1/match_results/available_years' do
     # game_result factory が after(:create) で match_result を自動生成するため、
     # game_result を作成 → 自動生成された match_result の date_and_time を更新
