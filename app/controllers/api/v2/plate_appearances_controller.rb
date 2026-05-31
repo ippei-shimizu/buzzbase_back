@@ -11,7 +11,10 @@ module Api
       before_action :load_plate_appearance, only: %i[update destroy]
 
       def create
-        plate_appearance = current_api_v1_user.plate_appearances.build(plate_appearance_params)
+        # game_result_id を current_api_v1_user 所有のものに限定し、IDOR を防ぐ。
+        game_result = current_api_v1_user.game_results.find(plate_appearance_params[:game_result_id])
+        plate_appearance = game_result.plate_appearances.build(plate_appearance_params.except(:game_result_id))
+        plate_appearance.user = current_api_v1_user
         plate_appearance.is_new_format = true
         plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(plate_appearance)
 
@@ -24,7 +27,8 @@ module Api
       end
 
       def update
-        @plate_appearance.assign_attributes(plate_appearance_params)
+        # 更新時は所属 game_result の付け替えを許さない（IDOR 防止）。
+        @plate_appearance.assign_attributes(plate_appearance_params.except(:game_result_id))
         @plate_appearance.is_new_format = true
         @plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(@plate_appearance)
 
