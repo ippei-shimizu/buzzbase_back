@@ -4,7 +4,7 @@ module Api
     #
     # ログインユーザーの直近試合結果・通算成績・グループ内ランキングを
     # 1リクエストで返却する。
-    class DashboardsController < ApplicationController
+    class DashboardsController < Api::V2::ApplicationController
       include Concerns::DashboardRankings
       include MatchTypeConvertible
 
