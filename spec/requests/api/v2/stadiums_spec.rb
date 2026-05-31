@@ -35,6 +35,11 @@ RSpec.describe 'Api::V2::Stadiums', type: :request do
         expect(names).to include('テスト東京ドーム')
         expect(names).not_to include('テスト京セラドーム')
       end
+
+      it 'per_page は MAX_PER_PAGE (100) を超えられない（DoS防止）' do
+        get '/api/v2/stadiums', params: { per_page: 999_999 }, headers: auth_headers_for(user)
+        expect(response.parsed_body['pagination']['per_page']).to eq(100)
+      end
     end
 
     context 'when not authenticated' do
