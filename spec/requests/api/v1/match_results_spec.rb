@@ -120,13 +120,8 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
-  # issue #332: 試合基本情報入力で球場（任意項目）を保存できるようにするため、
-  # v1 match_results_controller の strong params に :stadium_id を追加した。
-  # 既存の MatchResult create フローは GameResult 経由（factory が match_result を自動生成）
-  # で行われるため、ここでは PUT による permit 経路を検証することで stadium_id の保存可否を担保する。
   describe 'stadium_id 保存サポート' do
-    let(:prefecture) { Prefecture.create!(name: 'spec用都道府県') }
-    let(:stadium) { Stadium.create!(name: 'spec用球場', prefecture:, created_by_user: user) }
+    let(:stadium) { create(:stadium) }
     let(:match_result) do
       game_result = create(:game_result, user:)
       game_result.match_result
