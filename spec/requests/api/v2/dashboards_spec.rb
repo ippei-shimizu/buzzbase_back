@@ -70,7 +70,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 15))
         create(:pitching_result, game_result: gr, user:,
                                  win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
-                                 base_on_balls: 1, hits_allowed: 4)
+                                 base_on_balls: 1, hits_allowed: 4, number_of_pitches: 95)
         gr
       end
 
@@ -79,7 +79,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         json = response.parsed_body
         pitching = json['pitching_stats']
-        expect(pitching['aggregate']).to include('win' => 1, 'strikeouts' => 8)
+        expect(pitching['aggregate']).to include('win' => 1, 'strikeouts' => 8, 'number_of_pitches' => 95)
         expect(pitching['aggregate']['innings_pitched']).to eq(7.0)
         expect(pitching['calculated']).to include('era', 'whip', 'k_per_nine', 'win_percentage')
         expect(pitching['calculated']['era']).to be_a(Numeric)
@@ -282,7 +282,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 15))
         create(:pitching_result, game_result: gr, user:,
                                  win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
-                                 base_on_balls: 1, hits_allowed: 4)
+                                 base_on_balls: 1, hits_allowed: 4, number_of_pitches: 95)
       end
 
       it 'returns only pitching stats' do
@@ -290,7 +290,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        expect(json['aggregate']).to include('win' => 1, 'strikeouts' => 8)
+        expect(json['aggregate']).to include('win' => 1, 'strikeouts' => 8, 'number_of_pitches' => 95)
         expect(json['calculated']).to include('era', 'whip')
         expect(json).not_to have_key('recent_game_results')
         expect(json).not_to have_key('batting_stats')

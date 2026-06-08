@@ -368,7 +368,7 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
 
     context 'when appearance_type = starter and batting_order is missing' do
-      it 'returns 422 because starter requires batting_order' do
+      it 'returns 200 because batting_order is optional even for starter (DH-rule pitcher case)' do
         match_result = game_result.match_result
 
         put "/api/v1/match_results/#{match_result.id}",
@@ -378,7 +378,8 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
             } },
             headers: auth_headers_for(user)
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:ok)
+        expect(match_result.reload.batting_order).to eq('')
       end
     end
 
