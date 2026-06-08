@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 module Stats
-  class PitchingStatsTableService
+  class PitchingStatsTableService # rubocop:disable Metrics/ClassLength
     include Concerns::TableServiceConcern
 
     PITCHING_FIELDS = %w[
       win loss hold saves complete_games shutouts innings_pitched
-      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run
+      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run number_of_pitches
     ].freeze
 
     PITCHING_SYMBOLS = PITCHING_FIELDS.map(&:to_sym).freeze
@@ -97,7 +97,7 @@ module Stats
         .merge(weighted_pitching_stats(pitching_result, inning_format))
     end
 
-    def base_pitching_stats(record)
+    def base_pitching_stats(record) # rubocop:disable Metrics/AbcSize
       {
         'appearances' => 1,
         'win' => record.win.to_i,
@@ -113,7 +113,8 @@ module Stats
         'base_on_balls' => record.base_on_balls.to_i,
         'hit_by_pitch' => record.hit_by_pitch.to_i,
         'run_allowed' => record.run_allowed.to_i,
-        'earned_run' => record.earned_run.to_i
+        'earned_run' => record.earned_run.to_i,
+        'number_of_pitches' => record.number_of_pitches.to_i
       }
     end
 
@@ -185,6 +186,7 @@ module Stats
         'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
         'SUM(pitching_results.run_allowed) AS run_allowed',
         'SUM(pitching_results.earned_run) AS earned_run',
+        'SUM(pitching_results.number_of_pitches) AS number_of_pitches',
         'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
         'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
         'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls'
