@@ -41,6 +41,7 @@ class PitchingResult < ApplicationRecord
      'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
      'SUM(pitching_results.run_allowed) AS run_allowed',
      'SUM(pitching_results.earned_run) AS earned_run',
+     'SUM(pitching_results.number_of_pitches) AS number_of_pitches',
      'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
      'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
      'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls']
@@ -106,7 +107,8 @@ class PitchingResult < ApplicationRecord
       k_per_nine: safe_divide_round(stats['weighted_strikeouts'].to_f, ip, 3),
       whip: safe_divide_round(stats['base_on_balls'].to_f + stats['hits_allowed'].to_f, ip, 3),
       bb_per_nine: safe_divide_round(stats['weighted_base_on_balls'].to_f, ip, 3),
-      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3)
+      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3),
+      number_of_pitches: stats['number_of_pitches'].to_i
     }
   end
 

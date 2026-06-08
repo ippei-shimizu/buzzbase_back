@@ -135,7 +135,8 @@ module Api
           innings_pitched: agg.innings_pitched.to_f, hits_allowed: agg.hits_allowed.to_i,
           home_runs_hit: agg.home_runs_hit.to_i, strikeouts: agg.strikeouts.to_i,
           base_on_balls: agg.base_on_balls.to_i, hit_by_pitch: agg.hit_by_pitch.to_i,
-          run_allowed: agg.run_allowed.to_i, earned_run: agg.earned_run.to_i }
+          run_allowed: agg.run_allowed.to_i, earned_run: agg.earned_run.to_i,
+          number_of_pitches: agg.number_of_pitches.to_i }
       end
 
       def pitching_calculated_hash(calc)
