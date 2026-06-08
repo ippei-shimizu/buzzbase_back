@@ -24,9 +24,10 @@ RSpec.describe MatchResult, type: :model do
 
     # appearance_type に応じた条件付きバリデーション。
     # starter は守備位置のみ必須。打順は DH 制で投手として出場する場合「なし」を許容するため任意。
+    # batting_order カラムは DB 上 null: false のため、保存実態は空文字 '' を渡す（リクエストスペックと統一）。
     context 'when appearance_type is starter' do
-      it 'allows missing batting_order' do
-        mr = build(:match_result, appearance_type: 'starter', batting_order: nil)
+      it 'allows empty batting_order' do
+        mr = build(:match_result, appearance_type: 'starter', batting_order: '')
         expect(mr).to be_valid
       end
 
