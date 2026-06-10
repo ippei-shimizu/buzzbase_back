@@ -151,6 +151,21 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
 
   DEVICE_TOKEN_PLATFORMS = %w[ios android].freeze
 
+  # エッジケース: 集計値・UI 表示のエッジケースを必ずカバーするため、各ユーザーに 1 試合ずつ生成する。
+  BATTING_EDGE_CASES = %i[perfect_game cycle_hit no_hit strike_out_show
+                          walks_only homer_show rbi_show sacrifice_only].freeze
+  PITCHING_EDGE_CASES = %i[complete_shutout blowout_loss many_strikeouts wild_pitch
+                           save_close hold_clean long_relief_clean relief_loss].freeze
+  GAME_SCORE_EDGE_CASES = %i[blowout_win blowout_loss close_win sayonara high_score].freeze
+
+  MATCH_SCORE_EDGE_ATTRS = {
+    blowout_win: { my_team_score: 15, opponent_team_score: 0 },
+    blowout_loss: { my_team_score: 0, opponent_team_score: 15 },
+    close_win: { my_team_score: 3, opponent_team_score: 2 },
+    sayonara: { my_team_score: 5, opponent_team_score: 4 },
+    high_score: { my_team_score: 18, opponent_team_score: 15 }
+  }.freeze
+
   # PlateResult のうち打席で使われる選択肢。v1 形式（is_new_format = false）の
   # plate_appearances を作るために `name` 文字列で扱う。
   PLATE_RESULT_OUTCOMES = %w[ゴロ フライ ライナー エラー フィルダースチョイス
@@ -266,7 +281,9 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
       tournaments = Tournament.all.to_a
       users.each do |user|
         seasons_by_year = user.seasons.index_by { |s| s.name[/\d{4}/].to_i }
-        rand(50..100).times do
+        create_edge_case_games(user:, teams:, tournaments:, seasons_by_year:)
+        # エッジケースを差し引いた残り（最低 30 試合）をランダム生成する。
+        rand(30..80).times do
           my_team = teams.sample
           opponent_team = teams.reject { |t| t.id == my_team.id }.sample
           game_time = rand(1..180).days.ago + rand(8..18).hours
@@ -285,6 +302,81 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
       Rails.logger.debug { "BattingAverages: #{BattingAverage.count}" }
       Rails.logger.debug { "PitchingResults: #{PitchingResult.count}" }
       Rails.logger.debug { "PlateAppearances: #{PlateAppearance.count}" }
+    end
+
+    # 各ユーザーに対して、打撃・投手・スコアそれぞれの極端ケースを 1 試合ずつ生成する。
+    # UI / 集計の境界値テストを開発環境で行いやすくする目的。
+    def create_edge_case_games(user:, teams:, tournaments:, seasons_by_year:)
+      context = { user:, teams:, tournaments:, seasons_by_year: }
+      is_pitcher = user.positions.exists?(name: '投手')
+
+      GAME_SCORE_EDGE_CASES.each { |edge| create_edge_case_game(context, score_edge: edge) }
+      BATTING_EDGE_CASES.each { |edge| create_edge_case_game(context, batting_edge: edge) }
+      return unless is_pitcher
+
+      PITCHING_EDGE_CASES.each { |edge| create_edge_case_game(context, pitching_edge: edge) }
+    end
+
+    def create_edge_case_game(context, score_edge: nil, batting_edge: nil, pitching_edge: nil)
+      user = context.fetch(:user)
+      teams = context.fetch(:teams)
+      my_team = teams.sample
+      opponent_team = teams.reject { |t| t.id == my_team.id }.sample
+      game_time = rand(1..180).days.ago + rand(8..18).hours
+      score = score_edge ? MATCH_SCORE_EDGE_ATTRS.fetch(score_edge) : random_match_score
+      ActiveRecord::Base.transaction do
+        game_record_context = context.merge(game_time:, my_team:, opponent_team:,
+                                            score:, force_starter_pitcher: pitching_edge.present?)
+        game_result = build_edge_case_game_record(game_record_context)
+        apply_batting_average(user, game_result, game_time, batting_edge)
+        apply_pitching_result(user, game_result, game_time, pitching_edge)
+        create_plate_appearances(user, game_result, game_time)
+      end
+    end
+
+    def build_edge_case_game_record(context)
+      user = context.fetch(:user)
+      game_time = context.fetch(:game_time)
+      score = context.fetch(:score)
+      seasons_by_year = context.fetch(:seasons_by_year)
+      tournaments = context.fetch(:tournaments)
+      game_result = GameResult.create!(user:, season: seasons_by_year[game_time.year],
+                                       created_at: game_time, updated_at: game_time)
+      defensive_position = context.fetch(:force_starter_pitcher) ? '1' : rand(1..9).to_s
+      tournament = tournaments.sample if rand < 0.3
+      match_result = MatchResult.create!(
+        game_result:, user:, date_and_time: game_time, match_type: %w[regular open].sample,
+        my_team: context.fetch(:my_team), opponent_team: context.fetch(:opponent_team),
+        my_team_score: score[:my_team_score], opponent_team_score: score[:opponent_team_score],
+        batting_order: rand(1..9).to_s, defensive_position:,
+        appearance_type: 'starter', inning_format: INNING_FORMATS.sample,
+        tournament:, memo: '開発用テストデータ（エッジケース）',
+        created_at: game_time, updated_at: game_time
+      )
+      game_result.update!(match_result_id: match_result.id)
+      game_result
+    end
+
+    def apply_batting_average(user, game_result, game_time, batting_edge)
+      attrs = batting_edge ? edge_case_batting_average_attrs(batting_edge, game_time) : nil
+      return create_batting_average(user, game_result, game_time) if attrs.nil?
+
+      batting_average = BattingAverage.create!(user:, game_result:, **attrs)
+      game_result.update!(batting_average_id: batting_average.id)
+    end
+
+    def apply_pitching_result(user, game_result, game_time, pitching_edge)
+      if pitching_edge
+        attrs = edge_case_pitching_attrs(pitching_edge, game_time, match_result: game_result.match_result)
+        pitching_result = PitchingResult.create!(user:, game_result:, **attrs)
+        game_result.update!(pitching_result_id: pitching_result.id)
+      else
+        create_pitching_result_if_pitcher(user, game_result, game_time)
+      end
+    end
+
+    def random_match_score
+      { my_team_score: rand(0..12), opponent_team_score: rand(0..12) }
     end
 
     def create_relationships(users)
@@ -551,6 +643,91 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
         created_at: game_time, updated_at: game_time
       }
     end
+
+    # rubocop:disable Metrics/MethodLength, Metrics/CyclomaticComplexity
+    def edge_case_batting_average_attrs(edge, game_time)
+      base = { created_at: game_time, updated_at: game_time,
+               stealing_base: 0, caught_stealing: 0, error: 0,
+               hit_by_pitch: 0, base_on_balls: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+               strike_out: 0 }
+      case edge
+      when :perfect_game
+        base.merge(plate_appearances: 5, at_bats: 5, times_at_bat: 5,
+                   hit: 5, two_base_hit: 1, three_base_hit: 0, home_run: 1,
+                   total_bases: 5 + 1 + 3, runs_batted_in: 4, run: 3, stealing_base: 1)
+      when :cycle_hit
+        base.merge(plate_appearances: 4, at_bats: 4, times_at_bat: 4,
+                   hit: 4, two_base_hit: 1, three_base_hit: 1, home_run: 1,
+                   total_bases: 1 + 2 + 3 + 4, runs_batted_in: 5, run: 3)
+      when :no_hit
+        base.merge(plate_appearances: 4, at_bats: 4, times_at_bat: 4,
+                   hit: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0,
+                   total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 1)
+      when :strike_out_show
+        base.merge(plate_appearances: 4, at_bats: 4, times_at_bat: 4,
+                   hit: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0,
+                   total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 4)
+      when :walks_only
+        base.merge(plate_appearances: 4, at_bats: 0, times_at_bat: 0,
+                   hit: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0,
+                   total_bases: 0, runs_batted_in: 1, run: 2, base_on_balls: 4)
+      when :homer_show
+        base.merge(plate_appearances: 4, at_bats: 4, times_at_bat: 4,
+                   hit: 3, two_base_hit: 0, three_base_hit: 0, home_run: 2,
+                   total_bases: 3 + 6, runs_batted_in: 6, run: 3)
+      when :rbi_show
+        base.merge(plate_appearances: 5, at_bats: 5, times_at_bat: 5,
+                   hit: 4, two_base_hit: 1, three_base_hit: 0, home_run: 1,
+                   total_bases: 4 + 1 + 3, runs_batted_in: 8, run: 2)
+      when :sacrifice_only
+        base.merge(plate_appearances: 3, at_bats: 0, times_at_bat: 0,
+                   hit: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0,
+                   total_bases: 0, runs_batted_in: 1, run: 0,
+                   sacrifice_hit: 2, sacrifice_fly: 1)
+      end
+    end
+
+    def edge_case_pitching_attrs(edge, game_time, match_result:)
+      base = { created_at: game_time, updated_at: game_time,
+               win: 0, loss: 0, hold: 0, saves: 0,
+               got_to_the_distance: false, home_runs_hit: 0, hit_by_pitch: 0 }
+      case edge
+      when :complete_shutout
+        base.merge(win: 1, innings_pitched: match_result.inning_format.to_f,
+                   number_of_pitches: 110, got_to_the_distance: true,
+                   hits_allowed: 3, run_allowed: 0, earned_run: 0,
+                   base_on_balls: 1, strikeouts: 9)
+      when :blowout_loss
+        base.merge(loss: 1, innings_pitched: 4.0, number_of_pitches: 95,
+                   hits_allowed: 12, run_allowed: 10, earned_run: 9,
+                   base_on_balls: 3, strikeouts: 2, home_runs_hit: 2, hit_by_pitch: 1)
+      when :many_strikeouts
+        base.merge(win: 1, innings_pitched: 8.0, number_of_pitches: 130,
+                   hits_allowed: 5, run_allowed: 1, earned_run: 1,
+                   base_on_balls: 1, strikeouts: 15)
+      when :wild_pitch
+        base.merge(innings_pitched: 5.0, number_of_pitches: 105,
+                   hits_allowed: 6, run_allowed: 4, earned_run: 3,
+                   base_on_balls: 7, strikeouts: 3, hit_by_pitch: 2)
+      when :save_close
+        base.merge(saves: 1, innings_pitched: 1.0, number_of_pitches: 18,
+                   hits_allowed: 1, run_allowed: 0, earned_run: 0,
+                   base_on_balls: 0, strikeouts: 2)
+      when :hold_clean
+        base.merge(hold: 1, innings_pitched: 1.0, number_of_pitches: 14,
+                   hits_allowed: 0, run_allowed: 0, earned_run: 0,
+                   base_on_balls: 0, strikeouts: 2)
+      when :long_relief_clean
+        base.merge(win: 1, innings_pitched: 4.0, number_of_pitches: 55,
+                   hits_allowed: 2, run_allowed: 0, earned_run: 0,
+                   base_on_balls: 1, strikeouts: 5)
+      when :relief_loss
+        base.merge(loss: 1, innings_pitched: 1.0, number_of_pitches: 25,
+                   hits_allowed: 3, run_allowed: 3, earned_run: 3,
+                   base_on_balls: 1, strikeouts: 0)
+      end
+    end
+    # rubocop:enable Metrics/MethodLength, Metrics/CyclomaticComplexity
 
     def decide_pitching_result_flags(match_result:, starter:)
       my_score = match_result.my_team_score
