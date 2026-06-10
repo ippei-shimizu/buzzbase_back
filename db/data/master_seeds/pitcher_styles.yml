@@ -1,0 +1,12 @@
+- id: 1
+  name: 本格派
+  display_order: 1
+- id: 2
+  name: 技巧派
+  display_order: 2
+- id: 3
+  name: 変則派
+  display_order: 3
+- id: 4
+  name: パワー型
+  display_order: 4
