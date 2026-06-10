@@ -49,6 +49,7 @@ namespace :dev_data do # rubocop:disable Metrics/BlockLength
     DevDataCreator.create_follow_notifications
     DevDataCreator.create_groups(users)
     DevDataCreator.create_baseball_notes(users)
+    DevDataCreator.apply_user_lifecycle_states(users)
     DevDataCreator.print_summary
 
     Rails.logger.debug 'Sample data creation completed!'
