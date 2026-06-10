@@ -7,6 +7,8 @@ class PlateAppearance < ApplicationRecord
   belongs_to :timing, optional: true
   belongs_to :pitch_type, optional: true
   belongs_to :hit_depth, optional: true
+  belongs_to :pitcher, optional: true
+  belongs_to :appearance_situation, optional: true
 
   # Rails 7.1 では enum がカラム未存在状態だと "Undeclared attribute type" エラーになるため、
   # 明示的に attribute type を declare してマイグレーション前後どちらでもロードできるようにする。

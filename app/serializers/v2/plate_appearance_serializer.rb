@@ -21,6 +21,8 @@ module V2
     has_one :timing, serializer: V2::TimingSerializer
     has_one :pitch_type, serializer: V2::PitchTypeSerializer
     has_one :hit_depth, serializer: V2::HitDepthSerializer
+    has_one :pitcher, serializer: V2::PitcherSerializer
+    has_one :appearance_situation, serializer: V2::AppearanceSituationSerializer
 
     # mobile 側で「詳細未入力」バッジを出すための boolean。
     # 任意の詳細データ系カラム（マスタID・カウント・状況・メモ）のいずれかに値があれば true。
@@ -34,7 +36,8 @@ module V2
     def detail_attributes
       %i[contact_quality_id timing_id pitch_type_id hit_depth_id
          final_balls final_strikes final_outs first_pitch_swing
-         runners_state inning self_analysis_memo opponent_memo]
+         runners_state inning self_analysis_memo opponent_memo
+         pitcher_id appearance_situation_id]
     end
   end
 end

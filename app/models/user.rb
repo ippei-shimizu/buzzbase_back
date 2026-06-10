@@ -33,6 +33,7 @@ class User < ActiveRecord::Base
   has_many :batting_averages, dependent: :destroy
   has_many :pitching_results, dependent: :destroy
   has_many :plate_appearances, dependent: :destroy
+  has_many :created_pitchers, class_name: 'Pitcher', foreign_key: 'created_by_user_id', dependent: :destroy, inverse_of: :created_by_user
 
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable

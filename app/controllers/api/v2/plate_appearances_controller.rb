@@ -13,6 +13,8 @@ module Api
       def create
         # game_result_id を current_api_v1_user 所有のものに限定し、IDOR を防ぐ。
         game_result = current_api_v1_user.game_results.find(plate_appearance_params[:game_result_id])
+        return if pitcher_id_invalid?(plate_appearance_params[:pitcher_id])
+
         plate_appearance = game_result.plate_appearances.build(plate_appearance_params.except(:game_result_id))
         plate_appearance.user = current_api_v1_user
         plate_appearance.is_new_format = true
@@ -28,6 +30,8 @@ module Api
 
       def update
         # 更新時は所属 game_result の付け替えを許さない（IDOR 防止）。
+        return if pitcher_id_invalid?(plate_appearance_params[:pitcher_id])
+
         @plate_appearance.assign_attributes(plate_appearance_params.except(:game_result_id))
         @plate_appearance.is_new_format = true
         @plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(@plate_appearance)
@@ -57,7 +61,9 @@ module Api
         return if render_forbidden_if_private!(game_result.user)
 
         plate_appearances = PlateAppearance.where(game_result_id: game_result.id)
-                                           .includes(:contact_quality, :timing, :pitch_type, :hit_depth)
+                                           .includes(:contact_quality, :timing, :pitch_type, :hit_depth,
+                                                     :appearance_situation,
+                                                     pitcher: %i[arm_angle velocity_zone pitcher_style])
                                            .order(:batter_box_number)
         render json: {
           plate_appearances: ActiveModelSerializers::SerializableResource.new(
@@ -84,8 +90,20 @@ module Api
           :final_balls, :final_strikes, :final_outs,
           :first_pitch_swing, :runners_state, :inning,
           :contact_quality_id, :timing_id, :pitch_type_id, :hit_depth_id,
-          :self_analysis_memo, :opponent_memo
+          :self_analysis_memo, :opponent_memo,
+          :pitcher_id, :appearance_situation_id
         )
+      end
+
+      # 投手はユーザー固有マスタのため、他ユーザーが作成した pitcher_id を
+      # 紐付ける攻撃を防ぐ。指定された pitcher_id が存在するが current user の作成物でない場合、
+      # 422 を返して呼び出し側の早期 return を促す。
+      def pitcher_id_invalid?(pitcher_id)
+        return false if pitcher_id.blank?
+        return false if current_api_v1_user.created_pitchers.exists?(id: pitcher_id)
+
+        render json: { errors: ['指定された投手は存在しません'] }, status: :unprocessable_entity
+        true
       end
 
       def recalculate_batting_average(game_result_id, user_id:, cleanup_orphan: false)
