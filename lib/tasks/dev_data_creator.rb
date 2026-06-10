@@ -151,6 +151,23 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
 
   DEVICE_TOKEN_PLATFORMS = %w[ios android].freeze
 
+  USER_INTRODUCTIONS = [
+    '中学から野球を始めて、今は外野手として頑張っています。',
+    '投手として日々練習中。変化球の精度を上げたいです。',
+    'チームメイトと記録を共有したくて使い始めました。',
+    '打撃フォーム改善中。長打を増やしたいです。',
+    'データで自分の成績を振り返るのが好きです。',
+    '守備が得意。捕球の安定感を意識しています。',
+    '夏の大会に向けて練習中。応援よろしくお願いします。',
+    '打率 3 割を目指して頑張ります！',
+    '子どもの頃から野球が大好き。社会人野球で続けています。',
+    'ピッチング動画を見て勉強しています。アドバイスください！',
+    '父子で野球をやってます。記録を残すために登録しました。',
+    'カーブとスライダーが得意です。'
+  ].freeze
+
+  SUSPENDED_REASONS = %w[規約違反のため スパム投稿のため 迷惑行為の疑いがあったため].freeze
+
   # エッジケース: 集計値・UI 表示のエッジケースを必ずカバーするため、各ユーザーに 1 試合ずつ生成する。
   BATTING_EDGE_CASES = %i[perfect_game cycle_hit no_hit strike_out_show
                           walks_only homer_show rbi_show sacrifice_only].freeze
@@ -231,6 +248,7 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
           u.name = display_name
           u.user_id = "devuser#{n}"
           u.confirmed_at = Time.current
+          assign_profile_attributes(u, n)
         end
         users << user
         UserPosition.find_or_create_by!(user:, position: positions.sample)
@@ -240,6 +258,42 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
       Rails.logger.debug { "Users: #{User.count}" }
       users
     end
+
+    # 退会・凍結ユーザーを混ぜる。本番には soft_delete / suspended 状態のレコードが
+    # 存在するため、管理画面・取得 API の絞り込み（active scope）を開発環境でも検証できる。
+    def apply_user_lifecycle_states(users)
+      # 既存の private / 退会候補と重ならないよう、先頭から固定でピック。
+      suspended_targets = users.last(5).first(3)
+      deleted_targets = users.last(2)
+
+      suspended_targets.each do |user|
+        user.update!(suspended_at: rand(1..60).days.ago, suspended_reason: SUSPENDED_REASONS.sample)
+      end
+      deleted_targets.each do |user|
+        user.update!(deleted_at: rand(1..90).days.ago)
+      end
+      Rails.logger.debug { "Suspended Users: #{User.suspended.count}" }
+      Rails.logger.debug { "Soft Deleted Users: #{User.soft_deleted.count}" }
+    end
+
+    private
+
+    # プロフィール属性（自己紹介・画像・ログイン日時など）を実ユーザー像に近づける。
+    def assign_profile_attributes(user_builder, sequence)
+      user_builder.introduction = USER_INTRODUCTIONS.sample if rand < 0.8
+      # 実画像アップロードは重いので URL 文字列だけ流し込む。
+      # pravatar はシード付きで毎回同じ顔を返してくれる安定アバター。
+      user_builder.image = "https://i.pravatar.cc/300?u=devuser#{sequence}"
+      user_builder.last_login_at = sample_last_login_at
+      user_builder.last_management_notice_read_at = rand(1..60).days.ago if rand < 0.6
+    end
+
+    # 80% は直近 1 週間のアクティブユーザー / 20% は半年以上前の非アクティブを模す。
+    def sample_last_login_at
+      rand < 0.8 ? rand(0..7).days.ago : rand(180..365).days.ago
+    end
+
+    public
 
     def create_teams
       teams = TEAM_NAMES.map { |name| Team.find_or_create_by!(name:) }
