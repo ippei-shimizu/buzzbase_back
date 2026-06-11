@@ -30,6 +30,17 @@ module Api
         end
       end
 
+      # 他ユーザーが作成した投手は `created_pitchers` スコープに含まれないため、
+      # find で 404 が返り編集を防げる（IDOR 防止）。
+      def update
+        pitcher = current_api_v1_user.created_pitchers.find(params[:id])
+        if pitcher.update(pitcher_params)
+          render json: pitcher, serializer: ::V2::PitcherSerializer
+        else
+          render json: { errors: pitcher.errors.full_messages }, status: :unprocessable_entity
+        end
+      end
+
       private
 
       def pitcher_params

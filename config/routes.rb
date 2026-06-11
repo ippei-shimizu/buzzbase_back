@@ -228,7 +228,7 @@ Rails.application.routes.draw do
         end
       end
       resources :stadiums, only: %i[index create]
-      resources :pitchers, only: %i[index create]
+      resources :pitchers, only: %i[index create update]
       resources :pitch_types, only: :index
       resources :contact_qualities, only: :index
       resources :timings, only: :index
