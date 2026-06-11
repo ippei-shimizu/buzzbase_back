@@ -15,6 +15,7 @@ class Pitcher < ApplicationRecord
   enum throw_hand: { right: 0, left: 1 }, _prefix: true
 
   validates :name, presence: true, length: { maximum: 100 }
+  validates :memo, length: { maximum: 1000 }, allow_nil: true
   # 同一ユーザー内 + 同一チームでの同名投手を防ぐ。team_id が異なれば別投手扱い。
   # `index_pitchers_on_user_team_name` (unique, created_by_user_id + team_id + name) が
   # スコープを丸ごとカバーするが、RuboCop は単独カラムの index しか検出できないため抑制する。

@@ -35,7 +35,8 @@ module Api
       def pitcher_params
         params.require(:pitcher).permit(
           :name, :team_id, :throw_hand,
-          :arm_angle_id, :velocity_zone_id, :pitcher_style_id
+          :arm_angle_id, :velocity_zone_id, :pitcher_style_id,
+          :memo
         )
       end
 
