@@ -75,4 +75,30 @@ RSpec.describe 'Api::V2::Pitchers', type: :request do
       expect(response.parsed_body['errors']).not_to be_empty
     end
   end
+
+  describe 'PATCH /api/v2/pitchers/:id' do
+    let!(:own_pitcher) { Pitcher.create!(name: '自分の投手', throw_hand: :right, created_by_user: user) }
+    let!(:other_pitcher) { Pitcher.create!(name: '他人の投手', throw_hand: :right, created_by_user: other_user) }
+
+    it '自分の投手の属性を更新できる' do
+      patch "/api/v2/pitchers/#{own_pitcher.id}",
+            params: { pitcher: { name: '更新後', throw_hand: 'left', memo: '配球メモ' } },
+            headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:ok)
+      own_pitcher.reload
+      expect(own_pitcher.name).to eq('更新後')
+      expect(own_pitcher.throw_hand).to eq('left')
+      expect(own_pitcher.memo).to eq('配球メモ')
+    end
+
+    it '他ユーザーが作成した投手は更新できず 404' do
+      patch "/api/v2/pitchers/#{other_pitcher.id}",
+            params: { pitcher: { name: '改ざん' } },
+            headers: auth_headers_for(user), as: :json
+
+      expect(response).to have_http_status(:not_found)
+      expect(other_pitcher.reload.name).to eq('他人の投手')
+    end
+  end
 end
