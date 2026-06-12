@@ -53,6 +53,27 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
         expect(response).to have_http_status(:not_found)
       end
+
+      it '他ユーザーが作成した pitcher_id を指定すると 422（IDOR防止）' do
+        other_user = create(:user)
+        other_pitcher = Pitcher.create!(name: '他人の投手', throw_hand: :right, created_by_user: other_user)
+        bad_params = base_params.deep_merge(plate_appearance: { pitcher_id: other_pitcher.id })
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('指定された投手は存在しません')
+      end
+
+      it '自分が作成した pitcher_id を指定すると作成できる' do
+        own_pitcher = Pitcher.create!(name: '自分の投手', throw_hand: :left, created_by_user: user)
+        good_params = base_params.deep_merge(plate_appearance: { pitcher_id: own_pitcher.id })
+
+        post '/api/v2/plate_appearances', params: good_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(PlateAppearance.find(response.parsed_body['id']).pitcher_id).to eq(own_pitcher.id)
+      end
     end
 
     context 'when not authenticated' do
@@ -85,6 +106,19 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
               params: { plate_appearance: { plate_result_id: 7 } },
               headers: auth_headers_for(other_user)
         expect(response).to have_http_status(:not_found)
+      end
+
+      it '他ユーザーが作成した pitcher_id を指定すると 422（IDOR防止）' do
+        other_user = create(:user)
+        other_pitcher = Pitcher.create!(name: '他人の投手', throw_hand: :right, created_by_user: other_user)
+
+        patch "/api/v2/plate_appearances/#{plate_appearance.id}",
+              params: { plate_appearance: { pitcher_id: other_pitcher.id } },
+              headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('指定された投手は存在しません')
+        expect(plate_appearance.reload.pitcher_id).to be_nil
       end
     end
 
