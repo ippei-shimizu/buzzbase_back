@@ -20,7 +20,6 @@ module V2
     has_one :contact_quality, serializer: V2::ContactQualitySerializer
     has_one :timing, serializer: V2::TimingSerializer
     has_one :pitch_type, serializer: V2::PitchTypeSerializer
-    has_one :hit_depth, serializer: V2::HitDepthSerializer
     has_one :pitcher, serializer: V2::PitcherSerializer
     has_one :appearance_situation, serializer: V2::AppearanceSituationSerializer
 
@@ -34,7 +33,7 @@ module V2
     private
 
     def detail_attributes
-      %i[contact_quality_id timing_id pitch_type_id hit_depth_id
+      %i[contact_quality_id timing_id pitch_type_id
          final_balls final_strikes final_outs first_pitch_swing
          runners_state inning self_analysis_memo opponent_memo
          pitcher_id appearance_situation_id]

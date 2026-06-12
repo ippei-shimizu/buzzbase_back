@@ -30,7 +30,7 @@ module Stats
     # @param plate_appearance [PlateAppearance] 対象の打席
     # @return [String] 例: "中安"、"三ゴロ"、"左本"。打席方向が無い結果（三振/四球など）は短縮形のみ
     def self.generate(plate_appearance)
-      direction_label = plate_appearance.hit_direction&.name.to_s
+      direction_label = ::Stats::HitDirectionAggregator::DIRECTION_LABELS[plate_appearance.hit_direction_id].to_s
       result_label = plate_appearance.plate_result&.name.to_s
       short_form = SHORT_FORMS[result_label] || result_label
       "#{direction_label}#{short_form}"
