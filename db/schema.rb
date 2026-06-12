@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_12_130002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -252,25 +252,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
     t.datetime "updated_at", null: false
   end
 
-  create_table "hit_depths", force: :cascade do |t|
-    t.string "name", null: false
-    t.integer "display_order", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["display_order"], name: "index_hit_depths_on_display_order"
-    t.index ["name"], name: "index_hit_depths_on_name", unique: true
-  end
-
-  create_table "hit_directions", force: :cascade do |t|
-    t.string "name", null: false
-    t.integer "display_order", null: false
-    t.jsonb "zone_polygon"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["display_order"], name: "index_hit_directions_on_display_order"
-    t.index ["name"], name: "index_hit_directions_on_name", unique: true
-  end
-
   create_table "management_notices", force: :cascade do |t|
     t.string "title", null: false
     t.text "body", null: false
@@ -404,7 +385,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
     t.bigint "contact_quality_id"
     t.bigint "timing_id"
     t.bigint "pitch_type_id"
-    t.bigint "hit_depth_id"
     t.text "self_analysis_memo"
     t.text "opponent_memo"
     t.decimal "hit_location_x", precision: 4, scale: 3
@@ -415,7 +395,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
-    t.index ["hit_depth_id"], name: "index_plate_appearances_on_hit_depth_id"
     t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
@@ -612,7 +591,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
   add_foreign_key "plate_appearances", "appearance_situations"
   add_foreign_key "plate_appearances", "contact_qualities"
   add_foreign_key "plate_appearances", "game_results", on_delete: :cascade
-  add_foreign_key "plate_appearances", "hit_depths"
   add_foreign_key "plate_appearances", "pitch_types"
   add_foreign_key "plate_appearances", "pitchers"
   add_foreign_key "plate_appearances", "timings"
