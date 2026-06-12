@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_11_160000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_12_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -348,6 +348,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_11_160000) do
     t.datetime "updated_at", null: false
     t.text "memo"
     t.index ["arm_angle_id"], name: "index_pitchers_on_arm_angle_id"
+    t.index ["created_by_user_id", "name"], name: "index_pitchers_on_user_name_without_team", unique: true, where: "(team_id IS NULL)"
     t.index ["created_by_user_id", "team_id", "name"], name: "index_pitchers_on_user_team_name", unique: true
     t.index ["created_by_user_id"], name: "index_pitchers_on_created_by_user_id"
     t.index ["pitcher_style_id"], name: "index_pitchers_on_pitcher_style_id"
