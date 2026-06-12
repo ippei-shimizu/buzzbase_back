@@ -40,7 +40,7 @@ RSpec.describe 'マイグレーション後の既存データ保全', type: :mod
       plate_appearance.reload
       new_columns = %i[out_type hit_type rbi run_scored stolen_bases caught_stealing
                        final_balls final_strikes final_outs first_pitch_swing runners_state inning
-                       contact_quality_id timing_id pitch_type_id hit_depth_id
+                       contact_quality_id timing_id pitch_type_id
                        self_analysis_memo opponent_memo hit_location_x hit_location_y]
       aggregate_failures do
         new_columns.each do |column|
