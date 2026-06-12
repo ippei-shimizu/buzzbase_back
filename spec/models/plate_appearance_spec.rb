@@ -4,12 +4,10 @@ RSpec.describe PlateAppearance, type: :model do
   describe 'associations' do
     it { should belong_to(:game_result) }
     it { should belong_to(:user) }
-    it { should belong_to(:hit_direction).optional }
     it { should belong_to(:plate_result).optional }
     it { should belong_to(:contact_quality).optional }
     it { should belong_to(:timing).optional }
     it { should belong_to(:pitch_type).optional }
-    it { should belong_to(:hit_depth).optional }
   end
 
   describe 'enums' do

@@ -26,20 +26,6 @@ RSpec.describe 'マスタシードの不変性と冪等性', type: :model do
     end
   end
 
-  describe 'hit_directions の ID/name 完全一致' do
-    it '投 = 1' do
-      expect(HitDirection.find(1).name).to eq('投')
-    end
-
-    it '中 = 10' do
-      expect(HitDirection.find(10).name).to eq('中')
-    end
-
-    it '右線 = 13（既存 plate_appearances.hit_direction_id の最大値）' do
-      expect(HitDirection.find(13).name).to eq('右線')
-    end
-  end
-
   describe '冪等性' do
     it 'MasterData::Seeder.from_yaml を再実行しても件数が増えない' do
       before_count = PitchType.count
@@ -52,12 +38,6 @@ RSpec.describe 'マスタシードの不変性と冪等性', type: :model do
       MasterData::Seeder.from_yaml(ActiveRecord::Base.connection, table: 'pitch_types', file: 'pitch_types.yml')
       after_names = PitchType.order(:id).pluck(:id, :name)
       expect(after_names).to eq(before_names)
-    end
-
-    it 'MasterData::Seeder.from_yaml (hit_directions) を再実行しても件数が増えない' do
-      before_count = HitDirection.count
-      MasterData::Seeder.from_yaml(ActiveRecord::Base.connection, table: 'hit_directions', file: 'hit_directions.yml')
-      expect(HitDirection.count).to eq(before_count)
     end
   end
 

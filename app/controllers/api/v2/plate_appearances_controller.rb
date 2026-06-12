@@ -61,7 +61,7 @@ module Api
         return if render_forbidden_if_private!(game_result.user)
 
         plate_appearances = PlateAppearance.where(game_result_id: game_result.id)
-                                           .includes(:contact_quality, :timing, :pitch_type, :hit_depth,
+                                           .includes(:contact_quality, :timing, :pitch_type,
                                                      :appearance_situation,
                                                      pitcher: %i[arm_angle velocity_zone pitcher_style])
                                            .order(:batter_box_number)
@@ -89,7 +89,7 @@ module Api
           :rbi, :run_scored, :stolen_bases, :caught_stealing,
           :final_balls, :final_strikes, :final_outs,
           :first_pitch_swing, :runners_state, :inning,
-          :contact_quality_id, :timing_id, :pitch_type_id, :hit_depth_id,
+          :contact_quality_id, :timing_id, :pitch_type_id,
           :self_analysis_memo, :opponent_memo,
           :pitcher_id, :appearance_situation_id
         )

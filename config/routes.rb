@@ -232,8 +232,6 @@ Rails.application.routes.draw do
       resources :pitch_types, only: :index
       resources :contact_qualities, only: :index
       resources :timings, only: :index
-      resources :hit_depths, only: :index
-      resources :hit_directions, only: :index
       resources :arm_angles, only: :index
       resources :velocity_zones, only: :index
       resources :pitcher_styles, only: :index
