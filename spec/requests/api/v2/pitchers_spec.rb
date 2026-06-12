@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe 'Api::V2::Pitchers', type: :request do
   let(:user) { create(:user) }
   let(:other_user) { create(:user) }
-  let!(:arm_angle) { ArmAngle.first }
+  let!(:arm_angle) { ArmAngle.find_by!(name: 'オーバースロー') }
 
   describe 'GET /api/v2/pitchers' do
     before do
