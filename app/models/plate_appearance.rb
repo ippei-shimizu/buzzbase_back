@@ -31,4 +31,10 @@ class PlateAppearance < ApplicationRecord
   # DB の precision: 4, scale: 3 は範囲外値を許してしまうため、モデル側で防ぐ。
   validates :hit_location_x, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
   validates :hit_location_y, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
+
+  # hit_directions マスタ撤廃に伴い AR レベルの参照整合性チェックが無くなったため、
+  # DIRECTION_LABELS (1〜13) を SSoT として inclusion で範囲を保証する。
+  validates :hit_direction_id,
+            inclusion: { in: ::Stats::HitDirectionAggregator::DIRECTION_LABELS.keys },
+            allow_nil: true
 end

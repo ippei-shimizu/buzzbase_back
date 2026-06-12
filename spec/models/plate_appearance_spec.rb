@@ -76,6 +76,32 @@ RSpec.describe PlateAppearance, type: :model do
     end
   end
 
+  describe 'hit_direction_id の範囲バリデーション' do
+    let(:plate_appearance) { build(:plate_appearance) }
+
+    it '1〜13 の範囲内は valid' do
+      plate_appearance.hit_direction_id = 10
+      expect(plate_appearance).to be_valid
+    end
+
+    it 'nil は valid（打席方向なし結果に対応）' do
+      plate_appearance.hit_direction_id = nil
+      expect(plate_appearance).to be_valid
+    end
+
+    it '範囲外（0）は invalid' do
+      plate_appearance.hit_direction_id = 0
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:hit_direction_id]).to be_present
+    end
+
+    it '範囲外（14）は invalid' do
+      plate_appearance.hit_direction_id = 14
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:hit_direction_id]).to be_present
+    end
+  end
+
   describe 'hit_location の範囲バリデーション' do
     let(:pa) { build(:plate_appearance) }
 
