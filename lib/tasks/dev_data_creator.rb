@@ -582,17 +582,17 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
       return if game_result.match_result.appearance_type == 'no_play'
 
       plate_result_records = PlateResult.where(name: PLATE_RESULT_OUTCOMES).to_a
-      hit_direction_records = HitDirection.all.to_a
+      hit_direction_ids = ::Stats::HitDirectionAggregator::DIRECTION_LABELS.keys
       batter_box_count = rand(3..5)
       batter_box_count.times do |index|
         plate_result = plate_result_records.sample
-        hit_direction = plate_result.hit_direction_required ? hit_direction_records.sample : nil
+        hit_direction_id = plate_result.hit_direction_required ? hit_direction_ids.sample : nil
         PlateAppearance.create!(
           game_result:, user:,
           batter_box_number: index + 1,
           batting_result: plate_result.name,
           plate_result_id: plate_result.id,
-          hit_direction_id: hit_direction&.id,
+          hit_direction_id:,
           batting_position_id: nil,
           is_new_format: false,
           created_at: game_time + index.minutes,

@@ -4,7 +4,7 @@
 
 RSpec.configure do |config|
   config.before(:suite) do
-    %w[hit_directions plate_results pitch_types contact_qualities timings hit_depths
+    %w[plate_results pitch_types contact_qualities timings
        arm_angles velocity_zones pitcher_styles appearance_situations].each do |table|
       MasterData::Seeder.from_yaml(ActiveRecord::Base.connection, table:, file: "#{table}.yml")
     end

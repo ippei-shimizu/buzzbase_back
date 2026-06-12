@@ -2,15 +2,13 @@
 # - masters:reseed   — db/data/master_seeds/*.yml を再投入する（開発時用）
 # - masters:snapshot — 既存データの件数と digest を出力（マイグレーション前後の比較用）
 
-# 試合記録アップデート (issue #330) で導入したマスタ群。
+# 試合記録アップデートで導入したマスタ群。
 # 順序は schema 依存しないが、ログ出力の見やすさのため固定する。
 GAME_RECORD_MASTER_TABLES = %w[
-  hit_directions
   plate_results
   pitch_types
   contact_qualities
   timings
-  hit_depths
 ].freeze
 
 namespace :masters do

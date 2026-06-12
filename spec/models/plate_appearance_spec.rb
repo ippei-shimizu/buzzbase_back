@@ -4,12 +4,10 @@ RSpec.describe PlateAppearance, type: :model do
   describe 'associations' do
     it { should belong_to(:game_result) }
     it { should belong_to(:user) }
-    it { should belong_to(:hit_direction).optional }
     it { should belong_to(:plate_result).optional }
     it { should belong_to(:contact_quality).optional }
     it { should belong_to(:timing).optional }
     it { should belong_to(:pitch_type).optional }
-    it { should belong_to(:hit_depth).optional }
   end
 
   describe 'enums' do
@@ -75,6 +73,32 @@ RSpec.describe PlateAppearance, type: :model do
       pa.reload
       expect(pa.self_analysis_memo).to eq('差し込まれた')
       expect(pa.opponent_memo).to eq('右投げ、変化球多め')
+    end
+  end
+
+  describe 'hit_direction_id の範囲バリデーション' do
+    let(:plate_appearance) { build(:plate_appearance) }
+
+    it '1〜13 の範囲内は valid' do
+      plate_appearance.hit_direction_id = 10
+      expect(plate_appearance).to be_valid
+    end
+
+    it 'nil は valid（打席方向なし結果に対応）' do
+      plate_appearance.hit_direction_id = nil
+      expect(plate_appearance).to be_valid
+    end
+
+    it '範囲外（0）は invalid' do
+      plate_appearance.hit_direction_id = 0
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:hit_direction_id]).to be_present
+    end
+
+    it '範囲外（14）は invalid' do
+      plate_appearance.hit_direction_id = 14
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:hit_direction_id]).to be_present
     end
   end
 

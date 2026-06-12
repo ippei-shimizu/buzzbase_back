@@ -19,7 +19,7 @@ RSpec.describe Stats::BattingResultTextGenerator, type: :service do
       it "hit_direction_id=#{direction_id} + plate_result_id=#{result_id} で #{expected_text} を返す" do
         plate_appearance = build_stubbed(
           :plate_appearance,
-          hit_direction: HitDirection.find(direction_id),
+          hit_direction_id: direction_id,
           plate_result: PlateResult.find(result_id)
         )
         expect(described_class.generate(plate_appearance)).to eq(expected_text)
@@ -27,11 +27,11 @@ RSpec.describe Stats::BattingResultTextGenerator, type: :service do
     end
     # rubocop:enable Style/HashEachMethods
 
-    context '打球方向なし結果（hit_direction が nil）' do
-      it '三振は短縮形のみ（hit_direction が nil）' do
+    context '打球方向なし結果（hit_direction_id が nil）' do
+      it '三振は短縮形のみ（hit_direction_id が nil）' do
         plate_appearance = build_stubbed(
           :plate_appearance,
-          hit_direction: nil,
+          hit_direction_id: nil,
           plate_result: PlateResult.find(13) # 三振
         )
         expect(described_class.generate(plate_appearance)).to eq('三振')
@@ -40,14 +40,14 @@ RSpec.describe Stats::BattingResultTextGenerator, type: :service do
       it '四球は短縮形のみ' do
         plate_appearance = build_stubbed(
           :plate_appearance,
-          hit_direction: nil,
+          hit_direction_id: nil,
           plate_result: PlateResult.find(15) # 四球
         )
         expect(described_class.generate(plate_appearance)).to eq('四球')
       end
 
       it 'plate_result も nil の場合は空文字' do
-        plate_appearance = build_stubbed(:plate_appearance, hit_direction: nil, plate_result: nil)
+        plate_appearance = build_stubbed(:plate_appearance, hit_direction_id: nil, plate_result: nil)
         expect(described_class.generate(plate_appearance)).to eq('')
       end
     end
