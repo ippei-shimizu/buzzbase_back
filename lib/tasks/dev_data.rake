@@ -5,14 +5,14 @@
 # rake dev_data:reset   -- DB再作成 + setup
 
 require_relative 'dev_data_creator'
-namespace :dev_data do
+namespace :dev_data do # rubocop:disable Metrics/BlockLength
   desc '開発環境データを一括作成（マスターデータ + サンプルデータ）'
   task setup: :environment do
     Rake::Task['dev_data:master'].invoke
     Rake::Task['dev_data:sample'].invoke
   end
 
-  desc 'マスターデータを作成（Position, Prefecture, BaseballCategory, Admin::User）'
+  desc 'マスターデータを作成（Position, Prefecture, BaseballCategory, Admin::User, Award, Tournament）'
   task master: :environment do
     Rails.logger.debug 'Creating master data...'
 
@@ -20,13 +20,15 @@ namespace :dev_data do
     DevDataCreator.create_prefectures
     DevDataCreator.create_baseball_categories
     DevDataCreator.create_admin_user
+    DevDataCreator.create_awards
+    DevDataCreator.create_tournaments
 
     Rake::Task['masters:reseed'].invoke
 
     Rails.logger.debug 'Master data creation completed!'
   end
 
-  desc 'サンプルデータを作成（Users, Teams, GameResults等）— マスターデータが必要'
+  desc 'サンプルデータを作成（Users, Teams, GameResults, PlateAppearances等）— マスターデータが必要'
   task sample: :environment do
     if Position.count.zero?
       Rails.logger.debug 'Position data not found. Please run `rake dev_data:master` first.'
@@ -37,13 +39,17 @@ namespace :dev_data do
 
     users = DevDataCreator.create_users
     teams = DevDataCreator.create_teams
+    DevDataCreator.create_seasons(users)
     DevDataCreator.create_game_results(users, teams)
+    DevDataCreator.create_user_awards(users)
+    DevDataCreator.create_device_tokens(users)
     DevDataCreator.create_relationships(users)
     private_users = DevDataCreator.setup_private_accounts(users)
     DevDataCreator.create_pending_follow_requests(users, private_users)
     DevDataCreator.create_follow_notifications
     DevDataCreator.create_groups(users)
     DevDataCreator.create_baseball_notes(users)
+    DevDataCreator.apply_user_lifecycle_states(users)
     DevDataCreator.print_summary
 
     Rails.logger.debug 'Sample data creation completed!'
