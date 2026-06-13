@@ -1,8 +1,9 @@
 module Stats
   # game_result 単位で batting_average レコードを再集計するサービス。
   #
-  # 「新仕様試合」（is_new_format = true の plate_appearance が1件以上ある試合）のみを対象とする。
-  # 旧仕様試合（v1 で作成された既存試合）の batting_average は触らない。
+  # 「新仕様試合」（全 plate_appearance が is_new_format=true の試合）のみを対象とする。
+  # 旧 PA が 1 件でも含まれる混在試合や旧仕様試合は、旧フローで直書きされた集計値を
+  # 保護するため再集計対象外。
   #
   # 計算ロジックは plate_result_id ベースで、mobile/constants/battingData.ts:109-162
   # computeBattingStats と整合する結果になるよう設計されている（plate_results.counted_in_at_bats
