@@ -183,11 +183,66 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
     high_score: { my_team_score: 18, opponent_team_score: 15 }
   }.freeze
 
-  # PlateResult のうち打席で使われる選択肢。v1 形式（is_new_format = false）の
-  # plate_appearances を作るために `name` 文字列で扱う。
-  PLATE_RESULT_OUTCOMES = %w[ゴロ フライ ライナー エラー フィルダースチョイス
-                             ヒット 二塁打 三塁打 本塁打 犠打 犠飛
-                             三振 振り逃げ 四球 死球 打撃妨害 併殺打].freeze
+  # mobile/constants/battingData.ts の battingResultsList と同等の id↔name マッピング。
+  # 旧仕様の plate_appearances を生成するため、id を直接整数で扱う。
+  PLATE_RESULT_LABELS = {
+    1 => 'ゴロ', 2 => 'フライ', 3 => 'ファールフライ', 4 => 'ライナー',
+    5 => 'エラー', 6 => 'フィルダースチョイス', 7 => 'ヒット',
+    8 => '二塁打', 9 => '三塁打', 10 => '本塁打',
+    11 => '犠打', 12 => '犠飛', 13 => '三振', 14 => '振り逃げ',
+    15 => '四球', 16 => '死球', 17 => '打撃妨害',
+    18 => '走塁妨害', 19 => '併殺打'
+  }.freeze
+
+  # mobile/constants/battingData.ts の battingResultsPositions と同等。
+  # 旧 batting_position_id 列には 1-9 のみが入るが、batting_result の連結文字列は
+  # mobile クライアントが 1-13 のラベルを使って組み立てる（実際の hit_direction_id ベース）。
+  POSITION_LABELS = {
+    1 => '投', 2 => '捕', 3 => '一', 4 => '二', 5 => '三', 6 => '遊',
+    7 => '左線', 8 => '左', 9 => '左中', 10 => '中', 11 => '右中', 12 => '右', 13 => '右線'
+  }.freeze
+
+  # mobile/constants/battingData.ts の resultShortForms と同等。
+  # 該当しない結果名はそのまま（"三振" → "三振"）。
+  RESULT_SHORT_FORMS = {
+    'ヒット' => '安', '二塁打' => '二', '三塁打' => '三', '本塁打' => '本',
+    'ゴロ' => 'ゴ', 'フライ' => '飛',
+    '打撃妨害' => '打妨', '走塁妨害' => '走妨', '併殺打' => '併'
+  }.freeze
+
+  # mobile/constants/battingData.ts の hitDirectionToLegacy と同等。
+  # 1-13 の hit_direction_id を 1-9 の batting_position_id に縮約する。
+  HIT_DIRECTION_TO_LEGACY = {
+    1 => 1, 2 => 2, 3 => 3, 4 => 4, 5 => 5, 6 => 6,
+    7 => 7, 8 => 7, 9 => 7, 10 => 8, 11 => 9, 12 => 9, 13 => 9
+  }.freeze
+
+  # mobile/constants/battingData.ts の HIT_DIRECTION_DISABLED_RESULT_IDS と同等。
+  # 三振・振り逃げ・四球・死球・打撃妨害・走塁妨害は打球方向の概念がない。
+  NO_DIRECTION_RESULT_IDS = [13, 14, 15, 16, 17, 18].freeze
+
+  # 本番 plate_appearances テーブルの plate_result_id 分布（2026-06-13 時点の実測値）。
+  # docs/strategy/product/game-record-update-release-risk-analysis.md のクエリ A 由来。
+  PLATE_RESULT_WEIGHTS = {
+    1 => 2769, 7 => 2757, 2 => 1930, 15 => 1837, 13 => 1835,
+    8 => 836, 5 => 549, 16 => 315, 11 => 287, 9 => 287,
+    4 => 286, 10 => 285, 3 => 128, 12 => 115, 14 => 92,
+    6 => 62, 19 => 51, 18 => 7, 17 => 4
+  }.freeze
+
+  # 本番 hit_direction_id 分布（NULL を除く）。クエリ C 由来。
+  HIT_DIRECTION_WEIGHTS = {
+    10 => 754, 8 => 735, 6 => 693, 5 => 671, 4 => 595, 12 => 535,
+    3 => 446, 1 => 443, 9 => 245, 7 => 245, 2 => 121, 11 => 115, 13 => 57
+  }.freeze
+
+  # plate_result_id ごとの「hit_direction_id が埋まる確率」。本番のクエリ A 由来。
+  # 方向不要結果（NO_DIRECTION_RESULT_IDS）は常に nil なのでキーを持たない。
+  DIRECTION_FILL_RATE = {
+    1 => 0.54, 2 => 0.57, 3 => 0.52, 4 => 0.54, 5 => 0.58, 6 => 0.42,
+    7 => 0.55, 8 => 0.55, 9 => 0.46, 10 => 0.56,
+    11 => 0.59, 12 => 0.35, 19 => 0.31
+  }.freeze
 
   class << self
     def create_positions
@@ -575,30 +630,87 @@ class DevDataCreator # rubocop:disable Metrics/ClassLength
       game_result.update!(pitching_result_id: pitching_result.id)
     end
 
-    # v1 形式の打席記録を生成する（is_new_format = false）。
-    # 集計値（batting_average）との整合は厳密には取らないが、
-    # 打席数の概観として 3〜5 打席ずつ残しておくと検索 / 表示 UI のテストに足る。
+    # 旧仕様準拠で 1 試合分の plate_appearances を生成する。
+    # 本番 DB から取得した plate_result_id / hit_direction_id 出現頻度を重み付けして
+    # mobile の getResultText と同等のラベル連結で batting_result を組み立てる。
+    # 新仕様カラム（rbi / run_scored / hit_location_x 等）は触らず、is_new_format も
+    # default の false のままにすることで、本番旧 PA と等価な状態を再現する。
     def create_plate_appearances(user, game_result, game_time)
       return if game_result.match_result.appearance_type == 'no_play'
 
-      plate_result_records = PlateResult.where(name: PLATE_RESULT_OUTCOMES).to_a
-      hit_direction_ids = ::Stats::HitDirectionAggregator::DIRECTION_LABELS.keys
       batter_box_count = rand(3..5)
       batter_box_count.times do |index|
-        plate_result = plate_result_records.sample
-        hit_direction_id = plate_result.hit_direction_required ? hit_direction_ids.sample : nil
+        plate_result_id = pick_weighted(PLATE_RESULT_WEIGHTS)
+        hit_direction_id = sample_hit_direction(plate_result_id)
+        batting_position_id = derive_batting_position_id(plate_result_id, hit_direction_id)
+        batting_result = build_batting_result(plate_result_id, hit_direction_id, batting_position_id)
+        timestamp = game_time + index.minutes
+
         PlateAppearance.create!(
           game_result:, user:,
           batter_box_number: index + 1,
-          batting_result: plate_result.name,
-          plate_result_id: plate_result.id,
+          batting_result:,
+          plate_result_id:,
+          batting_position_id:,
           hit_direction_id:,
-          batting_position_id: nil,
           is_new_format: false,
-          created_at: game_time + index.minutes,
-          updated_at: game_time + index.minutes
+          created_at: timestamp,
+          updated_at: timestamp
         )
       end
+    end
+
+    # 重み付きランダム選択（Hash{key => weight} → key）。
+    def pick_weighted(weights)
+      total = weights.values.sum
+      threshold = rand(total)
+      cumulative = 0
+      weights.each do |key, weight|
+        cumulative += weight
+        return key if threshold < cumulative
+      end
+      weights.keys.last
+    end
+
+    # plate_result_id に応じて hit_direction_id を決める。
+    # 方向不要結果は常に nil。それ以外は本番の埋まり率（DIRECTION_FILL_RATE）に従い、
+    # 埋める場合は本番の方向別出現頻度（HIT_DIRECTION_WEIGHTS）でランダム選択。
+    def sample_hit_direction(plate_result_id)
+      return nil if NO_DIRECTION_RESULT_IDS.include?(plate_result_id)
+
+      fill_rate = DIRECTION_FILL_RATE[plate_result_id] || 0.0
+      return nil if rand >= fill_rate
+
+      pick_weighted(HIT_DIRECTION_WEIGHTS)
+    end
+
+    # batting_position_id（1-9 の旧守備位置）を導出する。
+    # 方向ありなら HIT_DIRECTION_TO_LEGACY で 1-9 にマップ、方向なしは
+    # 本番分布に近い「0（未選択）が大多数、一部 NULL」をシミュレートする。
+    def derive_batting_position_id(plate_result_id, hit_direction_id)
+      return HIT_DIRECTION_TO_LEGACY[hit_direction_id] if hit_direction_id
+
+      return nil if NO_DIRECTION_RESULT_IDS.include?(plate_result_id) && rand < 0.12
+
+      0
+    end
+
+    # mobile/constants/battingData.ts の getResultText(positionId, resultId) と同等。
+    # mobile クライアントは hit_direction_id (1-13) のラベルを使って連結するため、
+    # ここも hit_direction_id 優先で POSITION_LABELS を引く。hit_direction_id が無く
+    # batting_position_id だけある場合は batting_position_id の値で引く（fallback）。
+    def build_batting_result(plate_result_id, hit_direction_id, batting_position_id)
+      position_label = position_label_for(hit_direction_id, batting_position_id)
+      result_name = PLATE_RESULT_LABELS[plate_result_id] || ''
+      short_form = RESULT_SHORT_FORMS[result_name] || result_name
+      "#{position_label}#{short_form}"
+    end
+
+    def position_label_for(hit_direction_id, batting_position_id)
+      return POSITION_LABELS[hit_direction_id] || '' if hit_direction_id
+      return '' if batting_position_id.nil? || batting_position_id.zero?
+
+      POSITION_LABELS[batting_position_id] || ''
     end
 
     def ensure_enough_following(owner, users, target:)
