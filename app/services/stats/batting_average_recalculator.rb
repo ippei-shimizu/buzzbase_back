@@ -31,15 +31,17 @@ module Stats
       @cleanup_orphan = cleanup_orphan
     end
 
-    # 対象試合が新仕様試合なら batting_average を再集計して保存する。
-    # 新仕様試合でなく cleanup_orphan が true の場合、対応する batting_average を削除する
+    # 対象試合が新仕様試合（全 PA が is_new_format=true）なら batting_average を再集計して保存する。
+    # 旧 PA が 1 件でも残っている試合では何もしない（既存集計値を保護）。
+    # cleanup_orphan が true かつ PA が完全に 0 件のとき、対応する batting_average を削除する
     # （v2 で新仕様試合の最後の打席を削除した時の孤立レコード対策）。
-    # 旧仕様試合の場合（cleanup_orphan が false）は何もしない（既存集計値を保持）。
+    # PA に旧 PA が含まれる「混在試合」のケースでは旧フローで直書きされた集計値を
+    # 上書きしないよう、cleanup_orphan が true であっても触らない。
     #
     # @return [BattingAverage, nil] 更新後のレコード。再集計しない場合や削除した場合は nil
     def call
       return recalculate_and_save if new_format_game?
-      return cleanup_orphaned_batting_average if @cleanup_orphan
+      return cleanup_orphaned_batting_average if @cleanup_orphan && plate_appearances_empty?
 
       nil
     end
@@ -63,9 +65,18 @@ module Stats
       @user_id || GameResult.find(@game_result_id).user_id
     end
 
-    # is_new_format フラグが立った打席が1件でもあれば新仕様試合
+    # 「全 PA が is_new_format=true かつ PA が 1 件以上」のときだけ新仕様試合と判定する。
+    # 1 件でも旧 PA (is_new_format=false) が含まれる混在試合では false を返し、
+    # 旧フローで batting_averages に直書きされた集計値を保護する。
     def new_format_game?
-      PlateAppearance.exists?(game_result_id: @game_result_id, is_new_format: true)
+      game_pa_relation = PlateAppearance.where(game_result_id: @game_result_id)
+      game_pa_relation.exists? && !game_pa_relation.exists?(is_new_format: false)
+    end
+
+    # 試合に紐づく PA が 1 件も無い状態かどうか。
+    # cleanup_orphan の発動条件として使う（混在試合や旧仕様試合では false になるため誤発動を防ぐ）。
+    def plate_appearances_empty?
+      !PlateAppearance.exists?(game_result_id: @game_result_id)
     end
 
     # 全カラム一気に組み立てる都合上 ABC が高くなるが、各行は独立した集計式で複雑度は低いため許容する。
