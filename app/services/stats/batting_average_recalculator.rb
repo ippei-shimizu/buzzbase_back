@@ -69,9 +69,12 @@ module Stats
     # 「全 PA が is_new_format=true かつ PA が 1 件以上」のときだけ新仕様試合と判定する。
     # 1 件でも旧 PA (is_new_format=false) が含まれる混在試合では false を返し、
     # 旧フローで batting_averages に直書きされた集計値を保護する。
+    # マイグレーション期間中は旧 PA を含む試合が多数になるため、is_new_format=false の
+    # 存在チェックを先に評価して 1 クエリで早期 return できるようにする。
     def new_format_game?
-      game_pa_relation = PlateAppearance.where(game_result_id: @game_result_id)
-      game_pa_relation.exists? && !game_pa_relation.exists?(is_new_format: false)
+      return false if PlateAppearance.exists?(game_result_id: @game_result_id, is_new_format: false)
+
+      PlateAppearance.exists?(game_result_id: @game_result_id)
     end
 
     # 試合に紐づく PA が 1 件も無い状態かどうか。
