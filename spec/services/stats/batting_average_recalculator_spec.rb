@@ -109,6 +109,52 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
       end
     end
 
+    context '混在試合（旧 PA と新 PA が同じ game_result に存在）' do
+      let!(:existing_batting_average) do
+        create(:batting_average, game_result:, user:,
+                                 runs_batted_in: 3, run: 2, stealing_base: 1, caught_stealing: 0,
+                                 hit: 2, two_base_hit: 1, home_run: 0, at_bats: 4)
+      end
+
+      before do
+        # 旧 PA 3 件（is_new_format=false, per-PA カラムは NULL）
+        3.times do |i|
+          create(:plate_appearance, game_result:, user:,
+                                    batter_box_number: i + 1, plate_result_id: 7,
+                                    is_new_format: false, batting_result: '中安')
+        end
+        # 新 PA 1 件（is_new_format=true, per-PA カラムに値あり）
+        create(:plate_appearance, game_result:, user:,
+                                  batter_box_number: 4, plate_result_id: 7,
+                                  is_new_format: true, batting_result: '左安',
+                                  rbi: 1, run_scored: 0, stolen_bases: 0, caught_stealing: 0)
+      end
+
+      it 'call は nil を返し、既存 batting_average の値を改変しない' do
+        result = described_class.new(game_result_id: game_result.id).call
+
+        expect(result).to be_nil
+        existing_batting_average.reload
+        aggregate_failures do
+          expect(existing_batting_average.runs_batted_in).to eq(3)
+          expect(existing_batting_average.run).to eq(2)
+          expect(existing_batting_average.stealing_base).to eq(1)
+          expect(existing_batting_average.hit).to eq(2)
+          expect(existing_batting_average.at_bats).to eq(4)
+        end
+      end
+
+      context '新 PA を全削除して旧 PA だけが残った後、cleanup_orphan: true で呼ばれた場合' do
+        it '旧仕様試合に戻ったとみなして既存 batting_average を destroy しない' do
+          PlateAppearance.where(game_result_id: game_result.id, is_new_format: true).destroy_all
+
+          expect do
+            described_class.new(game_result_id: game_result.id, cleanup_orphan: true).call
+          end.not_to(change { BattingAverage.where(game_result_id: game_result.id).count })
+        end
+      end
+    end
+
     context 'user_id を引数で渡した場合' do
       before do
         create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
