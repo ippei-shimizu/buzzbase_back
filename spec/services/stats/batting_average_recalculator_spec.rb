@@ -79,6 +79,29 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
       end
     end
 
+    context '旧仕様試合に cleanup_orphan: true が渡されたケース' do
+      let!(:existing_batting_average) do
+        create(:batting_average, game_result:, user:,
+                                 at_bats: 99, hit: 88, total_bases: 77)
+      end
+
+      before do
+        create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
+                                  is_new_format: false, batting_result: '中安')
+      end
+
+      it 'plate_appearances_empty? が false なので batting_average は destroy されず値も改変されない' do
+        described_class.new(game_result_id: game_result.id, cleanup_orphan: true).call
+
+        existing_batting_average.reload
+        aggregate_failures do
+          expect(existing_batting_average.at_bats).to eq(99)
+          expect(existing_batting_average.hit).to eq(88)
+          expect(existing_batting_average.total_bases).to eq(77)
+        end
+      end
+    end
+
     context '新仕様試合で batting_average レコードがまだ無い場合' do
       before do
         create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
