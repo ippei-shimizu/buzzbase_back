@@ -214,4 +214,22 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       )
     end
   end
+
+  describe 'GET /api/v2/stats/count_situations' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/count_situations'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa' do
+      get('/api/v2/stats/count_situations', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('first_pitch', 'favorable_count', 'pinch_count', 'total_target_pa')
+      %w[first_pitch favorable_count pinch_count].each do |key|
+        expect(json[key]).to include('at_bats', 'hits', 'batting_average')
+      end
+    end
+  end
 end
