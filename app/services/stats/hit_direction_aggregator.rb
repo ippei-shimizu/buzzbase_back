@@ -39,6 +39,17 @@ module Stats
       @tournament_id = tournament_id
     end
 
+    # 方向別の打球集計を返す。
+    #
+    # @return [Hash{Symbol=>Array<Hash>}] :directions と :home_runs を持つハッシュ。
+    #   `directions` の各要素はキー `:count` と `:hits` の意味が異なる点に注意：
+    #   - `count`: 本塁打を **除いた** 打球数。スキャッターチャート（バブル）の
+    #     方向別件数として表示するために、本塁打を別グループ (`home_runs`) に
+    #     寄せて二重表示しない設計になっている。
+    #   - `hits`: 本塁打を **含む** 安打数（単打・二塁打・三塁打・本塁打の合計）。
+    #     方向別の打率計算 (hits / at_bats) で使うため。
+    #   そのため、ある方向が本塁打のみのときは `count: 0, hits: 1, home_run: 1`
+    #   になり得る。フロントで `count < hits` を検知しても異常ではない。
     def call
       dir_categories = aggregate_direction_categories
       dir_stats = aggregate_direction_stats
