@@ -27,21 +27,34 @@ module Stats
 
     # @return [Hash] at_bats / hits / two_base_hit / three_base_hit / home_run / batting_average
     def call
-      scope = filtered_scope
-      at_bats = scope.joins(:plate_result).where(plate_results: { counted_in_at_bats: true }).count
-      hits = scope.where(plate_result_id: HIT_RESULT_IDS).count
-
+      counts = aggregate_counts
       {
-        batting_average: safe_divide(hits, at_bats),
-        at_bats:,
-        hits:,
-        two_base_hit: scope.where(plate_result_id: DOUBLE_HIT_ID).count,
-        three_base_hit: scope.where(plate_result_id: TRIPLE_HIT_ID).count,
-        home_run: scope.where(plate_result_id: HOME_RUN_ID).count
+        batting_average: safe_divide(counts[:hits], counts[:at_bats]),
+        at_bats: counts[:at_bats],
+        hits: counts[:hits],
+        two_base_hit: counts[:two_base_hit],
+        three_base_hit: counts[:three_base_hit],
+        home_run: counts[:home_run]
       }
     end
 
     private
+
+    # COUNT(*) FILTER (WHERE ...) で 5 つのカウントを 1 クエリにまとめる。
+    # join した plate_results.counted_in_at_bats と plate_appearances.plate_result_id の
+    # 両方を FILTER 条件で使う。
+    def aggregate_counts
+      sql = <<~SQL.squish
+        COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE) AS at_bats,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')})) AS hits,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{DOUBLE_HIT_ID}) AS two_base_hit,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{TRIPLE_HIT_ID}) AS three_base_hit,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{HOME_RUN_ID}) AS home_run
+      SQL
+      row = filtered_scope.joins(:plate_result).pick(Arel.sql(sql))
+      values = Array.wrap(row).map(&:to_i)
+      %i[at_bats hits two_base_hit three_base_hit home_run].zip(values).to_h
+    end
 
     def filtered_scope
       scope = PlateAppearance.joins(game_result: :match_result)
