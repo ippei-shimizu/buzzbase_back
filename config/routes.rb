@@ -220,6 +220,8 @@ Rails.application.routes.draw do
         get :pitching, on: :member
         get :era_trend, on: :member
         get :game_summary, on: :member
+        get :headline_stats, on: :member
+        get :runners_situation, on: :member
       end
 
       resources :plate_appearances, only: %i[create update destroy] do
