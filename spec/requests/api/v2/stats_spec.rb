@@ -132,4 +132,40 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(json['recent_form'].first['match_type']).to eq('regular')
     end
   end
+
+  describe 'GET /api/v2/stats/headline_stats' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/headline_stats'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with the 7 headline indicators and at_bats' do
+      get('/api/v2/stats/headline_stats', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'batting_average', 'hit', 'home_run', 'runs_batted_in',
+        'on_base_percentage', 'slugging_percentage', 'ops', 'at_bats'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/runners_situation' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/runners_situation'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with scoring position aggregation' do
+      get('/api/v2/stats/runners_situation', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'batting_average', 'at_bats', 'hits',
+        'two_base_hit', 'three_base_hit', 'home_run'
+      )
+    end
+  end
 end
