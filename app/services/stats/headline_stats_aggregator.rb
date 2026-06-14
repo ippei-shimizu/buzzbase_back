@@ -44,8 +44,10 @@ module Stats
 
     # 8 カラムの SUM を 1 クエリで取得する。scope.sum を都度呼ぶと SELECT が
     # SUM 1 個ずつ 8 本走るため、pick + SUM で 1 本にまとめる。
+    # batting_averages の各カラムには NOT NULL 制約が無いため、SUM(NULL) で対象行が
+    # 除外されないよう COALESCE で NULL を 0 として扱う（SLG 等の過小計上を防ぐ）。
     def aggregate_stats
-      row = filtered_scope.pick(*SUM_COLUMNS.map { |col| Arel.sql("SUM(#{col})") })
+      row = filtered_scope.pick(*SUM_COLUMNS.map { |col| Arel.sql("SUM(COALESCE(#{col}, 0))") })
       values = Array.wrap(row).map(&:to_i)
       SUM_COLUMNS.zip(values).to_h
     end
