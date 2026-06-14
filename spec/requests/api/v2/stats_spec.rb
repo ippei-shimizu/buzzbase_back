@@ -168,4 +168,50 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       )
     end
   end
+
+  describe 'GET /api/v2/stats/hit_locations' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/hit_locations'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with points array' do
+      get('/api/v2/stats/hit_locations', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('points')
+      expect(json['points']).to be_an(Array)
+    end
+  end
+
+  describe 'GET /api/v2/stats/out_type_breakdown' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/out_type_breakdown'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with breakdown of out_type enum categories' do
+      get('/api/v2/stats/out_type_breakdown', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('breakdown', 'total')
+      expect(json['breakdown']).to be_an(Array)
+      expect(json['breakdown'].first).to include('category', 'count', 'percentage')
+    end
+  end
+
+  describe 'GET /api/v2/stats/hit_directions (拡張済みフィールド)' do
+    it 'returns directions with at_bats / hits / total_bases / two_base_hit / three_base_hit / home_run' do
+      get('/api/v2/stats/hit_directions', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['directions'].first).to include(
+        'id', 'label', 'count', 'top_category',
+        'at_bats', 'hits', 'two_base_hit', 'three_base_hit', 'home_run', 'total_bases'
+      )
+    end
+  end
 end

@@ -91,6 +91,28 @@ module Api
         render json: result
       end
 
+      def hit_locations
+        result = Stats::HitLocationAggregator.new(
+          user_id: target_user_id,
+          year: params[:year],
+          match_type: convert_match_type(params[:match_type]),
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
+        ).call
+        render json: result
+      end
+
+      def out_type_breakdown
+        result = Stats::OutTypeBreakdownService.new(
+          user_id: target_user_id,
+          year: params[:year],
+          match_type: convert_match_type(params[:match_type]),
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
+        ).call
+        render json: result
+      end
+
       private
 
       # 他ユーザーの成績も参照可能（公開プロフィール設計）
