@@ -40,18 +40,14 @@ module Stats
 
     private
 
+    SUM_COLUMNS = %i[at_bats hit home_run runs_batted_in base_on_balls hit_by_pitch sacrifice_fly total_bases].freeze
+
+    # 8 カラムの SUM を 1 クエリで取得する。scope.sum を都度呼ぶと SELECT が
+    # SUM 1 個ずつ 8 本走るため、pick + SUM で 1 本にまとめる。
     def aggregate_stats
-      scope = filtered_scope
-      {
-        at_bats: scope.sum(:at_bats),
-        hit: scope.sum(:hit),
-        home_run: scope.sum(:home_run),
-        runs_batted_in: scope.sum(:runs_batted_in),
-        base_on_balls: scope.sum(:base_on_balls),
-        hit_by_pitch: scope.sum(:hit_by_pitch),
-        sacrifice_fly: scope.sum(:sacrifice_fly),
-        total_bases: scope.sum(:total_bases)
-      }
+      row = filtered_scope.pick(*SUM_COLUMNS.map { |col| Arel.sql("SUM(#{col})") })
+      values = Array.wrap(row).map(&:to_i)
+      SUM_COLUMNS.zip(values).to_h
     end
 
     def filtered_scope
