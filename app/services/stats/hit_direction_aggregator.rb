@@ -150,13 +150,17 @@ module Stats
       end
     end
 
+    # call 内で aggregate_direction_categories / aggregate_direction_stats から
+    # 2 回参照されるため、同一インスタンス内では scope 構築を再利用する。
     def filtered_scope
-      scope = PlateAppearance.joins(game_result: :match_result)
-                             .where(user_id: @user_id)
-      scope = apply_year_filter(scope)
-      scope = apply_match_type_filter(scope)
-      scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
+      @filtered_scope ||= begin
+        scope = PlateAppearance.joins(game_result: :match_result)
+                               .where(user_id: @user_id)
+        scope = apply_year_filter(scope)
+        scope = apply_match_type_filter(scope)
+        scope = apply_season_filter(scope)
+        apply_tournament_filter(scope)
+      end
     end
 
     def apply_year_filter(scope)
