@@ -25,7 +25,8 @@ module Stats
     }.freeze
 
     HR_RESULT_ID = 10
-    HIT_RESULT_IDS = [7, 8, 9, 10].freeze
+    # 値の食い違いを避けるため BattingAverageRecalculator の HIT_RESULT_IDS を SSoT として参照する。
+    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
     TWO_BASE_RESULT_ID = 8
     THREE_BASE_RESULT_ID = 9
     TOTAL_BASES_PER_RESULT = { 7 => 1, 8 => 2, 9 => 3, 10 => 4 }.freeze
