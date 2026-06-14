@@ -4,7 +4,9 @@ module Stats
   class HitLocationAggregator
     # 値の食い違いを避けるため BattingAverageRecalculator の HIT_RESULT_IDS を SSoT として参照する。
     HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
-    OUT_RESULT_IDS = [1, 2, 3, 4, 19].freeze
+    # PlateAppearanceBreakdownService::CATEGORIES と分類を揃える。
+    # id:19 (併殺打) はそちらでも 'その他' 扱いなので、ここでも 'out' ではなく 'other' に落とす。
+    OUT_RESULT_IDS = [1, 2, 3, 4].freeze
 
     # @param user_id [Integer] 対象ユーザー ID
     # @param year [Integer, String, nil] 集計対象の年（nil または '通算' で全期間）
