@@ -2,7 +2,8 @@
 
 module Stats
   class HitLocationAggregator
-    HIT_RESULT_IDS = [7, 8, 9, 10].freeze
+    # 値の食い違いを避けるため BattingAverageRecalculator の HIT_RESULT_IDS を SSoT として参照する。
+    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
     OUT_RESULT_IDS = [1, 2, 3, 4, 19].freeze
 
     # @param user_id [Integer] 対象ユーザー ID
