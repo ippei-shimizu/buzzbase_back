@@ -71,5 +71,75 @@ RSpec.describe Stats::RunnersSituationAggregator, type: :service do
         end
       end
     end
+
+    context 'with year filter' do
+      before do
+        old_game = create(:game_result, user:)
+        old_game.match_result.update!(date_and_time: Time.zone.parse('2025-09-30'))
+        create(:plate_appearance, game_result: old_game, user:, batter_box_number: 1,
+                                  plate_result_id: 7, runners_state: :second, is_new_format: true)
+
+        new_game = create(:game_result, user:)
+        new_game.match_result.update!(date_and_time: Time.zone.parse('2026-04-01'))
+        create(:plate_appearance, game_result: new_game, user:, batter_box_number: 1,
+                                  plate_result_id: 8, runners_state: :third, is_new_format: true)
+      end
+
+      it 'only counts plate_appearances within the year' do
+        result = described_class.new(user_id: user.id, year: 2026).call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(1)
+          expect(result[:hits]).to eq(1)
+          expect(result[:two_base_hit]).to eq(1)
+        end
+      end
+    end
+
+    context 'with match_type filter' do
+      before do
+        regular_game = create(:game_result, user:)
+        regular_game.match_result.update!(match_type: 'regular')
+        create(:plate_appearance, game_result: regular_game, user:, batter_box_number: 1,
+                                  plate_result_id: 7, runners_state: :second, is_new_format: true)
+
+        open_game = create(:game_result, user:)
+        open_game.match_result.update!(match_type: 'open')
+        create(:plate_appearance, game_result: open_game, user:, batter_box_number: 1,
+                                  plate_result_id: 13, runners_state: :third, is_new_format: true)
+      end
+
+      it 'only counts plate_appearances whose match_results.match_type matches' do
+        result = described_class.new(user_id: user.id, match_type: 'regular').call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(1)
+          expect(result[:hits]).to eq(1)
+        end
+      end
+    end
+
+    context 'with season filter' do
+      let(:season) { create(:season, user:) }
+
+      before do
+        in_season_game = create(:game_result, user:, season:)
+        create(:plate_appearance, game_result: in_season_game, user:, batter_box_number: 1,
+                                  plate_result_id: 7, runners_state: :second, is_new_format: true)
+
+        no_season_game = create(:game_result, user:)
+        create(:plate_appearance, game_result: no_season_game, user:, batter_box_number: 1,
+                                  plate_result_id: 7, runners_state: :second, is_new_format: true)
+      end
+
+      it 'only counts plate_appearances within the season' do
+        result = described_class.new(user_id: user.id, season_id: season.id).call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(1)
+          expect(result[:hits]).to eq(1)
+        end
+      end
+    end
   end
 end
