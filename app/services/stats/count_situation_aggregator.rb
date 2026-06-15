@@ -76,11 +76,12 @@ module Stats
 
     def filtered_scope
       @filtered_scope ||= begin
-        # joins(:plate_result) は INNER JOIN なので plate_result_id IS NULL の PA は
-        # 結果セットから静かに除外される。total_target_pa を「joins 後 / 前」のどちらに
-        # 揃えるか曖昧にならないよう、scope 段階で明示的に NULL を弾く。
+        # is_new_format には index があるため、先頭でこれを当てて新仕様 PA に
+        # 絞ってから final_strikes / plate_result_id NULL の防御を重ねる。
+        # final_strikes / final_balls / first_pitch_swing 自体には index が
+        # 無く、データ量が増えるとフルスキャンになる懸念があるための前段。
         scope = PlateAppearance.joins(game_result: :match_result)
-                               .where(user_id: @user_id)
+                               .where(user_id: @user_id, is_new_format: true)
                                .where.not(final_strikes: nil)
                                .where.not(plate_result_id: nil)
         scope = apply_year_filter(scope)
