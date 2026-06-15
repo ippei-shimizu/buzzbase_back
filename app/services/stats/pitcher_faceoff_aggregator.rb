@@ -73,7 +73,12 @@ module Stats
                                    'plate_results.counted_in_at_bats')
                             .count
 
-      stats = Hash.new { |h, k| h[k] = zero_stats.dup }
+      # Hash.new のブロックで直接ハッシュリテラルを生成し、result_counts の {}
+      # も投手ごとに独立して作られることを明示する（dup の shallow copy で
+      # 共有されないかを読み手に考えさせない）。
+      stats = Hash.new do |h, k|
+        h[k] = { plate_appearances: 0, at_bats: 0, hits: 0, result_counts: {} }
+      end
       cross.each do |(pitcher_id, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
         bucket = stats[pitcher_id]
         bucket[:plate_appearances] += cnt
@@ -82,10 +87,6 @@ module Stats
         bucket[:result_counts][result_id] = bucket[:result_counts].fetch(result_id, 0) + cnt
       end
       stats
-    end
-
-    def zero_stats
-      { plate_appearances: 0, at_bats: 0, hits: 0, result_counts: {} }
     end
 
     def safe_divide(numerator, denominator)
