@@ -76,9 +76,13 @@ module Stats
 
     def filtered_scope
       @filtered_scope ||= begin
+        # joins(:plate_result) は INNER JOIN なので plate_result_id IS NULL の PA は
+        # 結果セットから静かに除外される。total_target_pa を「joins 後 / 前」のどちらに
+        # 揃えるか曖昧にならないよう、scope 段階で明示的に NULL を弾く。
         scope = PlateAppearance.joins(game_result: :match_result)
                                .where(user_id: @user_id)
                                .where.not(final_strikes: nil)
+                               .where.not(plate_result_id: nil)
         scope = apply_year_filter(scope)
         scope = apply_match_type_filter(scope)
         scope = apply_season_filter(scope)
