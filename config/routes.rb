@@ -224,6 +224,7 @@ Rails.application.routes.draw do
         get :runners_situation, on: :member
         get :hit_locations, on: :member
         get :out_type_breakdown, on: :member
+        get :count_situations, on: :member
       end
 
       resources :plate_appearances, only: %i[create update destroy] do
