@@ -225,6 +225,9 @@ Rails.application.routes.draw do
         get :hit_locations, on: :member
         get :out_type_breakdown, on: :member
         get :count_situations, on: :member
+        get :contact_qualities, on: :member
+        get :pitch_types, on: :member
+        get :pitcher_faceoffs, on: :member
       end
 
       resources :plate_appearances, only: %i[create update destroy] do
