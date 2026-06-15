@@ -229,6 +229,7 @@ Rails.application.routes.draw do
         get :pitch_types, on: :member
         get :pitcher_faceoffs, on: :member
         get :batting_trend, on: :member
+        get :additional_stats, on: :member
       end
 
       resources :plate_appearances, only: %i[create update destroy] do

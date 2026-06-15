@@ -32,6 +32,10 @@ module Api
         render json: Stats::HeadlineStatsAggregator.new(**aggregator_params).call
       end
 
+      def additional_stats
+        render json: Stats::AdditionalStatsAggregator.new(**aggregator_params).call
+      end
+
       def runners_situation
         render json: Stats::RunnersSituationAggregator.new(**aggregator_params).call
       end
