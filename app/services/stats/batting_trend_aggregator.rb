@@ -88,7 +88,7 @@ module Stats
     # 期待と一致する（全期間の移動平均ではない）。
     # 直近 N 試合の最初の点はサンプルが少なく荒い値になるが、これは仕様。
     def aggregate_by_recent_games
-      recent_rows = aggregate_per_game_rows.last(RECENT_GAMES_WINDOW)
+      recent_rows = aggregate_per_game_rows(limit: RECENT_GAMES_WINDOW)
       cumulative = SUM_COLUMNS.index_with { 0 }
       recent_rows.map do |row|
         SUM_COLUMNS.each { |col| cumulative[col] += row[col] }
@@ -102,14 +102,20 @@ module Stats
       end
     end
 
-    def aggregate_per_game_rows
-      # game_result_id 単位で SUM。同じ試合に複数 batting_averages が並ぶ場合に備えて
-      # game_result_id でグループしておく。並びは match_results.date_and_time の昇順。
+    # `limit` を渡したときは DB 側で「日付降順 LIMIT → 結果を昇順に戻す」で
+    # 直近 N 試合だけ取り出す。全試合を pluck してから Ruby で .last(N) する
+    # ナイーブ実装はユーザーのシーズンが長くなるほど無駄が増えるため避ける。
+    def aggregate_per_game_rows(limit: nil)
       sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
-      rows = filtered_scope
-             .group('game_results.id, match_results.date_and_time')
-             .order(Arel.sql('match_results.date_and_time ASC'))
-             .pluck(Arel.sql("match_results.date_and_time, #{sum_sql}"))
+      scope = filtered_scope
+              .group('game_results.id, match_results.date_and_time')
+      scope = if limit
+                scope.order(Arel.sql('match_results.date_and_time DESC')).limit(limit)
+              else
+                scope.order(Arel.sql('match_results.date_and_time ASC'))
+              end
+      rows = scope.pluck(Arel.sql("match_results.date_and_time, #{sum_sql}"))
+      rows.reverse! if limit
 
       rows.map do |row|
         date, *values = row
