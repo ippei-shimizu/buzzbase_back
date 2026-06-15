@@ -45,14 +45,17 @@ module Stats
     private
 
     # 各試合の SUM 列をまとめて取得 → 累積で打率等を計算。
+    # 日付は in_time_zone で Rails の TZ 設定（本番: Asia/Tokyo）に揃え、
+    # recent_games モードと同じ key / label が出るようにする。
     def aggregate_by_game
       rows = aggregate_per_game_rows
       cumulative = SUM_COLUMNS.index_with { 0 }
       rows.map do |row|
         SUM_COLUMNS.each { |col| cumulative[col] += row[col] }
+        local_date = row[:date].in_time_zone
         build_point(
-          key: row[:date].to_date.iso8601,
-          label: row[:date].strftime('%-m/%-d'),
+          key: local_date.to_date.iso8601,
+          label: local_date.strftime('%-m/%-d'),
           period_stats: row,
           cumulative_stats: cumulative
         )
