@@ -75,12 +75,16 @@ module Stats
       filtered_scope.distinct.count(:game_result_id)
     end
 
+    # call 内で aggregate_stats / count_games から 2 度参照されるため、
+    # 他の Stats Aggregator と同じくメモ化してスコープ構築のコストを削る。
     def filtered_scope
-      scope = BattingAverage.joins(game_result: :match_result).where(user_id: @user_id)
-      scope = apply_year_filter(scope)
-      scope = apply_match_type_filter(scope)
-      scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
+      @filtered_scope ||= begin
+        scope = BattingAverage.joins(game_result: :match_result).where(user_id: @user_id)
+        scope = apply_year_filter(scope)
+        scope = apply_match_type_filter(scope)
+        scope = apply_season_filter(scope)
+        apply_tournament_filter(scope)
+      end
     end
 
     def apply_year_filter(scope)
