@@ -5,159 +5,94 @@ module Api
       before_action :authenticate_api_v1_user!
 
       def hit_directions
-        result = Stats::HitDirectionAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::HitDirectionAggregator.new(**aggregator_params).call
       end
 
       def plate_appearance_breakdown
-        result = Stats::PlateAppearanceBreakdownService.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: { breakdown: result }
+        render json: { breakdown: Stats::PlateAppearanceBreakdownService.new(**aggregator_params).call }
       end
 
       def batting
-        result = Stats::BattingStatsTableService.new(
-          user_id: target_user_id,
-          mode: params[:period] || 'yearly',
-          year: params[:year],
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: { rows: result }
+        render json: { rows: Stats::BattingStatsTableService.new(**table_params).call }
       end
 
       def pitching
-        result = Stats::PitchingStatsTableService.new(
-          user_id: target_user_id,
-          mode: params[:period] || 'yearly',
-          year: params[:year],
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: { rows: result }
+        render json: { rows: Stats::PitchingStatsTableService.new(**table_params).call }
       end
 
       def era_trend
-        result = Stats::EraTrendService.new(
-          user_id: target_user_id,
-          year: params[:year],
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: { trend: result }
+        render json: { trend: Stats::EraTrendService.new(**aggregator_params.except(:match_type)).call }
       end
 
       def game_summary
-        result = Stats::GameSummaryService.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::GameSummaryService.new(**aggregator_params).call
       end
 
       def headline_stats
-        result = Stats::HeadlineStatsAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::HeadlineStatsAggregator.new(**aggregator_params).call
+      end
+
+      def additional_stats
+        render json: Stats::AdditionalStatsAggregator.new(**aggregator_params).call
       end
 
       def runners_situation
-        result = Stats::RunnersSituationAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::RunnersSituationAggregator.new(**aggregator_params).call
       end
 
       def hit_locations
-        result = Stats::HitLocationAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::HitLocationAggregator.new(**aggregator_params).call
       end
 
       def out_type_breakdown
-        result = Stats::OutTypeBreakdownService.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::OutTypeBreakdownService.new(**aggregator_params).call
       end
 
       def count_situations
-        result = Stats::CountSituationAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
+        render json: Stats::CountSituationAggregator.new(**aggregator_params).call
+      end
+
+      def batting_trend
+        render json: Stats::BattingTrendAggregator.new(
+          **aggregator_params, granularity: params[:granularity]
         ).call
-        render json: result
       end
 
       def contact_qualities
-        result = Stats::ContactQualityAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::ContactQualityAggregator.new(**aggregator_params).call
+      end
+
+      def timing_breakdown
+        render json: Stats::TimingBreakdownAggregator.new(**aggregator_params).call
       end
 
       def pitch_types
-        result = Stats::PitchTypeAggregator.new(
-          user_id: target_user_id,
-          year: params[:year],
-          match_type: convert_match_type(params[:match_type]),
-          season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        render json: Stats::PitchTypeAggregator.new(**aggregator_params).call
       end
 
       def pitcher_faceoffs
-        result = Stats::PitcherFaceoffAggregator.new(
+        render json: Stats::PitcherFaceoffAggregator.new(**aggregator_params).call
+      end
+
+      private
+
+      # 各 Stats:: 系サービスが共通で受け取るパラメータ。
+      # action ごとに同じ 5 項目を毎回書くと controller が肥大化するため集約する。
+      def aggregator_params
+        {
           user_id: target_user_id,
           year: params[:year],
           match_type: convert_match_type(params[:match_type]),
           season_id: params[:season_id],
           tournament_id: params[:tournament_id]
-        ).call
-        render json: result
+        }
       end
 
-      private
+      # batting / pitching テーブル用は period (mode) を追加で受け取り、
+      # match_type は使わない（テーブルサービスのインターフェースに合わせる）。
+      def table_params
+        aggregator_params.except(:match_type).merge(mode: params[:period] || 'yearly')
+      end
 
       # 他ユーザーの成績も参照可能（公開プロフィール設計）
       # プライベートアカウント対応時はprofile_visible_to?チェックを追加する
