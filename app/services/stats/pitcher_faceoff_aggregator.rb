@@ -30,7 +30,9 @@ module Stats
       stats = aggregate_stats
       total_target_pa = stats.values.sum { |s| s[:plate_appearances] }
       pitchers_by_id = Pitcher.where(id: stats.keys).index_by(&:id)
-      plate_results_by_id = PlateResult.all.index_by(&:id)
+      # AR オブジェクトを介さず id → name の Hash だけ作る。マスタ件数は少なくても
+      # 集計対象投手ごとに 1 名引くだけなので余計なオブジェクト生成を避ける。
+      plate_result_names_by_id = PlateResult.pluck(:id, :name).to_h
 
       rows = stats.filter_map do |pitcher_id, s|
         next if s[:plate_appearances] < MIN_PLATE_APPEARANCES
@@ -38,7 +40,7 @@ module Stats
         pitcher = pitchers_by_id[pitcher_id]
         next if pitcher.nil?
 
-        build_row(pitcher, s, plate_results_by_id)
+        build_row(pitcher, s, plate_result_names_by_id)
       end
 
       rows.sort_by! { |row| [-row[:plate_appearances], row[:pitcher_name]] }
@@ -48,9 +50,9 @@ module Stats
 
     private
 
-    def build_row(pitcher, stats, plate_results_by_id)
+    def build_row(pitcher, stats, plate_result_names_by_id)
       top_result_id = stats[:result_counts].max_by { |_, c| c }&.first
-      top_result_name = plate_results_by_id[top_result_id]&.name || ''
+      top_result_name = plate_result_names_by_id[top_result_id] || ''
       {
         pitcher_id: pitcher.id,
         pitcher_name: pitcher.name,
