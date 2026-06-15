@@ -10,13 +10,19 @@ module Stats
   #
   # granularity=game は **累積** を返す（最初の試合から各時点までの通算成績）。
   # granularity=month は **その月単独** を返す（各月でリセット）。
-  class BattingTrendAggregator
+  class BattingTrendAggregator # rubocop:disable Metrics/ClassLength
     SUM_COLUMNS = %i[at_bats hit total_bases base_on_balls hit_by_pitch sacrifice_fly].freeze
+
+    SUPPORTED_GRANULARITIES = %w[game month year recent_games].freeze
+
+    # 「直近 N 試合」モードの N。短期コンディションの可視化に使うため
+    # 10 に固定する（NPB / MLB の hot streak 表示で一般的な値）。
+    RECENT_GAMES_WINDOW = 10
 
     def initialize(user_id:, granularity: 'game', # rubocop:disable Metrics/ParameterLists
                    year: nil, match_type: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
-      @granularity = granularity.to_s == 'month' ? 'month' : 'game'
+      @granularity = SUPPORTED_GRANULARITIES.include?(granularity.to_s) ? granularity.to_s : 'game'
       @year = year
       @match_type = match_type
       @season_id = season_id
@@ -27,7 +33,12 @@ module Stats
     #   points の各要素は key / label / batting_average / on_base_percentage /
     #   slugging_percentage / ops / at_bats_in_period / cumulative_at_bats を持つ。
     def call
-      points = @granularity == 'month' ? aggregate_by_month : aggregate_by_game
+      points = case @granularity
+               when 'month' then aggregate_by_month
+               when 'year' then aggregate_by_year
+               when 'recent_games' then aggregate_by_recent_games
+               else aggregate_by_game
+               end
       { granularity: @granularity, points: }
     end
 
@@ -56,6 +67,38 @@ module Stats
           label: "#{row[:month]}月",
           period_stats: row,
           cumulative_stats: row
+        )
+      end
+    end
+
+    # 年ごとの SUM をそのまま使い、年単独の打率等を返す。
+    def aggregate_by_year
+      aggregate_per_year_rows.map do |row|
+        build_point(
+          key: row[:key],
+          label: "#{row[:year]}年",
+          period_stats: row,
+          cumulative_stats: row
+        )
+      end
+    end
+
+    # 試合別の生データから、各時点までの直近 N 試合の合計で打率等を計算する移動平均。
+    # 試合数が N に満たない序盤も、現存する試合分でそのまま計算する（NaN にしない）。
+    def aggregate_by_recent_games
+      rows = aggregate_per_game_rows
+      rows.each_with_index.map do |row, index|
+        window_start = [0, index - RECENT_GAMES_WINDOW + 1].max
+        window_rows = rows[window_start..index]
+        window_sum = SUM_COLUMNS.index_with { 0 }
+        window_rows.each { |window_row| SUM_COLUMNS.each { |col| window_sum[col] += window_row[col] } }
+
+        local_date = row[:date].in_time_zone
+        build_point(
+          key: local_date.to_date.iso8601,
+          label: local_date.strftime('%-m/%-d'),
+          period_stats: row,
+          cumulative_stats: window_sum
         )
       end
     end
@@ -89,6 +132,23 @@ module Stats
         {
           key: format('%<year>04d-%<month>02d', year: year.to_i, month: month.to_i),
           month: month.to_i,
+          year: year.to_i
+        }.merge(SUM_COLUMNS.zip(values.map(&:to_i)).to_h)
+      end
+    end
+
+    def aggregate_per_year_rows
+      year_sql = 'EXTRACT(YEAR FROM match_results.date_and_time)::int'
+      sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
+      rows = filtered_scope
+             .group(Arel.sql(year_sql))
+             .order(Arel.sql("#{year_sql} ASC"))
+             .pluck(Arel.sql("#{year_sql}, #{sum_sql}"))
+
+      rows.map do |row|
+        year, *values = row
+        {
+          key: format('%<year>04d', year: year.to_i),
           year: year.to_i
         }.merge(SUM_COLUMNS.zip(values.map(&:to_i)).to_h)
       end
