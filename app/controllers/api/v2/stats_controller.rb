@@ -124,6 +124,18 @@ module Api
         render json: result
       end
 
+      def batting_trend
+        result = Stats::BattingTrendAggregator.new(
+          user_id: target_user_id,
+          granularity: params[:granularity],
+          year: params[:year],
+          match_type: convert_match_type(params[:match_type]),
+          season_id: params[:season_id],
+          tournament_id: params[:tournament_id]
+        ).call
+        render json: result
+      end
+
       def contact_qualities
         result = Stats::ContactQualityAggregator.new(
           user_id: target_user_id,

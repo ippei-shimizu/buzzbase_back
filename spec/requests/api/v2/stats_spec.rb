@@ -286,4 +286,28 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(json['min_plate_appearances']).to eq(3)
     end
   end
+
+  describe 'GET /api/v2/stats/batting_trend' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/batting_trend'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with granularity (default game) + points array' do
+      get('/api/v2/stats/batting_trend', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('granularity', 'points')
+      expect(json['granularity']).to eq('game')
+      expect(json['points']).to be_an(Array)
+    end
+
+    it 'returns granularity=month when granularity=month is requested' do
+      get('/api/v2/stats/batting_trend', headers:, params: { granularity: 'month' })
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['granularity']).to eq('month')
+    end
+  end
 end
