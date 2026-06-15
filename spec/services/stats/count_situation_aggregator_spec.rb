@@ -97,6 +97,23 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
       end
     end
 
+    context 'when plate_result_id is NULL' do
+      before do
+        # plate_result_id 未入力（カウントは記録されているが結果未入力）の PA。
+        # joins(:plate_result) の INNER JOIN で除外されるため total_target_pa にも含めない。
+        create(:plate_appearance, game_result:, user:, batter_box_number: 50,
+                                  plate_result_id: nil,
+                                  first_pitch_swing: true, final_balls: 0, final_strikes: 1,
+                                  is_new_format: true)
+      end
+
+      it 'excludes PAs whose plate_result_id is NULL from total_target_pa' do
+        result = described_class.new(user_id: user.id).call
+
+        expect(result[:total_target_pa]).to eq(0)
+      end
+    end
+
     context 'when old-format PA only (NULL final_strikes)' do
       before do
         create(:plate_appearance, game_result:, user:, batter_box_number: 99,
