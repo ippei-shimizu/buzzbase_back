@@ -129,6 +129,26 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
       end
     end
 
+    context 'with full count (3-2) PA' do
+      before do
+        # フルカウント: final_balls > final_strikes と final_strikes = 2 の両方を満たす
+        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 3, final_strikes: 2)
+      end
+
+      it 'counts the same PA in both favorable_count and pinch_count (排他ではない仕様)' do
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:favorable_count][:at_bats]).to eq(1)
+          expect(result[:favorable_count][:hits]).to eq(1)
+          expect(result[:pinch_count][:at_bats]).to eq(1)
+          expect(result[:pinch_count][:hits]).to eq(1)
+          # 母数 (total_target_pa) は 1 のままで、重複計上はカテゴリ内のみ
+          expect(result[:total_target_pa]).to eq(1)
+        end
+      end
+    end
+
     context 'with year filter' do
       before do
         old_game = create(:game_result, user:)

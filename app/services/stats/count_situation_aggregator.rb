@@ -29,6 +29,13 @@ module Stats
 
     # @return [Hash] :first_pitch / :favorable_count / :pinch_count の各セットと
     #   :total_target_pa（新仕様で記録された対象打席数）
+    #
+    # 注意: 3 カテゴリは排他ではない。特に **フルカウント (final_balls=3,
+    # final_strikes=2)** は `final_balls > final_strikes` と `final_strikes = 2` の
+    # 両方を満たすため、`favorable_count` と `pinch_count` の両方に同じ打席が
+    # 計上される。これは意図的な設計（「有利カウントで打てたか」と「追い込みから
+    # 粘れたか」を独立した指標として見たいため）で、フロントの母数表示でも
+    # 重複を考慮しない。
     def call
       counts = aggregate_counts
       {
