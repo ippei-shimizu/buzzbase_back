@@ -310,4 +310,24 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response.parsed_body['granularity']).to eq('month')
     end
   end
+
+  describe 'GET /api/v2/stats/additional_stats' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/additional_stats'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with 16 additional stat indicators' do
+      get('/api/v2/stats/additional_stats', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'games', 'plate_appearances', 'two_base_hit', 'three_base_hit',
+        'total_bases', 'run', 'strike_out', 'base_on_balls', 'hit_by_pitch',
+        'sacrifice_hit', 'sacrifice_fly', 'stealing_base', 'caught_stealing',
+        'iso', 'isod', 'bb_per_k'
+      )
+    end
+  end
 end
