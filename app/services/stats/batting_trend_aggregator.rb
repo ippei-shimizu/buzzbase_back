@@ -83,22 +83,21 @@ module Stats
       end
     end
 
-    # 試合別の生データから、各時点までの直近 N 試合の合計で打率等を計算する移動平均。
-    # 試合数が N に満たない序盤も、現存する試合分でそのまま計算する（NaN にしない）。
+    # 直近 N 試合だけを取り出し、その中で累積した打率等の推移を返す。
+    # X 軸は最大 N 点になり、ユーザーの「直近 N 試合のトレンドが見たい」という
+    # 期待と一致する（全期間の移動平均ではない）。
+    # 直近 N 試合の最初の点はサンプルが少なく荒い値になるが、これは仕様。
     def aggregate_by_recent_games
-      rows = aggregate_per_game_rows
-      rows.each_with_index.map do |row, index|
-        window_start = [0, index - RECENT_GAMES_WINDOW + 1].max
-        window_rows = rows[window_start..index]
-        window_sum = SUM_COLUMNS.index_with { 0 }
-        window_rows.each { |window_row| SUM_COLUMNS.each { |col| window_sum[col] += window_row[col] } }
-
+      recent_rows = aggregate_per_game_rows.last(RECENT_GAMES_WINDOW)
+      cumulative = SUM_COLUMNS.index_with { 0 }
+      recent_rows.map do |row|
+        SUM_COLUMNS.each { |col| cumulative[col] += row[col] }
         local_date = row[:date].in_time_zone
         build_point(
           key: local_date.to_date.iso8601,
           label: local_date.strftime('%-m/%-d'),
           period_stats: row,
-          cumulative_stats: window_sum
+          cumulative_stats: cumulative.dup
         )
       end
     end
