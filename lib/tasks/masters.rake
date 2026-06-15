@@ -9,6 +9,9 @@ GAME_RECORD_MASTER_TABLES = %w[
   pitch_types
   contact_qualities
   timings
+  arm_angles
+  velocity_zones
+  pitcher_styles
 ].freeze
 
 namespace :masters do
