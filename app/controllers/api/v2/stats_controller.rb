@@ -62,6 +62,10 @@ module Api
         render json: Stats::ContactQualityAggregator.new(**aggregator_params).call
       end
 
+      def timing_breakdown
+        render json: Stats::TimingBreakdownAggregator.new(**aggregator_params).call
+      end
+
       def pitch_types
         render json: Stats::PitchTypeAggregator.new(**aggregator_params).call
       end
