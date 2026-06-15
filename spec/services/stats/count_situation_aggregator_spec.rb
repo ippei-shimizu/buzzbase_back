@@ -3,6 +3,12 @@
 require 'rails_helper'
 
 RSpec.describe Stats::CountSituationAggregator, type: :service do
+  # plate_result_id の SSoT は Stats::BattingAverageRecalculator::HIT_RESULT_IDS。
+  # spec ではテスト意図（単打 / 三振 など）を明示するために let で別名を持たせる。
+  let(:single_result_id) { Stats::BattingAverageRecalculator::HIT_RESULT_IDS.first } # 7 (単打)
+  let(:double_result_id) { 8 } # 二塁打
+  let(:strikeout_result_id) { 13 } # 三振
+
   let(:user) { create(:user) }
   let(:game_result) { create(:game_result, user:) }
 
@@ -34,11 +40,14 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'with first_pitch_swing PAs' do
       before do
         # 初球を振ってヒット
-        create_pa(plate_result_id: 7, first_pitch_swing: true, final_balls: 0, final_strikes: 1)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: true,
+                  final_balls: 0, final_strikes: 1)
         # 初球を振って三振
-        create_pa(plate_result_id: 13, first_pitch_swing: true, final_balls: 0, final_strikes: 1)
+        create_pa(plate_result_id: strikeout_result_id, first_pitch_swing: true,
+                  final_balls: 0, final_strikes: 1)
         # 初球を振らずヒット（first_pitch のカウントから除外）
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 2, final_strikes: 1)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 2, final_strikes: 1)
       end
 
       it 'aggregates only PAs where first_pitch_swing = TRUE for first_pitch' do
@@ -56,11 +65,14 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'with favorable_count PAs' do
       before do
         # 有利カウント (final_balls > final_strikes): ヒット
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 2, final_strikes: 1)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 2, final_strikes: 1)
         # 有利カウント: 三振
-        create_pa(plate_result_id: 13, first_pitch_swing: false, final_balls: 3, final_strikes: 2)
+        create_pa(plate_result_id: strikeout_result_id, first_pitch_swing: false,
+                  final_balls: 3, final_strikes: 2)
         # 不利カウント (final_balls <= final_strikes): 除外
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 1, final_strikes: 2)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 1, final_strikes: 2)
       end
 
       it 'aggregates only PAs where final_balls > final_strikes for favorable_count' do
@@ -78,11 +90,14 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'with pinch_count PAs' do
       before do
         # 追い込みカウント (final_strikes = 2): ヒット
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 1, final_strikes: 2)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 1, final_strikes: 2)
         # 追い込みカウント: 三振
-        create_pa(plate_result_id: 13, first_pitch_swing: false, final_balls: 0, final_strikes: 2)
+        create_pa(plate_result_id: strikeout_result_id, first_pitch_swing: false,
+                  final_balls: 0, final_strikes: 2)
         # 追い込みではない (final_strikes < 2): 除外
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 0, final_strikes: 1)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 0, final_strikes: 1)
       end
 
       it 'aggregates only PAs where final_strikes = 2 for pinch_count' do
@@ -100,7 +115,7 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'when plate_result_id is NULL' do
       before do
         # plate_result_id 未入力（カウントは記録されているが結果未入力）の PA。
-        # joins(:plate_result) の INNER JOIN で除外されるため total_target_pa にも含めない。
+        # filtered_scope の where.not(plate_result_id: nil) で除外される。
         create(:plate_appearance, game_result:, user:, batter_box_number: 50,
                                   plate_result_id: nil,
                                   first_pitch_swing: true, final_balls: 0, final_strikes: 1,
@@ -117,7 +132,7 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'when old-format PA only (NULL final_strikes)' do
       before do
         create(:plate_appearance, game_result:, user:, batter_box_number: 99,
-                                  plate_result_id: 7,
+                                  plate_result_id: single_result_id,
                                   first_pitch_swing: nil, final_balls: nil, final_strikes: nil,
                                   is_new_format: false)
       end
@@ -132,7 +147,8 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
     context 'with full count (3-2) PA' do
       before do
         # フルカウント: final_balls > final_strikes と final_strikes = 2 の両方を満たす
-        create_pa(plate_result_id: 7, first_pitch_swing: false, final_balls: 3, final_strikes: 2)
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: false,
+                  final_balls: 3, final_strikes: 2)
       end
 
       it 'counts the same PA in both favorable_count and pinch_count (排他ではない仕様)' do
@@ -154,13 +170,13 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
         old_game = create(:game_result, user:)
         old_game.match_result.update!(date_and_time: Time.zone.parse('2025-09-30'))
         create(:plate_appearance, game_result: old_game, user:, batter_box_number: 1,
-                                  plate_result_id: 7, first_pitch_swing: true,
+                                  plate_result_id: single_result_id, first_pitch_swing: true,
                                   final_balls: 0, final_strikes: 1, is_new_format: true)
 
         new_game = create(:game_result, user:)
         new_game.match_result.update!(date_and_time: Time.zone.parse('2026-04-01'))
         create(:plate_appearance, game_result: new_game, user:, batter_box_number: 1,
-                                  plate_result_id: 8, first_pitch_swing: true,
+                                  plate_result_id: double_result_id, first_pitch_swing: true,
                                   final_balls: 0, final_strikes: 1, is_new_format: true)
       end
 
