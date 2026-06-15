@@ -71,10 +71,15 @@ module Stats
       (numerator.to_f / denominator).round(3)
     end
 
+    # aggregate_stats が joins(:plate_result) を使うため、ここでも
+    # plate_result_id IS NULL の PA を弾いておく。これにより
+    # total_target_pa（このスコープに対する .count）と aggregate_stats の
+    # 母数が必ず一致する（行合計 == total_target_pa を保証）。
     def filtered_scope
       @filtered_scope ||= begin
         scope = PlateAppearance.joins(game_result: :match_result)
                                .where(user_id: @user_id, is_new_format: true)
+                               .where.not(plate_result_id: nil)
         scope = apply_year_filter(scope)
         scope = apply_match_type_filter(scope)
         scope = apply_season_filter(scope)
