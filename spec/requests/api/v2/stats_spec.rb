@@ -232,4 +232,58 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/stats/contact_qualities' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/contact_qualities'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with breakdown of all 5 master categories' do
+      get('/api/v2/stats/contact_qualities', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('breakdown', 'total')
+      expect(json['breakdown']).to be_an(Array)
+      expect(json['breakdown'].first).to include('id', 'label', 'count', 'percentage')
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitch_types' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_types'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with rows for all 10 master pitch types + total_target_pa' do
+      get('/api/v2/stats/pitch_types', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa')
+      expect(json['rows']).to be_an(Array)
+      expect(json['rows'].first).to include(
+        'id', 'label', 'at_bats', 'hits', 'total_bases',
+        'batting_average', 'slugging_percentage'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitcher_faceoffs' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitcher_faceoffs'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with rows + total_target_pa + min_plate_appearances' do
+      get('/api/v2/stats/pitcher_faceoffs', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa', 'min_plate_appearances')
+      expect(json['rows']).to be_an(Array)
+      expect(json['min_plate_appearances']).to eq(3)
+    end
+  end
 end
