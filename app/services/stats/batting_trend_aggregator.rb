@@ -13,6 +13,11 @@ module Stats
   class BattingTrendAggregator # rubocop:disable Metrics/ClassLength
     SUM_COLUMNS = %i[at_bats hit total_bases base_on_balls hit_by_pitch sacrifice_fly].freeze
 
+    # 受け付ける granularity:
+    # - `game`: 開幕から各試合時点までの **累積**（シーズン通算の推移）
+    # - `month`: 月単独（各月でリセット）
+    # - `year`: 年単独（シーズン比較）
+    # - `recent_games`: 直近 RECENT_GAMES_WINDOW 試合だけを取り出してその中で累積
     SUPPORTED_GRANULARITIES = %w[game month year recent_games].freeze
 
     # 「直近 N 試合」モードの N。短期コンディションの可視化に使うため
@@ -100,7 +105,7 @@ module Stats
           key: local_date.to_date.iso8601,
           label: local_date.strftime('%-m/%-d'),
           period_stats: row,
-          cumulative_stats: cumulative.dup
+          cumulative_stats: cumulative
         )
       end
     end
