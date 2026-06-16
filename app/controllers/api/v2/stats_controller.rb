@@ -75,6 +75,10 @@ module Api
         render json: Stats::PitcherFaceoffAggregator.new(**aggregator_params).call
       end
 
+      def pitcher_attribute_summary
+        render json: Stats::PitcherAttributeSummaryAggregator.new(**aggregator_params).call
+      end
+
       private
 
       # 各 Stats:: 系サービスが共通で受け取るパラメータ。
