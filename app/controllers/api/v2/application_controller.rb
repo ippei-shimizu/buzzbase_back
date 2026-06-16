@@ -29,10 +29,12 @@ module Api
       # @param user [User] アクセス対象のユーザー
       # @return [TrueClass, nil] 非公開で render した場合 truthy / 公開で何もしない場合 nil
       #
-      # 呼び出し側は戻り値で短絡（early return）すること:
+      # action 内で続けて render したい場合は戻り値で短絡（early return）する:
       #   return if render_forbidden_if_private!(target_user)
       #
-      # （`render` 後に追加の `render` を呼ぶと DoubleRenderError になるため）
+      # `before_action` から呼ぶ場合は、render 済みであれば Rails が後続 action を
+      # 自動で止めるため明示の `return if` は不要。いずれのケースでも、`render` 後に
+      # 追加の `render` を呼ぶと DoubleRenderError になる点に注意。
       def render_forbidden_if_private!(user)
         return if user.profile_visible_to?(current_api_v1_user)
 
