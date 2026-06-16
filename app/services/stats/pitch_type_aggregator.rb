@@ -91,8 +91,8 @@ module Stats
       return scope if @year.blank? || @year.to_s == '通算'
 
       yr = @year.to_i
-      range_start = Time.zone.local(yr, 1, 1).beginning_of_day
-      range_end = Time.zone.local(yr + 1, 1, 1).beginning_of_day
+      range_start = Time.zone.local(yr, 1, 1)
+      range_end = Time.zone.local(yr + 1, 1, 1)
       scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
                   range_start, range_end)
     end
