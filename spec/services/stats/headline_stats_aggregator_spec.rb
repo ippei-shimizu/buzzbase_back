@@ -110,5 +110,26 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
         expect(result[:hit]).to eq(2)
       end
     end
+
+    context 'with JST early-morning records around the year boundary' do
+      before do
+        build_game(date: '2026-01-01 05:00', batting_attrs: { at_bats: 4, hit: 1, total_bases: 1 })
+        build_game(date: '2025-01-01 05:00', batting_attrs: { at_bats: 3, hit: 1, total_bases: 1 })
+      end
+
+      it 'JST 2026 元日 5:00 の試合が year=2026 に含まれる' do
+        result = described_class.new(user_id: user.id, year: 2026).call
+
+        expect(result[:at_bats]).to eq(4)
+        expect(result[:hit]).to eq(1)
+      end
+
+      it 'JST 2025 元日 5:00 の試合が year=2025 に含まれる（前年に流れない）' do
+        result = described_class.new(user_id: user.id, year: 2025).call
+
+        expect(result[:at_bats]).to eq(3)
+        expect(result[:hit]).to eq(1)
+      end
+    end
   end
 end
