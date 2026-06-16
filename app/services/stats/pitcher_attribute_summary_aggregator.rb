@@ -15,7 +15,9 @@ module Stats
   class PitcherAttributeSummaryAggregator
     HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
 
-    THROW_HAND_LABELS = { 'right' => '右投', 'left' => '左投' }.freeze
+    # フロントの「投手タイプ別 > 利き手」セクションは、自分の打者目線で
+    # 「対◯投」と読める表記に揃える。
+    THROW_HAND_LABELS = { 'right' => '対右投', 'left' => '対左投' }.freeze
     UNSET_LABEL = '未設定'
     UNSET_DISPLAY_ORDER = Float::INFINITY
 

@@ -67,7 +67,7 @@ RSpec.describe Stats::PitcherAttributeSummaryAggregator, type: :service do
 
         aggregate_failures do
           # 右投: 右オーバー(4) + 属性なし(2) = 6 PA / 6 AB / 3 hits
-          expect(labels).to eq(%w[右投 左投])
+          expect(labels).to eq(%w[対右投 対左投])
           expect(right_row).to include(plate_appearances: 6, at_bats: 6, hits: 3, batting_average: 0.5)
           expect(left_row).to include(plate_appearances: 3, at_bats: 3, hits: 1, batting_average: (1.0 / 3).round(3))
         end
