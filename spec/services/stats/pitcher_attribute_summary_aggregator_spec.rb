@@ -101,6 +101,26 @@ RSpec.describe Stats::PitcherAttributeSummaryAggregator, type: :service do
         end
       end
 
+      it 'exposes extended stats (TB / BB / HBP / SF / OBP / SLG / OPS / result_counts) per bucket' do
+        result = described_class.new(user_id: user.id).call
+        right_row = result[:by_throw_hand].find { |r| r[:key] == 'right' }
+
+        aggregate_failures do
+          # 右投: 右オーバー(at=4 hit=2 単打2/三振2 → TB=2) + 属性なし(at=2 hit=1 単打1/三振1 → TB=1)
+          #   合計: PA=6 AB=6 H=3 TB=3 BB=0 HBP=0 SF=0
+          expect(right_row).to include(
+            total_bases: 3, base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0
+          )
+          # OBP = (3+0+0)/(6+0+0+0) = .500, SLG = 3/6 = .500, OPS = 1.000
+          expect(right_row[:on_base_percentage]).to eq(0.5)
+          expect(right_row[:slugging_percentage]).to eq(0.5)
+          expect(right_row[:ops]).to eq(1.0)
+          # result_counts は plate_result_id 昇順
+          expect(right_row[:result_counts]).to be_an(Array)
+          expect(right_row[:result_counts].first).to include(:plate_result_id, :plate_result_name, :count)
+        end
+      end
+
       it 'buckets by pitcher_style using display_order' do
         result = described_class.new(user_id: user.id).call
 
