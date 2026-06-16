@@ -7,6 +7,8 @@ module Stats
   # count / percentage を返す。母数 0 でも全 3 カテゴリの行を出してフロント側で
   # 安定して描画できるようにする。設計は ContactQualityAggregator と同じ。
   class TimingBreakdownAggregator
+    include Concerns::FilterableConcern
+
     def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
       @year = year
@@ -41,34 +43,6 @@ module Stats
         scope = apply_season_filter(scope)
         apply_tournament_filter(scope)
       end
-    end
-
-    def apply_year_filter(scope)
-      return scope if @year.blank? || @year.to_s == '通算'
-
-      yr = @year.to_i
-      range_start = Time.zone.local(yr, 1, 1)
-      range_end = Time.zone.local(yr + 1, 1, 1)
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                  range_start, range_end)
-    end
-
-    def apply_match_type_filter(scope)
-      return scope if @match_type.blank? || @match_type == '全て'
-
-      scope.where(match_results: { match_type: @match_type })
-    end
-
-    def apply_season_filter(scope)
-      return scope if @season_id.blank?
-
-      scope.where(game_results: { season_id: @season_id })
-    end
-
-    def apply_tournament_filter(scope)
-      return scope if @tournament_id.blank?
-
-      scope.where(match_results: { tournament_id: @tournament_id })
     end
   end
 end
