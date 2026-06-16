@@ -99,8 +99,10 @@ module Api
         params[:user_id] || current_api_v1_user.id
       end
 
+      # 自分自身を参照するケース（user_id 未指定）が最頻のため、既に持っている
+      # current_api_v1_user を再利用して User.find の追加クエリを避ける。
       def target_user
-        @target_user ||= User.find(target_user_id)
+        @target_user ||= params[:user_id] ? User.find(params[:user_id]) : current_api_v1_user
       end
 
       # 非公開アカウントの集計データ流出を防ぐ。render_forbidden_if_private!
