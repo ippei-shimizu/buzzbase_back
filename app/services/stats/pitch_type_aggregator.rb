@@ -4,13 +4,23 @@ module Stats
   # 球種（pitch_types マスタ）別の打席集計サービス。
   #
   # pitch_type_id が記録された新仕様 PA を対象に、マスタ display_order 順で
-  # at_bats / hits / total_bases / batting_average / slugging_percentage を返す。
-  # 母数 0 でも全 10 行（マスタ全件）を出してフロント側で安定して描画できるようにする。
+  # plate_appearances / at_bats / hits / total_bases / 各内訳 / 打率 / OBP /
+  # SLG / OPS / result_counts を返す。母数 0 でも全 10 行（マスタ全件）を
+  # 出してフロント側で安定して描画できるようにする。
+  #
+  # mobile 側の球種別カードでは「得意 / 苦手」ハイライト表示の上、
+  # 行タップで PitcherFaceoffList と同じ詳細グリッドを展開する。
   class PitchTypeAggregator
     include Concerns::FilterableConcern
 
-    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
-    TOTAL_BASES_PER_RESULT = { 7 => 1, 8 => 2, 9 => 3, 10 => 4 }.freeze
+    Recalc = ::Stats::BattingAverageRecalculator
+    HIT_RESULT_IDS = Recalc::HIT_RESULT_IDS
+    TOTAL_BASES_BY_RESULT_ID = {
+      Recalc::SINGLE_HIT_ID => 1,
+      Recalc::DOUBLE_HIT_ID => 2,
+      Recalc::TRIPLE_HIT_ID => 3,
+      Recalc::HOME_RUN_ID => 4
+    }.freeze
 
     def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
@@ -20,29 +30,61 @@ module Stats
       @tournament_id = tournament_id
     end
 
-    # @return [Hash] rows: [{ id, label, at_bats, hits, total_bases,
-    #   batting_average, slugging_percentage }], total_target_pa: 対象打席数
+    # @return [Hash] rows: [{ id, label, plate_appearances, at_bats, hits,
+    #   total_bases, base_on_balls, hit_by_pitch, sacrifice_fly,
+    #   batting_average, on_base_percentage, slugging_percentage, ops,
+    #   result_counts: [{plate_result_id, plate_result_name, count}] }],
+    #   total_target_pa: 対象打席数
     def call
       stats_by_pitch_type = aggregate_stats
       total_target_pa = filtered_scope.where.not(pitch_type_id: nil).count
+      plate_result_names_by_id = PlateResult.pluck(:id, :name).to_h
 
       rows = PitchType.order(:display_order).map do |pt|
-        stats = stats_by_pitch_type[pt.id] || zero_stats
-        {
-          id: pt.id,
-          label: pt.name,
-          at_bats: stats[:at_bats],
-          hits: stats[:hits],
-          total_bases: stats[:total_bases],
-          batting_average: safe_divide(stats[:hits], stats[:at_bats]),
-          slugging_percentage: safe_divide(stats[:total_bases], stats[:at_bats])
-        }
+        build_row(pt, stats_by_pitch_type[pt.id] || empty_bucket, plate_result_names_by_id)
       end
 
       { rows:, total_target_pa: }
     end
 
     private
+
+    def build_row(pitch_type, stats, plate_result_names_by_id)
+      at_bats = stats[:at_bats]
+      hits = stats[:hits]
+      bb = stats[:base_on_balls]
+      hbp = stats[:hit_by_pitch]
+      sf = stats[:sacrifice_fly]
+      total_bases = stats[:total_bases]
+      obp = safe_divide(hits + bb + hbp, at_bats + bb + hbp + sf)
+      slg = safe_divide(total_bases, at_bats)
+      {
+        id: pitch_type.id,
+        label: pitch_type.name,
+        plate_appearances: stats[:plate_appearances],
+        at_bats:,
+        hits:,
+        total_bases:,
+        base_on_balls: bb,
+        hit_by_pitch: hbp,
+        sacrifice_fly: sf,
+        batting_average: safe_divide(hits, at_bats),
+        on_base_percentage: obp,
+        slugging_percentage: slg,
+        ops: (obp + slg).round(3),
+        result_counts: build_result_counts(stats[:result_counts], plate_result_names_by_id)
+      }
+    end
+
+    def build_result_counts(counts, plate_result_names_by_id)
+      counts.sort_by { |id, _| id }.map do |id, count|
+        {
+          plate_result_id: id,
+          plate_result_name: plate_result_names_by_id[id] || '',
+          count:
+        }
+      end
+    end
 
     def aggregate_stats
       cross = filtered_scope.joins(:plate_result)
@@ -51,20 +93,30 @@ module Stats
                                    'plate_results.counted_in_at_bats')
                             .count
 
-      stats = Hash.new { |h, k| h[k] = zero_stats.dup }
+      stats = Hash.new { |h, k| h[k] = empty_bucket }
       cross.each do |(pitch_type_id, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
-        bucket = stats[pitch_type_id]
-        bucket[:at_bats] += cnt if counted
-        next unless HIT_RESULT_IDS.include?(result_id)
-
-        bucket[:hits] += cnt
-        bucket[:total_bases] += cnt * TOTAL_BASES_PER_RESULT.fetch(result_id, 0)
+        accumulate_into(stats[pitch_type_id], result_id, counted, cnt)
       end
       stats
     end
 
-    def zero_stats
-      { at_bats: 0, hits: 0, total_bases: 0 }
+    def accumulate_into(bucket, result_id, counted, cnt)
+      bucket[:plate_appearances] += cnt
+      bucket[:at_bats] += cnt if counted
+      bucket[:hits] += cnt if HIT_RESULT_IDS.include?(result_id)
+      bucket[:total_bases] += (TOTAL_BASES_BY_RESULT_ID[result_id] || 0) * cnt
+      bucket[:base_on_balls] += cnt if result_id == Recalc::BASE_ON_BALLS_ID
+      bucket[:hit_by_pitch] += cnt if result_id == Recalc::HIT_BY_PITCH_ID
+      bucket[:sacrifice_fly] += cnt if result_id == Recalc::SACRIFICE_FLY_ID
+      bucket[:result_counts][result_id] = bucket[:result_counts].fetch(result_id, 0) + cnt
+    end
+
+    def empty_bucket
+      {
+        plate_appearances: 0, at_bats: 0, hits: 0,
+        total_bases: 0, base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0,
+        result_counts: {}
+      }
     end
 
     def safe_divide(numerator, denominator)
