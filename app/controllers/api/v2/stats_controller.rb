@@ -105,8 +105,8 @@ module Api
         @target_user ||= params[:user_id] ? User.find(params[:user_id]) : current_api_v1_user
       end
 
-      # 非公開アカウントの集計データ流出を防ぐ。render_forbidden_if_private!
-      # が render すると Rails の before_action 規約で後続 action は実行されない。
+      # 非公開アカウントの集計データ流出を防ぐ。before_action として使うと
+      # render 後に Rails が後続 action を自動で止めるため、明示 return は不要。
       def authorize_target_user!
         render_forbidden_if_private!(target_user)
       end
