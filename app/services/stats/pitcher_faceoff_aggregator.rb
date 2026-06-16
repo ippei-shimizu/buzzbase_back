@@ -60,8 +60,22 @@ module Stats
         at_bats: stats[:at_bats],
         hits: stats[:hits],
         batting_average: safe_divide(stats[:hits], stats[:at_bats]),
-        top_result: top_result_name
+        top_result: top_result_name,
+        result_counts: build_result_counts(stats[:result_counts], plate_result_names_by_id)
       }
+    end
+
+    # plate_result_id 昇順で並べたシリアライズ用配列。フロントは
+    # ヒット / アウト / 四死球 のカテゴライズを名前ベースで行うため、
+    # ここでは ID と name の両方を持たせる。
+    def build_result_counts(counts, plate_result_names_by_id)
+      counts.sort_by { |id, _| id }.map do |id, count|
+        {
+          plate_result_id: id,
+          plate_result_name: plate_result_names_by_id[id] || '',
+          count:
+        }
+      end
     end
 
     # group(:pitcher_id, :plate_result_id, counted_in_at_bats).count から

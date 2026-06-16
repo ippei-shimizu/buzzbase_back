@@ -85,6 +85,25 @@ RSpec.describe Stats::PitcherFaceoffAggregator, type: :service do
           )
         end
       end
+
+      it 'exposes result_counts sorted by plate_result_id with name + count' do
+        result = described_class.new(user_id: user.id).call
+        ace_row = result[:rows].find { |r| r[:pitcher_name] == 'エース投手' }
+        rookie_row = result[:rows].find { |r| r[:pitcher_name] == '新人投手' }
+
+        aggregate_failures do
+          # エース: 単打 2 + 三振 1
+          expect(ace_row[:result_counts]).to eq([
+                                                  { plate_result_id: single_result_id, plate_result_name: 'ヒット', count: 2 },
+                                                  { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 1 }
+                                                ])
+          # 新人: 二塁打 1 + 三振 4
+          expect(rookie_row[:result_counts]).to eq([
+                                                     { plate_result_id: double_result_id, plate_result_name: '二塁打', count: 1 },
+                                                     { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 4 }
+                                                   ])
+        end
+      end
     end
 
     context 'when tied appearances, sorts by pitcher_name asc' do
