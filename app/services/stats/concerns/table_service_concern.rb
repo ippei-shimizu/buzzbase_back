@@ -10,8 +10,10 @@ module Stats
       private
 
       def scope_for_year(scope, year)
+        range_start = Time.zone.local(year, 1, 1).beginning_of_day
+        range_end = Time.zone.local(year + 1, 1, 1).beginning_of_day
         scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                    "#{year}-01-01 00:00:00", "#{year + 1}-01-01 00:00:00")
+                    range_start, range_end)
       end
 
       def scope_for_month(scope, mon)
