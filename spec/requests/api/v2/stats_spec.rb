@@ -370,6 +370,19 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       end
     end
 
+    context 'when viewer has a pending follow request' do
+      before do
+        Relationship.create!(follower: user, followed: private_user, status: :pending)
+      end
+
+      it 'returns 403 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
     context 'when target is self (private)' do
       let(:user) { create(:user, is_private: true) }
 
