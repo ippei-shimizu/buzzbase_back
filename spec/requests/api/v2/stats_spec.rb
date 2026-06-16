@@ -330,4 +330,68 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       )
     end
   end
+
+  describe '非公開アカウントの可視性ガード' do
+    let(:private_user) { create(:user, is_private: true) }
+
+    context 'when viewer is not a follower' do
+      it 'returns 403 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for batting table' do
+        get '/api/v2/stats/batting',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for era_trend' do
+        get '/api/v2/stats/era_trend',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when viewer is an accepted follower' do
+      before do
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+      end
+
+      it 'returns 200 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when viewer has a pending follow request' do
+      before do
+        Relationship.create!(follower: user, followed: private_user, status: :pending)
+      end
+
+      it 'returns 403 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when target is self (private)' do
+      let(:user) { create(:user, is_private: true) }
+
+      it 'returns 200 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
 end

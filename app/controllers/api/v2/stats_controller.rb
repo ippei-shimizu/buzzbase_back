@@ -3,6 +3,7 @@ module Api
     class StatsController < Api::V2::ApplicationController
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!
+      before_action :authorize_target_user!
 
       def hit_directions
         render json: Stats::HitDirectionAggregator.new(**aggregator_params).call
@@ -94,10 +95,20 @@ module Api
         aggregator_params.except(:match_type).merge(mode: params[:period] || 'yearly')
       end
 
-      # 他ユーザーの成績も参照可能（公開プロフィール設計）
-      # プライベートアカウント対応時はprofile_visible_to?チェックを追加する
       def target_user_id
         params[:user_id] || current_api_v1_user.id
+      end
+
+      # 自分自身を参照するケース（user_id 未指定）が最頻のため、既に持っている
+      # current_api_v1_user を再利用して User.find の追加クエリを避ける。
+      def target_user
+        @target_user ||= params[:user_id] ? User.find(params[:user_id]) : current_api_v1_user
+      end
+
+      # 非公開アカウントの集計データ流出を防ぐ。before_action として使うと
+      # render 後に Rails が後続 action を自動で止めるため、明示 return は不要。
+      def authorize_target_user!
+        render_forbidden_if_private!(target_user)
       end
     end
   end
