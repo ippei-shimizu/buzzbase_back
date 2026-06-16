@@ -132,8 +132,8 @@ module Stats
     end
 
     def aggregate_per_month_rows
-      year_sql = 'EXTRACT(YEAR FROM match_results.date_and_time)::int'
-      month_sql = 'EXTRACT(MONTH FROM match_results.date_and_time)::int'
+      year_sql = Stats::JstDateSql::YEAR_JST_INT_SQL
+      month_sql = Stats::JstDateSql::MONTH_JST_INT_SQL
       sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
       rows = filtered_scope
              .group(Arel.sql("#{year_sql}, #{month_sql}"))
@@ -151,7 +151,7 @@ module Stats
     end
 
     def aggregate_per_year_rows
-      year_sql = 'EXTRACT(YEAR FROM match_results.date_and_time)::int'
+      year_sql = Stats::JstDateSql::YEAR_JST_INT_SQL
       sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
       rows = filtered_scope
              .group(Arel.sql(year_sql))

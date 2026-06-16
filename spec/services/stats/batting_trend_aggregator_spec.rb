@@ -137,5 +137,28 @@ RSpec.describe Stats::BattingTrendAggregator, type: :service do
         end
       end
     end
+
+    context 'with JST early-morning records around the month boundary (granularity=month)' do
+      before do
+        # JST 2026-01-01 05:00 → UTC 2025-12-31 20:00。UTC ベース EXTRACT だと
+        # 12月扱いになるが、JST 評価では 1月にバケットされる必要がある。
+        build_game(date: '2026-01-01 05:00',
+                   batting_attrs: { at_bats: 4, hit: 1, total_bases: 1 })
+        build_game(date: '2026-02-15 12:00',
+                   batting_attrs: { at_bats: 5, hit: 2, total_bases: 2 })
+      end
+
+      it 'JST 1月1日 早朝の試合は 1月にバケットされる（12月に流れない）' do
+        result = described_class.new(user_id: user.id, granularity: 'month').call
+        points = result[:points]
+
+        aggregate_failures do
+          expect(points.length).to eq(2)
+          expect(points[0][:label]).to eq('1月')
+          expect(points[0][:at_bats_in_period]).to eq(4)
+          expect(points[1][:label]).to eq('2月')
+        end
+      end
+    end
   end
 end

@@ -19,11 +19,12 @@ module Stats
           year = @year.to_i
           next_month = mon == 12 ? 1 : mon + 1
           next_year = mon == 12 ? year + 1 : year
+          range_start = Time.zone.local(year, mon, 1)
+          range_end = Time.zone.local(next_year, next_month, 1)
           scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                      "#{year}-#{format('%02d', mon)}-01 00:00:00",
-                      "#{next_year}-#{format('%02d', next_month)}-01 00:00:00")
+                      range_start, range_end)
         else
-          scope.where('EXTRACT(MONTH FROM match_results.date_and_time) = ?', mon)
+          scope.where("#{Stats::JstDateSql::MONTH_JST_INT_SQL} = ?", mon)
         end
       end
 
