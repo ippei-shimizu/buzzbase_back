@@ -98,9 +98,10 @@ class BattingAverage < ApplicationRecord
   # `hit` カラムは全安打を含むため、総安打 = SUM(hit)。
   # 以前は `SUM(hit + 2B + 3B + HR)` と書いていたが、2B/3B/HR を二重計上して
   # 打率 / OBP / OPS / ISOD が上振れていた既存バグの修正。
+  # `hit` 単独の SUM は不要（消費側は total_hits を参照する）。同じ式を二重に
+  # SELECT すると「hit と total_hits の値が違う」という誤読の芽になる。
   def self.stats_columns
     ['SUM(hit) AS total_hits',
-     'SUM(hit) AS hit',
      'SUM(two_base_hit) AS two_base_hit',
      'SUM(three_base_hit) AS three_base_hit',
      'SUM(home_run) AS home_run',
@@ -153,13 +154,13 @@ class BattingAverage < ApplicationRecord
     (obp - avg).round(3)
   end
 
-  # `hit` は全安打（単打 + 2B + 3B + HR）なので、塁打 (TB) は
+  # `total_hits` は全安打（単打 + 2B + 3B + HR）なので、塁打 (TB) は
   # 単打×1 + 2B×2 + 3B×3 + HR×4 を展開して
-  # `hit + 2B + 2*3B + 3*HR` に等しい。以前は `hit + 2*2B + 3*3B + 4*HR` と
-  # 書いていたが、これは hit を単打のみと解釈した式で 2B/3B/HR を二重計上していた。
+  # `total_hits + 2B + 2*3B + 3*HR` に等しい。以前は `hit + 2*2B + 3*3B + 4*HR`
+  # と書いていたが、これは hit を単打のみと解釈した式で 2B/3B/HR を二重計上していた。
   def self.calculate_slugging_percentage(stats)
     at_bats = stats['at_bats'].to_i
-    total_bases = stats['hit'].to_i + stats['two_base_hit'].to_i +
+    total_bases = stats['total_hits'].to_i + stats['two_base_hit'].to_i +
                   (stats['three_base_hit'].to_i * 2) + (stats['home_run'].to_i * 3)
     at_bats.zero? ? ZERO : total_bases.to_f / at_bats
   end
