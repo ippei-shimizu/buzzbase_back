@@ -90,8 +90,8 @@ RSpec.describe BattingAverage, type: :model do
     end
 
     it 'calculates slugging_percentage from TB = hit + 2B + 2*3B + 3*HR' do
-      # hit=3 (うち 2B=1, HR=1, 単打=1)
-      # TB = 1×1 (単打) + 1×2 (2B) + 1×4 (HR) = 7
+      # hit=3 (全安打: 単打 1, 2B 1, HR 1)
+      # TB = hit(3) + 2B(1) + 2*3B(0) + 3*HR(3) = 7
       # SLG = 7 / 10 = .700
       result = described_class.filtered_stats_for_user(user.id, year: '2024')
       expect(result[:slugging_percentage]).to eq(0.7)
