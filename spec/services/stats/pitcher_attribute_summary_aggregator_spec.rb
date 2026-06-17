@@ -155,6 +155,38 @@ RSpec.describe Stats::PitcherAttributeSummaryAggregator, type: :service do
       end
     end
 
+    context 'when a pitcher record is missing (only orphan PA remains)' do
+      let!(:living_pitcher) { create_pitcher(name: '生存投手', throw_hand: :right, arm_angle_id: 1) }
+
+      before do
+        # 生存投手 (基準データ)
+        2.times { |i| create_pa(pitcher_id: living_pitcher.id, plate_result_id: single_result_id, batter_box_number: i + 1) }
+
+        # 削除済み投手の PA を疑似する: 通常は dependent: :nullify と FK で守られるが、
+        # 念のため referential_integrity を一時的に外して orphan PA を作り、
+        # Aggregator が「未設定」バケットに混入させないことを保護する。
+        pa = create(:plate_appearance, game_result:, user:, batter_box_number: 50,
+                                       pitcher_id: living_pitcher.id, plate_result_id: single_result_id,
+                                       is_new_format: true)
+        PlateAppearance.connection.disable_referential_integrity do
+          pa.update_column(:pitcher_id, 999_999) # rubocop:disable Rails/SkipsModelValidations
+        end
+      end
+
+      it 'excludes PAs whose pitcher record is missing' do
+        result = described_class.new(user_id: user.id).call
+
+        # 削除済み投手の PA は throw_hand=null（未設定）に紛れ込まない
+        right_row = result[:by_throw_hand].find { |r| r[:key] == 'right' }
+        unset_row = result[:by_throw_hand].find { |r| r[:key].nil? }
+
+        aggregate_failures do
+          expect(right_row).to include(plate_appearances: 2, at_bats: 2, hits: 2)
+          expect(unset_row).to be_nil
+        end
+      end
+    end
+
     context 'with old-format PAs (is_new_format: false / pitcher_id: nil)' do
       let!(:pitcher) { create_pitcher(name: '対象投手', throw_hand: :left, arm_angle_id: 1) }
 
