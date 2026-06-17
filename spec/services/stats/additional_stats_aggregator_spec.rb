@@ -103,5 +103,41 @@ RSpec.describe Stats::AdditionalStatsAggregator, type: :service do
         end
       end
     end
+
+    context 'with strike_out swing_type breakdown' do
+      let!(:game_result) do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-04-01 12:00:00'))
+        gr
+      end
+
+      before do
+        # 新仕様 PA: 空振り三振 ×2、見逃し三振 ×1、swing_type 未指定の三振 ×1、振り逃げ ×1、ヒット ×1
+        create(:plate_appearance, game_result:, user:, batter_box_number: 1,
+                                  plate_result_id: 13, swing_type: :swinging, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, batter_box_number: 2,
+                                  plate_result_id: 13, swing_type: :swinging, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, batter_box_number: 3,
+                                  plate_result_id: 13, swing_type: :looking, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, batter_box_number: 4,
+                                  plate_result_id: 13, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, batter_box_number: 5,
+                                  plate_result_id: 14, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, batter_box_number: 6,
+                                  plate_result_id: 7, is_new_format: true)
+        # 旧 PA も投入 → 内訳には含めない
+        create(:plate_appearance, game_result:, user:, batter_box_number: 7,
+                                  plate_result_id: 13, is_new_format: false)
+      end
+
+      it 'returns swinging / looking breakdown from new-format PAs only' do
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:swinging_strike_out]).to eq(2)
+          expect(result[:looking_strike_out]).to eq(1)
+        end
+      end
+    end
   end
 end
