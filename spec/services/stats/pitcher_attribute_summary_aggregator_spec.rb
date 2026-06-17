@@ -104,6 +104,7 @@ RSpec.describe Stats::PitcherAttributeSummaryAggregator, type: :service do
       it 'exposes extended stats (TB / BB / HBP / SF / OBP / SLG / OPS / result_counts) per bucket' do
         result = described_class.new(user_id: user.id).call
         right_row = result[:by_throw_hand].find { |r| r[:key] == 'right' }
+        left_row = result[:by_throw_hand].find { |r| r[:key] == 'left' }
 
         aggregate_failures do
           # 右投: 右オーバー(at=4 hit=2 単打2/三振2 → TB=2) + 属性なし(at=2 hit=1 単打1/三振1 → TB=1)
@@ -115,9 +116,18 @@ RSpec.describe Stats::PitcherAttributeSummaryAggregator, type: :service do
           expect(right_row[:on_base_percentage]).to eq(0.5)
           expect(right_row[:slugging_percentage]).to eq(0.5)
           expect(right_row[:ops]).to eq(1.0)
-          # result_counts は plate_result_id 昇順
-          expect(right_row[:result_counts]).to be_an(Array)
-          expect(right_row[:result_counts].first).to include(:plate_result_id, :plate_result_name, :count)
+
+          # result_counts は複数投手のバケット合算結果を投手単位の集計と一致させる必要がある。
+          # 右投の合算: 単打 3 (右オーバー 2 + 属性なし 1) + 三振 3 (右オーバー 2 + 属性なし 1)
+          expect(right_row[:result_counts]).to eq([
+                                                    { plate_result_id: single_result_id, plate_result_name: 'ヒット', count: 3 },
+                                                    { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 3 }
+                                                  ])
+          # 左投: 左サイドのみ → 二塁打 1 + 三振 2
+          expect(left_row[:result_counts]).to eq([
+                                                   { plate_result_id: double_result_id, plate_result_name: '二塁打', count: 1 },
+                                                   { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 2 }
+                                                 ])
         end
       end
 
