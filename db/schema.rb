@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_12_130002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_17_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -392,12 +392,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_12_130002) do
     t.boolean "is_new_format", default: false, null: false
     t.bigint "pitcher_id"
     t.bigint "appearance_situation_id"
+    t.integer "swing_type"
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
     t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
+    t.index ["swing_type"], name: "index_plate_appearances_on_swing_type"
     t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
   end
