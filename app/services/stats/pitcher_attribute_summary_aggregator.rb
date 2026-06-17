@@ -113,8 +113,12 @@ module Stats
     def group_by_throw_hand(stats_by_pitcher, pitcher_attrs, ctx)
       buckets = Hash.new { |h, k| h[k] = empty_bucket }
       stats_by_pitcher.each do |pitcher_id, s|
-        key = pitcher_attrs.dig(pitcher_id, :throw_hand)
-        merge_into(buckets[key], s)
+        # 投手レコードが pluck で取れなかった場合（削除済み等）はスキップする。
+        # PitcherFaceoffAggregator と同じく、属性 nil のバケットに混入させない。
+        attrs = pitcher_attrs[pitcher_id]
+        next if attrs.nil?
+
+        merge_into(buckets[attrs[:throw_hand]], s)
       end
       finalize_throw_hand_rows(buckets, ctx)
     end
@@ -122,8 +126,10 @@ module Stats
     def group_by_master(stats_by_pitcher, pitcher_attrs, attr_key, master_index, ctx)
       buckets = Hash.new { |h, k| h[k] = empty_bucket }
       stats_by_pitcher.each do |pitcher_id, s|
-        key = pitcher_attrs.dig(pitcher_id, attr_key)
-        merge_into(buckets[key], s)
+        attrs = pitcher_attrs[pitcher_id]
+        next if attrs.nil?
+
+        merge_into(buckets[attrs[attr_key]], s)
       end
       finalize_master_rows(buckets, master_index, ctx)
     end
