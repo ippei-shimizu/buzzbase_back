@@ -41,14 +41,20 @@ module Stats
 
     # plate_appearances.swing_type の内訳を新仕様 PA から直接集計する。
     # batting_averages 側にカラムを増やすと recalculator 連鎖の影響が広いため、
-    # 追加クエリ 2 本で済ませる。旧 PA (is_new_format=false) と
-    # 振り逃げ (plate_result_id=14) は対象外で、新仕様の純粋な三振 (id=13)
-    # のうち swing_type 別のカウントを返す。
+    # 追加クエリ 1 本（GROUP BY :swing_type）で済ませる。旧 PA
+    # (is_new_format=false) と振り逃げ (plate_result_id=14) は対象外で、
+    # 新仕様の純粋な三振 (id=13) のうち swing_type 別のカウントを返す。
+    #
+    # Rails 7.1 の enum + group + count は string key（enum label）の
+    # ハッシュを返すので、`counts.fetch('swinging', 0)` でアクセスする。
     def aggregate_strike_out_breakdown
-      strikeouts = filtered_pa_scope.where(plate_result_id: PlateAppearance::STRIKEOUT_RESULT_ID)
+      counts = filtered_pa_scope
+               .where(plate_result_id: PlateAppearance::STRIKEOUT_RESULT_ID)
+               .group(:swing_type)
+               .count
       {
-        swinging_strike_out: strikeouts.swing_type_swinging.count,
-        looking_strike_out: strikeouts.swing_type_looking.count
+        swinging_strike_out: counts.fetch('swinging', 0),
+        looking_strike_out: counts.fetch('looking', 0)
       }
     end
 
