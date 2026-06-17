@@ -10,6 +10,8 @@ module Stats
   # 新仕様カラム (runners_state) が必須のため、旧 PA は集計対象外。
   # 母数 0 のときも nil ではなく 0 / 0.0 を返す（クライアント側で「対象データなし」UI に分岐）。
   class RunnersSituationAggregator
+    include Concerns::FilterableConcern
+
     HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
     DOUBLE_HIT_ID = ::Stats::BattingAverageRecalculator::DOUBLE_HIT_ID
     TRIPLE_HIT_ID = ::Stats::BattingAverageRecalculator::TRIPLE_HIT_ID
@@ -63,34 +65,6 @@ module Stats
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
       apply_tournament_filter(scope)
-    end
-
-    def apply_year_filter(scope)
-      return scope if @year.blank? || @year.to_s == '通算'
-
-      yr = @year.to_i
-      range_start = Time.zone.local(yr, 1, 1)
-      range_end = Time.zone.local(yr + 1, 1, 1)
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                  range_start, range_end)
-    end
-
-    def apply_match_type_filter(scope)
-      return scope if @match_type.blank? || @match_type == '全て'
-
-      scope.where(match_results: { match_type: @match_type })
-    end
-
-    def apply_season_filter(scope)
-      return scope if @season_id.blank?
-
-      scope.where(game_results: { season_id: @season_id })
-    end
-
-    def apply_tournament_filter(scope)
-      return scope if @tournament_id.blank?
-
-      scope.where(match_results: { tournament_id: @tournament_id })
     end
 
     def safe_divide(numerator, denominator)
