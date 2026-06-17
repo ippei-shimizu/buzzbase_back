@@ -25,13 +25,30 @@ module Stats
       @tournament_id = tournament_id
     end
 
-    # @return [Hash] 16 指標。母数 0 でも nil ではなく 0 / 0.0 を返す
+    # @return [Hash] 16 指標 + 三振内訳 (swinging / looking)。
+    #   母数 0 でも nil ではなく 0 / 0.0 を返す。
     def call
       stats = aggregate_stats
-      raw_counts(stats).merge(computed_rates(stats)).merge(games: count_games)
+      raw_counts(stats)
+        .merge(computed_rates(stats))
+        .merge(games: count_games)
+        .merge(aggregate_strike_out_breakdown)
     end
 
     private
+
+    # plate_appearances.swing_type の内訳を新仕様 PA から直接集計する。
+    # batting_averages 側にカラムを増やすと recalculator 連鎖の影響が広いため、
+    # 追加クエリ 2 本で済ませる。旧 PA (is_new_format=false) と
+    # 振り逃げ (plate_result_id=14) は対象外で、新仕様の純粋な三振 (id=13)
+    # のうち swing_type 別のカウントを返す。
+    def aggregate_strike_out_breakdown
+      strikeouts = filtered_pa_scope.where(plate_result_id: PlateAppearance::STRIKEOUT_RESULT_ID)
+      {
+        swinging_strike_out: strikeouts.swing_type_swinging.count,
+        looking_strike_out: strikeouts.swing_type_looking.count
+      }
+    end
 
     def raw_counts(stats)
       {
@@ -80,6 +97,19 @@ module Stats
     def filtered_scope
       @filtered_scope ||= begin
         scope = BattingAverage.joins(game_result: :match_result).where(user_id: @user_id)
+        scope = apply_year_filter(scope)
+        scope = apply_match_type_filter(scope)
+        scope = apply_season_filter(scope)
+        apply_tournament_filter(scope)
+      end
+    end
+
+    # swing_type 内訳は plate_appearances を直接集計する必要があるため、
+    # batting_averages 経由の filtered_scope とは別系統の同フィルタを用意する。
+    def filtered_pa_scope
+      @filtered_pa_scope ||= begin
+        scope = PlateAppearance.joins(game_result: :match_result)
+                               .where(user_id: @user_id, is_new_format: true)
         scope = apply_year_filter(scope)
         scope = apply_match_type_filter(scope)
         scope = apply_season_filter(scope)
