@@ -88,7 +88,7 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
 
         expect(response).to have_http_status(:created)
         expect(response.parsed_body['swing_type']).to eq('swinging')
-        expect(PlateAppearance.find(response.parsed_body['id']).swing_type_looking?).to be(false)
+        expect(PlateAppearance.find(response.parsed_body['id']).swing_type_swinging?).to be(true)
       end
 
       it '三振以外 (例: 単打 id=7) に swing_type を指定すると 422' do
