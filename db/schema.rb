@@ -399,7 +399,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_17_000000) do
     t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
-    t.index ["swing_type"], name: "index_plate_appearances_on_swing_type"
+    t.index ["swing_type"], name: "index_plate_appearances_on_swing_type", where: "(swing_type IS NOT NULL)"
     t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
   end
