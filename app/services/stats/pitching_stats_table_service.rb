@@ -44,7 +44,7 @@ module Stats
     # --- yearly ---
     def yearly_rows
       scope = base_scope
-      years = scope.select(Arel.sql('DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr'))
+      years = scope.select(Arel.sql("DISTINCT #{Stats::JstDateSql::YEAR_JST_INT_SQL} AS yr"))
                    .filter_map(&:yr).sort
 
       rows = years.map { |year| build_row(label: year.to_s, scope: scope_for_year(scope, year)) }
@@ -55,7 +55,7 @@ module Stats
     # --- monthly ---
     def monthly_rows
       scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
-      months = scope.select(Arel.sql('DISTINCT EXTRACT(MONTH FROM match_results.date_and_time)::int AS mon'))
+      months = scope.select(Arel.sql("DISTINCT #{Stats::JstDateSql::MONTH_JST_INT_SQL} AS mon"))
                     .filter_map(&:mon).sort
 
       rows = months.map { |mon| build_row(label: "#{mon}月", scope: scope_for_month(scope, mon)) }

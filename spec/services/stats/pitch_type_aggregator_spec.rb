@@ -74,6 +74,30 @@ RSpec.describe Stats::PitchTypeAggregator, type: :service do
           expect(slider[:slugging_percentage]).to eq(3.0)
         end
       end
+
+      it 'exposes extended stats (PA / BB / HBP / SF / OBP / OPS / result_counts) per row' do
+        result = described_class.new(user_id: user.id).call
+        straight = result[:rows].find { |r| r[:label] == 'ストレート系' }
+        slider = result[:rows].find { |r| r[:label] == 'スライダー系' }
+
+        aggregate_failures do
+          # ストレート: 単打 1 + 三振 1 → PA=2 AB=2 H=1 TB=1 BB=0 HBP=0 SF=0
+          expect(straight).to include(
+            plate_appearances: 2, base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0
+          )
+          expect(straight[:on_base_percentage]).to eq(0.5)
+          expect(straight[:ops]).to eq(1.0)
+          expect(straight[:result_counts]).to eq([
+                                                   { plate_result_id: single_result_id, plate_result_name: 'ヒット', count: 1 },
+                                                   { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 1 }
+                                                 ])
+
+          # スライダー: 二塁打 + 本塁打 → PA=2 AB=2 H=2 TB=6 / OBP=1.000 / OPS=4.000
+          expect(slider).to include(plate_appearances: 2)
+          expect(slider[:on_base_percentage]).to eq(1.0)
+          expect(slider[:ops]).to eq(4.0)
+        end
+      end
     end
 
     context 'with year filter' do

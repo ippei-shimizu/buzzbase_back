@@ -331,6 +331,21 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
   end
 
+  describe 'GET /api/v2/stats/pitcher_attribute_summary' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitcher_attribute_summary'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with 4 attribute axes' do
+      get('/api/v2/stats/pitcher_attribute_summary', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('by_throw_hand', 'by_arm_angle', 'by_velocity_zone', 'by_pitcher_style')
+    end
+  end
+
   describe '非公開アカウントの可視性ガード' do
     let(:private_user) { create(:user, is_private: true) }
 
@@ -351,6 +366,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
 
       it 'returns 403 for era_trend' do
         get '/api/v2/stats/era_trend',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for pitcher_attribute_summary' do
+        get '/api/v2/stats/pitcher_attribute_summary',
             params: { user_id: private_user.id },
             headers: auth_headers_for(user)
         expect(response).to have_http_status(:forbidden)

@@ -10,7 +10,16 @@ module Stats
   class PitcherFaceoffAggregator
     include Concerns::FilterableConcern
 
-    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
+    Recalc = ::Stats::BattingAverageRecalculator
+    HIT_RESULT_IDS = Recalc::HIT_RESULT_IDS
+
+    # plate_result_id → 塁打数。SLG 計算で使う。
+    TOTAL_BASES_BY_RESULT_ID = {
+      Recalc::SINGLE_HIT_ID => 1,
+      Recalc::DOUBLE_HIT_ID => 2,
+      Recalc::TRIPLE_HIT_ID => 3,
+      Recalc::HOME_RUN_ID => 4
+    }.freeze
 
     # しきい値未満の投手は表示に含めない。サンプルサイズの少ない打率を
     # ランキング表示で誤読しないための下限。
@@ -53,17 +62,47 @@ module Stats
     private
 
     def build_row(pitcher, stats, plate_result_names_by_id)
+      at_bats = stats[:at_bats]
+      hits = stats[:hits]
+      bb = stats[:base_on_balls]
+      hbp = stats[:hit_by_pitch]
+      sf = stats[:sacrifice_fly]
+      total_bases = stats[:total_bases]
+      obp = safe_divide(hits + bb + hbp, at_bats + bb + hbp + sf)
+      slg = safe_divide(total_bases, at_bats)
+
       top_result_id = stats[:result_counts].max_by { |_, c| c }&.first
       top_result_name = plate_result_names_by_id[top_result_id] || ''
       {
         pitcher_id: pitcher.id,
         pitcher_name: pitcher.name,
         plate_appearances: stats[:plate_appearances],
-        at_bats: stats[:at_bats],
-        hits: stats[:hits],
-        batting_average: safe_divide(stats[:hits], stats[:at_bats]),
-        top_result: top_result_name
+        at_bats:,
+        hits:,
+        total_bases:,
+        base_on_balls: bb,
+        hit_by_pitch: hbp,
+        sacrifice_fly: sf,
+        batting_average: safe_divide(hits, at_bats),
+        on_base_percentage: obp,
+        slugging_percentage: slg,
+        ops: (obp + slg).round(3),
+        top_result: top_result_name,
+        result_counts: build_result_counts(stats[:result_counts], plate_result_names_by_id)
       }
+    end
+
+    # plate_result_id 昇順で並べたシリアライズ用配列。フロントは
+    # ヒット / アウト / 四死球 のカテゴライズを名前ベースで行うため、
+    # ここでは ID と name の両方を持たせる。
+    def build_result_counts(counts, plate_result_names_by_id)
+      counts.sort_by { |id, _| id }.map do |id, count|
+        {
+          plate_result_id: id,
+          plate_result_name: plate_result_names_by_id[id] || '',
+          count:
+        }
+      end
     end
 
     # group(:pitcher_id, :plate_result_id, counted_in_at_bats).count から
@@ -79,20 +118,31 @@ module Stats
       # も投手ごとに独立して作られることを明示する（dup の shallow copy で
       # 共有されないかを読み手に考えさせない）。
       stats = Hash.new do |h, k|
-        h[k] = { plate_appearances: 0, at_bats: 0, hits: 0, result_counts: {} }
+        h[k] = {
+          plate_appearances: 0, at_bats: 0, hits: 0,
+          total_bases: 0, base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0,
+          result_counts: {}
+        }
       end
       cross.each do |(pitcher_id, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
-        bucket = stats[pitcher_id]
-        bucket[:plate_appearances] += cnt
-        bucket[:at_bats] += cnt if counted
-        bucket[:hits] += cnt if HIT_RESULT_IDS.include?(result_id)
-        bucket[:result_counts][result_id] = bucket[:result_counts].fetch(result_id, 0) + cnt
+        accumulate_into(stats[pitcher_id], result_id, counted, cnt)
       end
       stats
     end
 
+    def accumulate_into(bucket, result_id, counted, cnt)
+      bucket[:plate_appearances] += cnt
+      bucket[:at_bats] += cnt if counted
+      bucket[:hits] += cnt if HIT_RESULT_IDS.include?(result_id)
+      bucket[:total_bases] += (TOTAL_BASES_BY_RESULT_ID[result_id] || 0) * cnt
+      bucket[:base_on_balls] += cnt if result_id == Recalc::BASE_ON_BALLS_ID
+      bucket[:hit_by_pitch] += cnt if result_id == Recalc::HIT_BY_PITCH_ID
+      bucket[:sacrifice_fly] += cnt if result_id == Recalc::SACRIFICE_FLY_ID
+      bucket[:result_counts][result_id] = bucket[:result_counts].fetch(result_id, 0) + cnt
+    end
+
     def safe_divide(numerator, denominator)
-      return 0.0 if denominator.to_i.zero?
+      return 0.0 if denominator.zero?
 
       (numerator.to_f / denominator).round(3)
     end

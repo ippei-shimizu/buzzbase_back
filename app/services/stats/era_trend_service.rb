@@ -20,11 +20,11 @@ module Stats
       # 月ごとに集計（earned_run には inning_format を係数として掛けて加重する）
       monthly = scope
                 .select(Arel.sql(
-                          'EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, ' \
+                          "#{Stats::JstDateSql::MONTH_JST_INT_SQL} AS month, " \
                           'SUM(pitching_results.innings_pitched) AS total_ip, ' \
                           'SUM(pitching_results.earned_run * match_results.inning_format) AS total_weighted_er'
                         ))
-                .group(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int'))
+                .group(Arel.sql(Stats::JstDateSql::MONTH_JST_INT_SQL))
                 .order(Arel.sql('month'))
 
       monthly.filter_map do |r|
