@@ -42,6 +42,40 @@ RSpec.describe PlateAppearance, type: :model do
         'bases_loaded' => 7
       )
     end
+
+    it 'swing_type は swinging / looking の 2 種' do
+      expect(described_class.swing_types).to eq('swinging' => 0, 'looking' => 1)
+    end
+  end
+
+  describe 'swing_type の整合バリデーション' do
+    let(:pa) { build(:plate_appearance) }
+
+    it '三振 (plate_result_id=13) で swinging は valid' do
+      pa.assign_attributes(plate_result_id: 13, swing_type: :swinging)
+      expect(pa).to be_valid
+    end
+
+    it '三振で looking は valid' do
+      pa.assign_attributes(plate_result_id: 13, swing_type: :looking)
+      expect(pa).to be_valid
+    end
+
+    it '三振で swing_type 未指定は valid' do
+      pa.assign_attributes(plate_result_id: 13, swing_type: nil)
+      expect(pa).to be_valid
+    end
+
+    it '三振以外 (例: 単打 id=7) に swing_type を入れると invalid' do
+      pa.assign_attributes(plate_result_id: 7, swing_type: :swinging)
+      expect(pa).not_to be_valid
+      expect(pa.errors[:swing_type]).to be_present
+    end
+
+    it '振り逃げ (id=14) に swing_type を入れても invalid' do
+      pa.assign_attributes(plate_result_id: 14, swing_type: :looking)
+      expect(pa).not_to be_valid
+    end
   end
 
   describe '新カラムの保存と取得' do

@@ -74,6 +74,31 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:created)
         expect(PlateAppearance.find(response.parsed_body['id']).pitcher_id).to eq(own_pitcher.id)
       end
+
+      it '三振 (plate_result_id=13) + swing_type=swinging で 201 と swing_type 保存' do
+        strikeout_params = {
+          plate_appearance: {
+            game_result_id: game_result.id,
+            batter_box_number: 2,
+            plate_result_id: 13,
+            swing_type: 'swinging'
+          }
+        }
+        post '/api/v2/plate_appearances', params: strikeout_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['swing_type']).to eq('swinging')
+        expect(PlateAppearance.find(response.parsed_body['id']).swing_type_swinging?).to be(true)
+      end
+
+      it '三振以外 (例: 単打 id=7) に swing_type を指定すると 422' do
+        bad_params = base_params.deep_merge(plate_appearance: { swing_type: 'swinging' })
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors'].join).to include('三振')
+      end
     end
 
     context 'when not authenticated' do
@@ -119,6 +144,29 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['errors']).to include('指定された投手は存在しません')
         expect(plate_appearance.reload.pitcher_id).to be_nil
+      end
+
+      it '三振 PA の swing_type を swinging → looking に更新できる' do
+        strikeout = create(:plate_appearance, game_result:, user:, batter_box_number: 5,
+                                              plate_result_id: 13, swing_type: :swinging,
+                                              is_new_format: true)
+
+        patch "/api/v2/plate_appearances/#{strikeout.id}",
+              params: { plate_appearance: { swing_type: 'looking' } },
+              headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(strikeout.reload.swing_type_looking?).to be(true)
+      end
+
+      it '三振以外の PA に swing_type を更新で付与しようとすると 422' do
+        patch "/api/v2/plate_appearances/#{plate_appearance.id}",
+              params: { plate_appearance: { swing_type: 'swinging' } },
+              headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors'].join).to include('三振')
+        expect(plate_appearance.reload.swing_type).to be_nil
       end
     end
 

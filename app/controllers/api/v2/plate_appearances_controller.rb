@@ -84,7 +84,7 @@ module Api
           :game_result_id,
           :batter_box_number,
           :plate_result_id, :hit_direction_id, :batting_position_id,
-          :out_type, :hit_type,
+          :out_type, :hit_type, :swing_type,
           :hit_location_x, :hit_location_y,
           :rbi, :run_scored, :stolen_bases, :caught_stealing,
           :final_balls, :final_strikes, :final_outs,
