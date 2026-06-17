@@ -138,8 +138,8 @@ module Stats
     # --- monthly games ---
     def monthly_games
       base_scope
-        .select(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, COUNT(*) AS count'))
-        .group(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int'))
+        .select(Arel.sql("#{Stats::JstDateSql::MONTH_JST_INT_SQL} AS month, COUNT(*) AS count"))
+        .group(Arel.sql(Stats::JstDateSql::MONTH_JST_INT_SQL))
         .order(Arel.sql('month'))
         .map { |r| { month: r.month, count: r.count } }
     end
