@@ -100,4 +100,37 @@ RSpec.describe 'BattingAverage stats formulas', type: :model do
       expect(result[:batting_average]).to eq(0.5)
     end
   end
+
+  # グループランキング系で使う bulk_stats_for_users が同じ stats_columns を
+  # 共有しているため自動的に修正が当たっているが、ランキング画面の保護として
+  # 直接 retention test を置く。
+  context 'bulk_stats_for_users 経由（グループランキング）' do
+    let(:other_user) { create(:user) }
+
+    before do
+      # user: AB=10 H=3 (内訳: 単打 1 + 2B 1 + HR 1)
+      create_game_with_batting(date: '2026-05-01', hit: 3, at_bats: 10, two_base_hit: 1, home_run: 1)
+      # other_user: AB=8 H=2 (単打のみ)
+      game = create(:game_result, user: other_user)
+      game.match_result.update!(date_and_time: Time.zone.parse('2026-05-02'), match_type: 'regular')
+      create(:batting_average, game_result: game, user: other_user,
+                               hit: 2, at_bats: 8, total_bases: 2,
+                               two_base_hit: 0, three_base_hit: 0, home_run: 0,
+                               base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0,
+                               times_at_bat: 8, strike_out: 0, sacrifice_hit: 0)
+    end
+
+    it '複数ユーザーの打率 / SLG / OPS が二重計上なしで返る' do
+      result = BattingAverage.bulk_stats_for_users([user.id, other_user.id])
+
+      # user: 打率 3/10 = .300, SLG = (1 + 2 + 4)/10 = .700
+      # other_user: 打率 2/8 = .250, SLG = 2/8 = .250
+      aggregate_failures do
+        expect(result[user.id][:batting_average]).to eq(0.3)
+        expect(result[user.id][:slugging_percentage]).to eq(0.7)
+        expect(result[other_user.id][:batting_average]).to eq(0.25)
+        expect(result[other_user.id][:slugging_percentage]).to eq(0.25)
+      end
+    end
+  end
 end
