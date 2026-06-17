@@ -81,11 +81,29 @@ RSpec.describe BattingAverage, type: :model do
       expect(result).to include(:batting_average, :on_base_percentage, :slugging_percentage, :ops, :iso, :bb_per_k, :isod)
     end
 
-    it 'calculates batting_average correctly' do
+    it 'calculates batting_average as SUM(hit) / SUM(at_bats), not double counting 2B/3B/HR' do
+      # `hit` カラムは「全安打 (単打 + 2B + 3B + HR)」を保持するセマンティクス。
+      # hit=3 のうち 2B が 1、HR が 1、残り 1 本が単打、合計 3 安打 / 10 打数 → 打率 .300
       result = described_class.filtered_stats_for_user(user.id, year: '2024')
-      # total_hits = hit(3) + two_base_hit(1) + three_base_hit(0) + home_run(1) = 5
-      # batting_average = 5 / 10 = 0.5
-      expect(result[:batting_average]).to eq(0.5)
+      expect(result[:batting_average]).to eq(0.3)
+      expect(result[:total_hits]).to eq(3)
+    end
+
+    it 'calculates slugging_percentage from TB = hit + 2B + 2*3B + 3*HR' do
+      # hit=3 (全安打: 単打 1, 2B 1, HR 1)
+      # TB = hit(3) + 2B(1) + 2*3B(0) + 3*HR(3) = 7
+      # SLG = 7 / 10 = .700
+      result = described_class.filtered_stats_for_user(user.id, year: '2024')
+      expect(result[:slugging_percentage]).to eq(0.7)
+    end
+
+    it 'calculates OPS = OBP + SLG without inflation' do
+      # OBP = (3 + 2 + 0) / (10 + 2 + 0 + 0) = 5/12 = .417 (3 桁)
+      # SLG = .700
+      # OPS = OBP + SLG = 1.117
+      result = described_class.filtered_stats_for_user(user.id, year: '2024')
+      obp = (3 + 2.0) / (10 + 2)
+      expect(result[:ops]).to eq((obp + 0.7).round(3))
     end
 
     it 'returns all-zero calculated stats when no games match the filter' do
