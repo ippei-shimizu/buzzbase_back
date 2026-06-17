@@ -85,6 +85,48 @@ RSpec.describe Stats::PitcherFaceoffAggregator, type: :service do
           )
         end
       end
+
+      it 'exposes total_bases / BB / HBP / SF / OBP / SLG / OPS per pitcher' do
+        result = described_class.new(user_id: user.id).call
+        rookie_row = result[:rows].find { |r| r[:pitcher_name] == '新人投手' }
+        ace_row = result[:rows].find { |r| r[:pitcher_name] == 'エース投手' }
+
+        aggregate_failures do
+          # エース: 単打 2 + 三振 1 → AB=3 H=2 TB=2 BB=0 HBP=0 SF=0
+          expect(ace_row).to include(
+            total_bases: 2,
+            base_on_balls: 0, hit_by_pitch: 0, sacrifice_fly: 0
+          )
+          # OBP = (2+0+0)/(3+0+0+0) = .667, SLG = 2/3 = .667, OPS = 1.333
+          expect(ace_row[:on_base_percentage]).to eq((2.0 / 3).round(3))
+          expect(ace_row[:slugging_percentage]).to eq((2.0 / 3).round(3))
+          expect(ace_row[:ops]).to eq(
+            ((2.0 / 3).round(3) + (2.0 / 3).round(3)).round(3)
+          )
+
+          # 新人: 二塁打 1 + 三振 4 → AB=5 H=1 TB=2
+          expect(rookie_row).to include(total_bases: 2, base_on_balls: 0)
+        end
+      end
+
+      it 'exposes result_counts sorted by plate_result_id with name + count' do
+        result = described_class.new(user_id: user.id).call
+        ace_row = result[:rows].find { |r| r[:pitcher_name] == 'エース投手' }
+        rookie_row = result[:rows].find { |r| r[:pitcher_name] == '新人投手' }
+
+        aggregate_failures do
+          # エース: 単打 2 + 三振 1
+          expect(ace_row[:result_counts]).to eq([
+                                                  { plate_result_id: single_result_id, plate_result_name: 'ヒット', count: 2 },
+                                                  { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 1 }
+                                                ])
+          # 新人: 二塁打 1 + 三振 4
+          expect(rookie_row[:result_counts]).to eq([
+                                                     { plate_result_id: double_result_id, plate_result_name: '二塁打', count: 1 },
+                                                     { plate_result_id: strikeout_result_id, plate_result_name: '三振', count: 4 }
+                                                   ])
+        end
+      end
     end
 
     context 'when tied appearances, sorts by pitcher_name asc' do
