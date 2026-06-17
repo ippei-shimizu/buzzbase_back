@@ -27,6 +27,10 @@ module Stats
     }.freeze
 
     THROW_HAND_LABELS = { 'right' => '対右投', 'left' => '対左投' }.freeze
+    # 利き手の並び順は「右投 → 左投」固定。Pitcher.throw_hands の enum 整数値
+    # と一致するが、enum 定義順が将来変わってもこちら側のソート意図が動かない
+    # よう定数で明示する。
+    THROW_HAND_ORDER = { 'right' => 0, 'left' => 1 }.freeze
     UNSET_LABEL = '未設定'
     UNSET_DISPLAY_ORDER = Float::INFINITY
 
@@ -216,11 +220,10 @@ module Stats
       }
     end
 
-    # right=0 / left=1 の enum 順を保ちつつ、未設定は末尾に回す。
     def display_order_for_throw_hand(key)
       return UNSET_DISPLAY_ORDER if key.nil?
 
-      Pitcher.throw_hands[key] || UNSET_DISPLAY_ORDER
+      THROW_HAND_ORDER[key] || UNSET_DISPLAY_ORDER
     end
 
     def safe_divide(numerator, denominator)
