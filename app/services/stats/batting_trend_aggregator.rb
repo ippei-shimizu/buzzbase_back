@@ -13,7 +13,10 @@ module Stats
   class BattingTrendAggregator # rubocop:disable Metrics/ClassLength
     include Concerns::FilterableConcern
 
-    SUM_COLUMNS = %i[at_bats hit total_bases base_on_balls hit_by_pitch sacrifice_fly].freeze
+    SUM_COLUMNS = %i[
+      at_bats hit two_base_hit three_base_hit home_run
+      total_bases base_on_balls hit_by_pitch sacrifice_fly
+    ].freeze
 
     # 受け付ける granularity:
     # - `game`: 開幕から各試合時点までの **累積**（シーズン通算の推移）
@@ -171,17 +174,20 @@ module Stats
 
     def build_point(key:, label:, period_stats:, cumulative_stats:)
       at_bats = cumulative_stats[:at_bats]
+      # `batting_averages.hit` は本番運用上「単打のみ」を保持するため、総安打は
+      # 単打 + 2B + 3B + HR を加算して導出する。HeadlineStatsAggregator と同じパターン。
+      total_hits = cumulative_stats[:hit] + cumulative_stats[:two_base_hit] +
+                   cumulative_stats[:three_base_hit] + cumulative_stats[:home_run]
       obp_denom = at_bats + cumulative_stats[:base_on_balls] +
                   cumulative_stats[:hit_by_pitch] + cumulative_stats[:sacrifice_fly]
-      obp_num = cumulative_stats[:hit] + cumulative_stats[:base_on_balls] +
-                cumulative_stats[:hit_by_pitch]
+      obp_num = total_hits + cumulative_stats[:base_on_balls] + cumulative_stats[:hit_by_pitch]
       obp = safe_divide(obp_num, obp_denom)
       slg = safe_divide(cumulative_stats[:total_bases], at_bats)
 
       {
         key:,
         label:,
-        batting_average: safe_divide(cumulative_stats[:hit], at_bats),
+        batting_average: safe_divide(total_hits, at_bats),
         on_base_percentage: obp,
         slugging_percentage: slg,
         ops: round3(obp + slg),

@@ -51,7 +51,8 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         json = response.parsed_body
         batting = json['batting_stats']
-        expect(batting['aggregate']).to include('hit' => 2, 'at_bats' => 4, 'home_run' => 1)
+        # 単打 2 + HR 1 = 全安打 3 (aggregate_columns で NPB 標準の安打を返す)
+        expect(batting['aggregate']).to include('hit' => 3, 'at_bats' => 4, 'home_run' => 1)
         expect(batting['calculated']).to include('batting_average', 'on_base_percentage', 'slugging_percentage', 'ops')
         expect(batting['calculated']['batting_average']).to be_a(Numeric)
       end

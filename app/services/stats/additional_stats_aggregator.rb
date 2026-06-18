@@ -14,7 +14,7 @@ module Stats
 
     SUM_COLUMNS = %i[
       plate_appearances at_bats hit total_bases
-      two_base_hit three_base_hit
+      two_base_hit three_base_hit home_run
       run strike_out base_on_balls hit_by_pitch
       sacrifice_hit sacrifice_fly stealing_base caught_stealing
     ].freeze
@@ -77,9 +77,12 @@ module Stats
 
     def computed_rates(stats)
       at_bats = stats[:at_bats]
-      batting_average = safe_divide(stats[:hit], at_bats)
+      # `batting_averages.hit` は本番運用上「単打のみ」を保持するため、総安打は
+      # 単打 + 2B + 3B + HR を加算して導出する。HeadlineStatsAggregator と同じパターン。
+      total_hits = stats[:hit] + stats[:two_base_hit] + stats[:three_base_hit] + stats[:home_run]
+      batting_average = safe_divide(total_hits, at_bats)
       obp_denom = at_bats + stats[:base_on_balls] + stats[:hit_by_pitch] + stats[:sacrifice_fly]
-      obp = safe_divide(stats[:hit] + stats[:base_on_balls] + stats[:hit_by_pitch], obp_denom)
+      obp = safe_divide(total_hits + stats[:base_on_balls] + stats[:hit_by_pitch], obp_denom)
       slg = safe_divide(stats[:total_bases], at_bats)
       {
         iso: round3(slg - batting_average),
