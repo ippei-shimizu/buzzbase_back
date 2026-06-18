@@ -1,3 +1,38 @@
+# `batting_averages.hit` カラムは **単打のみ** を保持する semantics で運用されている
+# （v1 フォーム手入力時代から一貫）。NPB / MLB スコアボードの「H（安打）」とは
+# 意味が異なる点に注意。
+#
+# == カラム定義（実データ）
+# - `hit`                : 単打数のみ（NPB 用語では「単打」「1B」相当）
+# - `two_base_hit`       : 二塁打の本数
+# - `three_base_hit`     : 三塁打の本数
+# - `home_run`           : 本塁打の本数
+# - `total_bases`        : 塁打 = `hit + 2*two_base_hit + 3*three_base_hit + 4*home_run`
+#
+# == 「安打」として画面に出す値（NPB 標準）
+#
+# 画面の「安打」ラベルが指す値は **全安打 = `hit + two_base_hit + three_base_hit + home_run`**。
+# 直接 `SUM(hit)` を画面表示すると単打数のみが表示され、ユーザーが手計算で
+# 「安打 / 打数 = 打率」と検算しても合わない問題が起きる（過去に起きた）。
+#
+# 集計時は以下の式で安打 / 打率 / OBP / SLG を算出する:
+#   total_hits = hit + two_base_hit + three_base_hit + home_run
+#   batting_average = total_hits / at_bats
+#   OBP = (total_hits + base_on_balls + hit_by_pitch) / (at_bats + base_on_balls + hit_by_pitch + sacrifice_fly)
+#   SLG = total_bases / at_bats
+#
+# == 各レイヤーの実装
+# - 本モデル `aggregate_columns` / `stats_columns`     : 内部で `SUM(hit + 2B + 3B + HR)` を返す
+# - `Stats::HeadlineStatsAggregator` (stats タブ主要)  : 同様に total_hits を導出
+# - `Stats::AdditionalStatsAggregator` (追加指標)      : 同様
+# - `Stats::BattingTrendAggregator` (打撃推移)         : 同様
+# - `Stats::BattingStatsTableService` (打撃成績表)     : 同様
+# - `Stats::BattingAverageRecalculator` (書き込み側)   : 新仕様 PA から hit カラムを
+#                                                         書き込むときは SINGLE_HIT_ID (= 7) のみ
+#                                                         をカウントし、旧データと同じ semantics を保つ
+#
+# == 単打のみの値が欲しい場合
+# 個別レコード列の `hit` を直接参照する（マイページ等の表示には出さない方針）。
 class BattingAverage < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
