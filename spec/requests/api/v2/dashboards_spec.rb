@@ -36,14 +36,16 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr
       end
 
-      it 'returns recent_game_results with batting data' do
+      it 'returns recent_game_results with batting data (hit = NPB 標準の全安打)' do
         get '/api/v2/dashboard', headers: auth_headers_for(user)
 
         json = response.parsed_body
         recent = json['recent_game_results']
         expect(recent.size).to eq(1)
         expect(recent.first['id']).to eq(game_result.id)
-        expect(recent.first['batting_average']).to include('hit' => 2, 'at_bats' => 4, 'home_run' => 1)
+        # 単打 2 + HR 1 = 全安打 3。`batting_averages.hit` は単打のみだが、
+        # per-game 表示でも aggregate 表示と同じく全安打を返す。
+        expect(recent.first['batting_average']).to include('hit' => 3, 'at_bats' => 4, 'home_run' => 1)
       end
 
       it 'returns batting_stats with aggregate and calculated values' do

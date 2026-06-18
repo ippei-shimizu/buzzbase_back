@@ -69,7 +69,11 @@ module Api
       end
 
       def serialize_batting(batting)
-        { hit: batting.hit, at_bats: batting.at_bats, home_run: batting.home_run,
+        # `hit` は NPB 標準の全安打（単打 + 2B + 3B + HR）を返す。raw column の
+        # `batting.hit` を直接公開すると単打のみとなり、ダッシュボードの集計表示
+        # （`batting_aggregate_hash`）と「最近の試合」per-game 表示で安打の意味が
+        # 割れてしまう。
+        { hit: batting.total_hits, at_bats: batting.at_bats, home_run: batting.home_run,
           runs_batted_in: batting.runs_batted_in }
       end
 
