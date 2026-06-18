@@ -110,7 +110,9 @@ module Stats
         home_run: homer,
         # 塁打 (TB) = 単打×1 + 2B×2 + 3B×3 + HR×4。既に取得済みのカウントを再利用して
         # 同じ COUNT クエリを 4 本余計に発行しないようにする。
-        total_bases: single + (double * 2) + (triple * 3) + (homer * 4),
+        total_bases: BattingFormulas.total_bases(
+          singles: single, doubles: double, triples: triple, home_runs: homer
+        ),
         runs_batted_in: scope.sum(:rbi).to_i,
         run: scope.sum(:run_scored).to_i,
         strike_out: scope.where(plate_result_id: STRIKE_OUT_IDS).count,
