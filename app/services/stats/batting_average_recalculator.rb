@@ -91,19 +91,26 @@ module Stats
       # 本アプリでは既存集計テーブルに揃えて同一値で運用している（旧仕様 batting_average も同様）。
       counted = with_plate_result.where(plate_results: { counted_in_at_bats: true }).count
 
+      # `batting_averages.hit` は本番運用上「単打のみ」を保持する semantics で揃える。
+      # 2B/3B/HR は別カラムで内訳として持つため、ここで全安打を入れると
+      # マイページ系 (`BattingAverage.stats_for_user` の `SUM(hit + 2B + 3B + HR)`)
+      # で二重計上になる。集計の真は SUM(hit) + SUM(2B) + SUM(3B) + SUM(HR)。
+      single = scope.where(plate_result_id: SINGLE_HIT_ID).count
+      double = scope.where(plate_result_id: DOUBLE_HIT_ID).count
+      triple = scope.where(plate_result_id: TRIPLE_HIT_ID).count
+      homer  = scope.where(plate_result_id: HOME_RUN_ID).count
+
       {
         plate_appearances: scope.count,
         times_at_bat: counted,
         at_bats: counted,
-        # `batting_averages.hit` は本番運用上「単打のみ」を保持する semantics で揃える。
-        # 2B/3B/HR は別カラムで内訳として持つため、ここで全安打を入れると
-        # マイページ系 (`BattingAverage.stats_for_user` の `SUM(hit + 2B + 3B + HR)`)
-        # で二重計上になる。集計の真は SUM(hit) + SUM(2B) + SUM(3B) + SUM(HR)。
-        hit: scope.where(plate_result_id: SINGLE_HIT_ID).count,
-        two_base_hit: scope.where(plate_result_id: DOUBLE_HIT_ID).count,
-        three_base_hit: scope.where(plate_result_id: TRIPLE_HIT_ID).count,
-        home_run: scope.where(plate_result_id: HOME_RUN_ID).count,
-        total_bases: compute_total_bases(scope),
+        hit: single,
+        two_base_hit: double,
+        three_base_hit: triple,
+        home_run: homer,
+        # 塁打 (TB) = 単打×1 + 2B×2 + 3B×3 + HR×4。既に取得済みのカウントを再利用して
+        # 同じ COUNT クエリを 4 本余計に発行しないようにする。
+        total_bases: single + (double * 2) + (triple * 3) + (homer * 4),
         runs_batted_in: scope.sum(:rbi).to_i,
         run: scope.sum(:run_scored).to_i,
         strike_out: scope.where(plate_result_id: STRIKE_OUT_IDS).count,
@@ -115,13 +122,6 @@ module Stats
         caught_stealing: scope.sum(:caught_stealing).to_i,
         error: scope.where(plate_result_id: ERROR_ID).count
       }
-    end
-
-    def compute_total_bases(scope)
-      scope.where(plate_result_id: SINGLE_HIT_ID).count +
-        (scope.where(plate_result_id: DOUBLE_HIT_ID).count * 2) +
-        (scope.where(plate_result_id: TRIPLE_HIT_ID).count * 3) +
-        (scope.where(plate_result_id: HOME_RUN_ID).count * 4)
     end
   end
 end
