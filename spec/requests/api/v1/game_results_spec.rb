@@ -56,6 +56,23 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
 
         expect(response).to have_http_status(:ok)
       end
+
+      it 'returns per-game batting_average.hit as NPB 標準の全安打 for other user' do
+        gr = create(:game_result, user: other_user)
+        gr.match_result.update!(date_and_time: Time.zone.local(2026, 5, 1))
+        # 単打 1 + 2B 1 + HR 1 = 全安打 3
+        create(:batting_average, game_result: gr, user: other_user,
+                                 hit: 1, two_base_hit: 1, three_base_hit: 0, home_run: 1,
+                                 at_bats: 4, total_bases: 7, times_at_bat: 4)
+
+        get '/api/v1/game_results/game_associated_data_index_user_id',
+            params: { user_id: other_user.id },
+            headers: auth_headers_for(user)
+
+        json = response.parsed_body
+        ba = json.first['batting_average']
+        expect(ba['hit']).to eq(3)
+      end
     end
 
     context 'when not authenticated' do
@@ -253,6 +270,23 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:ok)
+      end
+
+      it 'returns per-game batting_average.hit as NPB 標準の全安打 in filtered result' do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.local(2026, 5, 1), match_type: 'regular')
+        # 単打 1 + 2B 1 + HR 1 = 全安打 3
+        create(:batting_average, game_result: gr, user:,
+                                 hit: 1, two_base_hit: 1, three_base_hit: 0, home_run: 1,
+                                 at_bats: 4, total_bases: 7, times_at_bat: 4)
+
+        get '/api/v1/game_results/filtered_game_associated_data',
+            params: { year: '2026', match_type: '全て' },
+            headers: auth_headers_for(user)
+
+        json = response.parsed_body
+        ba = json.first['batting_average']
+        expect(ba['hit']).to eq(3)
       end
     end
 
