@@ -54,7 +54,16 @@ RSpec.describe 'HeadlineStatsAggregator consistency with BattingAverage.stats_fo
         expect(mypage[:on_base_percentage]).to eq(headline[:on_base_percentage])
         expect(mypage[:slugging_percentage]).to eq(headline[:slugging_percentage])
         expect(mypage[:ops]).to eq(headline[:ops])
+        # マイページの total_hits と stats タブの hit が NPB 標準で一致する（= 全安打）
+        expect(mypage[:total_hits]).to eq(headline[:hit])
       end
+    end
+
+    it 'aggregate_for_user が返す hit も全安打で一致する（ダッシュボード / ランキング表示の整合性）' do
+      aggregate = BattingAverage.aggregate_for_user(user.id).take
+      headline = Stats::HeadlineStatsAggregator.new(user_id: user.id).call
+
+      expect(aggregate.hit.to_i).to eq(headline[:hit])
     end
 
     it '両系統が NPB 公式式と一致する具体値を返す' do

@@ -24,7 +24,11 @@ class BattingAverage < ApplicationRecord
      'COUNT(batting_averages.game_result_id) AS number_of_matches',
      'SUM(times_at_bat) AS times_at_bat',
      'SUM(at_bats) AS at_bats',
-     'SUM(hit) AS hit',
+     # `hit` カラムは本番運用上「単打のみ」を保持するが、画面で「安打」として
+     # 表示する値は NPB 標準の全安打（単打 + 二塁打 + 三塁打 + 本塁打）。
+     # マイページ / ダッシュボード / ランキング / グループスタッツの安打表示を
+     # NPB 標準に揃え、stats タブの主要スタッツとも一致させる。
+     'SUM(hit + two_base_hit + three_base_hit + home_run) AS hit',
      'SUM(two_base_hit) AS two_base_hit',
      'SUM(three_base_hit) AS three_base_hit',
      'SUM(home_run) AS home_run',
