@@ -42,6 +42,22 @@ class BattingAverage < ApplicationRecord
 
   ZERO = 0
 
+  # NPB / MLB スコアボードでいう「安打 (H)」相当の総安打数を返す。
+  # `hit` カラムは単打のみを保持する semantics のため、per-game 表示で
+  # 画面に「安打 N」と出す値はこのメソッドを必ず通すこと（直接 `hit` を
+  # 公開すると単打のみが表示され、二塁打 / 三塁打 / 本塁打が抜け落ちる）。
+  def total_hits
+    hit.to_i + two_base_hit.to_i + three_base_hit.to_i + home_run.to_i
+  end
+
+  # per-game レスポンスで画面表示用に attributes を返す。`hit` を全安打に
+  # 差し替えた状態の Hash で、ダッシュボードや試合一覧などレコードを直接
+  # JSON として返す controller / model helper で利用する（v1 batting_averages
+  # の編集系 API は raw カラムが必要なので、こちらは使わない）。
+  def display_attributes
+    attributes.merge('hit' => total_hits)
+  end
+
   def self.aggregate_for_user(user_id)
     aggregate_query.where(user_id:)
   end

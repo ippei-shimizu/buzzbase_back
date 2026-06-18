@@ -38,7 +38,8 @@ class GameResult < ApplicationRecord
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        # `hit` を全安打で返すため display_attributes 経由でシリアライズ
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
@@ -90,7 +91,7 @@ class GameResult < ApplicationRecord
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
