@@ -34,7 +34,7 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
           expect(batting_average.plate_appearances).to eq(4)
           expect(batting_average.at_bats).to eq(3)              # 7,8,13 が counted_in_at_bats: true（15=四球は false）
           expect(batting_average.times_at_bat).to eq(3)
-          expect(batting_average.hit).to eq(2)                  # 7 (単打) + 8 (二塁打)
+          expect(batting_average.hit).to eq(1)                  # 単打 (id=7) のみ。2B は two_base_hit カラムに別計上
           expect(batting_average.two_base_hit).to eq(1)
           expect(batting_average.three_base_hit).to eq(0)
           expect(batting_average.home_run).to eq(0)

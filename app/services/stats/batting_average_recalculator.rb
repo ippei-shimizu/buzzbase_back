@@ -95,7 +95,11 @@ module Stats
         plate_appearances: scope.count,
         times_at_bat: counted,
         at_bats: counted,
-        hit: scope.where(plate_result_id: HIT_RESULT_IDS).count,
+        # `batting_averages.hit` は本番運用上「単打のみ」を保持する semantics で揃える。
+        # 2B/3B/HR は別カラムで内訳として持つため、ここで全安打を入れると
+        # マイページ系 (`BattingAverage.stats_for_user` の `SUM(hit + 2B + 3B + HR)`)
+        # で二重計上になる。集計の真は SUM(hit) + SUM(2B) + SUM(3B) + SUM(HR)。
+        hit: scope.where(plate_result_id: SINGLE_HIT_ID).count,
         two_base_hit: scope.where(plate_result_id: DOUBLE_HIT_ID).count,
         three_base_hit: scope.where(plate_result_id: TRIPLE_HIT_ID).count,
         home_run: scope.where(plate_result_id: HOME_RUN_ID).count,
