@@ -1,15 +1,3 @@
-# `batting_averages.hit` カラムは **単打 + 二塁打 + 三塁打 + 本塁打 を合算した
-# 全安打数** を保持する（NPB / MLB スコアボードの「H 列」と同じセマンティクス）。
-# 旧仕様の手入力フォームも、新仕様の `Stats::BattingAverageRecalculator`
-# (`HIT_RESULT_IDS = [7, 8, 9, 10]` を全件カウント) も同じ意味で書き込んでおり、
-# `two_base_hit` / `three_base_hit` / `home_run` カラムは「うち何本が何塁打か」
-# という内訳を持つ。
-#
-# 集計式を組むときは
-#   - 総安打 = SUM(hit)
-#   - 単打数 = SUM(hit) - SUM(two_base_hit) - SUM(three_base_hit) - SUM(home_run)
-#   - 塁打 (TB) = SUM(hit) + SUM(two_base_hit) + 2*SUM(three_base_hit) + 3*SUM(home_run)
-# となる点に注意（`hit + 2*two_base_hit + ...` のように単打式で組むと二重計上）。
 class BattingAverage < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
@@ -95,13 +83,9 @@ class BattingAverage < ApplicationRecord
     scope
   end
 
-  # `hit` カラムは全安打を含むため、総安打 = SUM(hit)。
-  # 以前は `SUM(hit + 2B + 3B + HR)` と書いていたが、2B/3B/HR を二重計上して
-  # 打率 / OBP / OPS / ISOD が上振れていた既存バグの修正。
-  # `hit` 単独の SUM は不要（消費側は total_hits を参照する）。同じ式を二重に
-  # SELECT すると「hit と total_hits の値が違う」という誤読の芽になる。
   def self.stats_columns
-    ['SUM(hit) AS total_hits',
+    ['SUM(hit + two_base_hit + three_base_hit + home_run) AS total_hits',
+     'SUM(hit) AS hit',
      'SUM(two_base_hit) AS two_base_hit',
      'SUM(three_base_hit) AS three_base_hit',
      'SUM(home_run) AS home_run',
@@ -154,14 +138,10 @@ class BattingAverage < ApplicationRecord
     (obp - avg).round(3)
   end
 
-  # `total_hits` は全安打（単打 + 2B + 3B + HR）なので、塁打 (TB) は
-  # 単打×1 + 2B×2 + 3B×3 + HR×4 を展開して
-  # `total_hits + 2B + 2*3B + 3*HR` に等しい。以前は `hit + 2*2B + 3*3B + 4*HR`
-  # と書いていたが、これは hit を単打のみと解釈した式で 2B/3B/HR を二重計上していた。
   def self.calculate_slugging_percentage(stats)
     at_bats = stats['at_bats'].to_i
-    total_bases = stats['total_hits'].to_i + stats['two_base_hit'].to_i +
-                  (stats['three_base_hit'].to_i * 2) + (stats['home_run'].to_i * 3)
+    total_bases = stats['hit'].to_i + (stats['two_base_hit'].to_i * 2) +
+                  (stats['three_base_hit'].to_i * 3) + (stats['home_run'].to_i * 4)
     at_bats.zero? ? ZERO : total_bases.to_f / at_bats
   end
 
