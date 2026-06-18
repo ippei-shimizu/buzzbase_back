@@ -24,13 +24,17 @@ module Stats
     def call
       stats = aggregate_stats
       at_bats = stats[:at_bats]
+      # `batting_averages.hit` は本番運用上「単打のみ」を保持するため、総安打は
+      # 単打 + 2B + 3B + HR を加算して導出する。マイページ系
+      # (`BattingAverage.stats_for_user`) と同じ semantics に揃える。
+      total_hits = stats[:hit] + stats[:two_base_hit] + stats[:three_base_hit] + stats[:home_run]
       obp_denominator = at_bats + stats[:base_on_balls] + stats[:hit_by_pitch] + stats[:sacrifice_fly]
-      obp = safe_divide(stats[:hit] + stats[:base_on_balls] + stats[:hit_by_pitch], obp_denominator)
+      obp = safe_divide(total_hits + stats[:base_on_balls] + stats[:hit_by_pitch], obp_denominator)
       slg = safe_divide(stats[:total_bases], at_bats)
 
       {
-        batting_average: safe_divide(stats[:hit], at_bats),
-        hit: stats[:hit],
+        batting_average: safe_divide(total_hits, at_bats),
+        hit: total_hits,
         home_run: stats[:home_run],
         runs_batted_in: stats[:runs_batted_in],
         on_base_percentage: obp,
@@ -42,7 +46,10 @@ module Stats
 
     private
 
-    SUM_COLUMNS = %i[at_bats hit home_run runs_batted_in base_on_balls hit_by_pitch sacrifice_fly total_bases].freeze
+    SUM_COLUMNS = %i[
+      at_bats hit two_base_hit three_base_hit home_run
+      runs_batted_in base_on_balls hit_by_pitch sacrifice_fly total_bases
+    ].freeze
 
     # 8 カラムの SUM を 1 クエリで取得する。scope.sum を都度呼ぶと SELECT が
     # SUM 1 個ずつ 8 本走るため、pick + SUM で 1 本にまとめる。

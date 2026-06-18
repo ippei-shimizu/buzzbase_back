@@ -38,17 +38,19 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
 
     context 'when summing multiple games' do
       before do
-        # 1試合目: 4打数 2安打 (うち1本塁打) 2打点 1四球
+        # 1試合目: 4打数 2安打 (単打1 + 本塁打1) 2打点 1四球
+        # `hit` カラムは単打のみを保持する semantics なので hit=1 (HR は home_run に別計上)
         build_game(
           batting_attrs: {
-            at_bats: 4, hit: 2, two_base_hit: 0, three_base_hit: 0, home_run: 1,
+            at_bats: 4, hit: 1, two_base_hit: 0, three_base_hit: 0, home_run: 1,
             total_bases: 5, runs_batted_in: 2, base_on_balls: 1
           }
         )
-        # 2試合目: 3打数 1安打 (二塁打) 1打点 0四球 1犠飛
+        # 2試合目: 3打数 1安打 (二塁打1) 1打点 0四球 1犠飛
+        # 単打 0、二塁打 1 → hit=0, two_base_hit=1
         build_game(
           batting_attrs: {
-            at_bats: 3, hit: 1, two_base_hit: 1, three_base_hit: 0, home_run: 0,
+            at_bats: 3, hit: 0, two_base_hit: 1, three_base_hit: 0, home_run: 0,
             total_bases: 2, runs_batted_in: 1, base_on_balls: 0, sacrifice_fly: 1
           }
         )
