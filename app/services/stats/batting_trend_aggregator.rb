@@ -174,23 +174,24 @@ module Stats
 
     def build_point(key:, label:, period_stats:, cumulative_stats:)
       at_bats = cumulative_stats[:at_bats]
-      # `batting_averages.hit` は本番運用上「単打のみ」を保持するため、総安打は
-      # 単打 + 2B + 3B + HR を加算して導出する。HeadlineStatsAggregator と同じパターン。
-      total_hits = cumulative_stats[:hit] + cumulative_stats[:two_base_hit] +
-                   cumulative_stats[:three_base_hit] + cumulative_stats[:home_run]
-      obp_denom = at_bats + cumulative_stats[:base_on_balls] +
-                  cumulative_stats[:hit_by_pitch] + cumulative_stats[:sacrifice_fly]
-      obp_num = total_hits + cumulative_stats[:base_on_balls] + cumulative_stats[:hit_by_pitch]
-      obp = safe_divide(obp_num, obp_denom)
-      slg = safe_divide(cumulative_stats[:total_bases], at_bats)
+      total_hits = BattingFormulas.total_hits(
+        singles: cumulative_stats[:hit], doubles: cumulative_stats[:two_base_hit],
+        triples: cumulative_stats[:three_base_hit], home_runs: cumulative_stats[:home_run]
+      )
+      obp = BattingFormulas.on_base_percentage(
+        total_hits:, base_on_balls: cumulative_stats[:base_on_balls],
+        hit_by_pitch: cumulative_stats[:hit_by_pitch], at_bats:,
+        sacrifice_fly: cumulative_stats[:sacrifice_fly]
+      )
+      slg = BattingFormulas.slugging_percentage(total_bases: cumulative_stats[:total_bases], at_bats:)
 
       {
         key:,
         label:,
-        batting_average: safe_divide(total_hits, at_bats),
+        batting_average: BattingFormulas.batting_average(total_hits:, at_bats:),
         on_base_percentage: obp,
         slugging_percentage: slg,
-        ops: round3(obp + slg),
+        ops: BattingFormulas.ops(obp:, slg:),
         at_bats_in_period: period_stats[:at_bats].to_i,
         cumulative_at_bats: at_bats
       }
@@ -204,16 +205,6 @@ module Stats
         scope = apply_season_filter(scope)
         apply_tournament_filter(scope)
       end
-    end
-
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.to_i.zero?
-
-      round3(numerator.to_f / denominator)
-    end
-
-    def round3(value)
-      value.round(3)
     end
   end
 end

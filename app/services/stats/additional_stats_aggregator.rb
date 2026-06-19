@@ -77,17 +77,21 @@ module Stats
 
     def computed_rates(stats)
       at_bats = stats[:at_bats]
-      # `batting_averages.hit` は本番運用上「単打のみ」を保持するため、総安打は
-      # 単打 + 2B + 3B + HR を加算して導出する。HeadlineStatsAggregator と同じパターン。
-      total_hits = stats[:hit] + stats[:two_base_hit] + stats[:three_base_hit] + stats[:home_run]
-      batting_average = safe_divide(total_hits, at_bats)
-      obp_denom = at_bats + stats[:base_on_balls] + stats[:hit_by_pitch] + stats[:sacrifice_fly]
-      obp = safe_divide(total_hits + stats[:base_on_balls] + stats[:hit_by_pitch], obp_denom)
-      slg = safe_divide(stats[:total_bases], at_bats)
+      total_hits = BattingFormulas.total_hits(
+        singles: stats[:hit], doubles: stats[:two_base_hit],
+        triples: stats[:three_base_hit], home_runs: stats[:home_run]
+      )
+      batting_average = BattingFormulas.batting_average(total_hits:, at_bats:)
+      obp = BattingFormulas.on_base_percentage(
+        total_hits:, base_on_balls: stats[:base_on_balls],
+        hit_by_pitch: stats[:hit_by_pitch], at_bats:,
+        sacrifice_fly: stats[:sacrifice_fly]
+      )
+      slg = BattingFormulas.slugging_percentage(total_bases: stats[:total_bases], at_bats:)
       {
-        iso: round3(slg - batting_average),
-        isod: round3(obp - batting_average),
-        bb_per_k: safe_divide(stats[:base_on_balls], stats[:strike_out])
+        iso: BattingFormulas.iso(slg:, batting_average:),
+        isod: BattingFormulas.isod(obp:, batting_average:),
+        bb_per_k: BattingFormulas.safe_divide(stats[:base_on_balls], stats[:strike_out])
       }
     end
 
@@ -126,16 +130,6 @@ module Stats
         scope = apply_season_filter(scope)
         apply_tournament_filter(scope)
       end
-    end
-
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.to_i.zero?
-
-      round3(numerator.to_f / denominator)
-    end
-
-    def round3(value)
-      value.round(3)
     end
   end
 end
