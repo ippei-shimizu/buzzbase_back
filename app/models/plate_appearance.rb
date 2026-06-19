@@ -46,7 +46,30 @@ class PlateAppearance < ApplicationRecord
 
   validate :swing_type_only_for_strikeout
 
+  # batting_averages の集計は PA の追加・更新・削除に追従して更新する。
+  # controller 経由 (Api::V2::PlateAppearancesController) でも、rails runner /
+  # 一括投入スクリプト / 旧 v1 endpoint 経由でも、新仕様 PA を触ったら必ず
+  # recalculator が起動する。混在試合 / 旧仕様 PA は recalculator 内の
+  # new_format_game? で skip されるため副作用なし。
+  after_commit :recalculate_game_batting_average, on: %i[create update]
+  after_destroy_commit :recalculate_game_batting_average_after_destroy
+
   private
+
+  def recalculate_game_batting_average
+    Stats::BattingAverageRecalculator.new(
+      game_result_id:, user_id:, cleanup_orphan: false
+    ).call
+  end
+
+  # 新仕様 PA を destroy した場合のみ cleanup_orphan を true にする。
+  # 旧仕様 PA (is_new_format=false) の destroy で cleanup させると、
+  # 旧フロー直書きの batting_average を消してしまうため false 固定にする。
+  def recalculate_game_batting_average_after_destroy
+    Stats::BattingAverageRecalculator.new(
+      game_result_id:, user_id:, cleanup_orphan: is_new_format
+    ).call
+  end
 
   def swing_type_only_for_strikeout
     return if swing_type.blank?

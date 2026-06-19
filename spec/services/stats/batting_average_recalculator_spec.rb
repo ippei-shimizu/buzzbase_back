@@ -104,8 +104,12 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
 
     context '新仕様試合で batting_average レコードがまだ無い場合' do
       before do
+        # PlateAppearance の after_commit で BattingAverage が auto-create されるため、
+        # 「BA が無い」状態を再現するために auto-create された行を一度消す。
+        # ここでは「rake タスクや手動再集計から呼ばれて新規作成される」シナリオの retention。
         create(:plate_appearance, game_result:, user:, plate_result_id: 7, hit_direction_id: 10,
                                   is_new_format: true)
+        BattingAverage.where(game_result_id: game_result.id).destroy_all
       end
 
       it 'find_or_create_by で新規作成される' do

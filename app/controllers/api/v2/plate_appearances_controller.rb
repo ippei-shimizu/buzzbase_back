@@ -4,7 +4,9 @@ module Api
     #
     # - `is_new_format = true` を強制セットすることで「新仕様試合」とマークする
     # - `batting_result` 表示テキストをサーバー側で自動生成
-    # - `batting_average` を `Stats::BattingAverageRecalculator` で自動再集計
+    # - `batting_average` の再集計は PlateAppearance の after_commit /
+    #   after_destroy_commit に委ねる（controller 経由でも runner / 一括投入でも
+    #   同じ起動経路に統一する）
     # - v1 API は無修正、後方互換を保つ
     class PlateAppearancesController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
@@ -21,7 +23,6 @@ module Api
         plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(plate_appearance)
 
         if plate_appearance.save
-          recalculate_batting_average(plate_appearance.game_result_id, user_id: current_api_v1_user.id)
           render json: plate_appearance, serializer: ::V2::PlateAppearanceSerializer, status: :created
         else
           render json: { errors: plate_appearance.errors.full_messages }, status: :unprocessable_entity
@@ -37,7 +38,6 @@ module Api
         @plate_appearance.batting_result = ::Stats::BattingResultTextGenerator.generate(@plate_appearance)
 
         if @plate_appearance.save
-          recalculate_batting_average(@plate_appearance.game_result_id, user_id: current_api_v1_user.id)
           render json: @plate_appearance, serializer: ::V2::PlateAppearanceSerializer
         else
           render json: { errors: @plate_appearance.errors.full_messages }, status: :unprocessable_entity
@@ -45,12 +45,7 @@ module Api
       end
 
       def destroy
-        game_result_id = @plate_appearance.game_result_id
-        # 削除する打席が新仕様だった場合、最後の1件であれば対応する batting_average も
-        # 削除する必要がある（孤立レコード防止）。was_new_format を Recalculator に渡して判断させる。
-        was_new_format = @plate_appearance.is_new_format
         @plate_appearance.destroy!
-        recalculate_batting_average(game_result_id, user_id: current_api_v1_user.id, cleanup_orphan: was_new_format)
         render json: { message: '打席結果を削除しました' }
       end
 
@@ -104,10 +99,6 @@ module Api
 
         render json: { errors: ['指定された投手は存在しません'] }, status: :unprocessable_entity
         true
-      end
-
-      def recalculate_batting_average(game_result_id, user_id:, cleanup_orphan: false)
-        ::Stats::BattingAverageRecalculator.new(game_result_id:, user_id:, cleanup_orphan:).call
       end
     end
   end

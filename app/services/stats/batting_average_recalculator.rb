@@ -50,11 +50,23 @@ module Stats
     private
 
     def recalculate_and_save
+      stats = aggregate_stats
+      # plate_result_id が未入力の新仕様 PA だけが紐づいている過渡状態では、
+      # 集計値が plate_appearances 件数を除いて全て 0 になる。BattingAverage は
+      # must_have_any_stats バリデーションで全 0 行を許さないため、無理に save せず
+      # 既存 BA があれば触らないまま skip する（v2 controller では plate_result_id を
+      # 含む完全な params で create されるため、本パスは通常ヒットしない）。
+      return nil if empty_stats?(stats)
+
       batting_average = BattingAverage.find_or_initialize_by(game_result_id: @game_result_id)
       batting_average.user_id ||= resolve_user_id
-      batting_average.assign_attributes(aggregate_stats)
+      batting_average.assign_attributes(stats)
       batting_average.save!
       batting_average
+    end
+
+    def empty_stats?(stats)
+      stats.except(:plate_appearances).values.all? { |v| v.to_i.zero? }
     end
 
     def cleanup_orphaned_batting_average

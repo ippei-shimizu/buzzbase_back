@@ -169,7 +169,8 @@ RSpec.describe PlateAppearance, type: :model do
     end
 
     it 'true でセット可能' do
-      plate_appearance = create(:plate_appearance, is_new_format: true)
+      plate_appearance = create(:plate_appearance, is_new_format: true,
+                                                   plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
       expect(plate_appearance.is_new_format).to be(true)
     end
 
@@ -177,6 +178,82 @@ RSpec.describe PlateAppearance, type: :model do
       plate_appearance = create(:plate_appearance)
       plate_appearance.reload
       expect(plate_appearance.is_new_format).to be(false)
+    end
+  end
+
+  describe 'callback: batting_average の自動再集計' do
+    let(:user) { create(:user) }
+    let(:game_result) { create(:game_result, user:) }
+
+    context '新仕様 PA を create したとき' do
+      it '同 game_result の batting_average を自動作成する' do
+        expect do
+          create(:plate_appearance, user:, game_result:, is_new_format: true,
+                                    plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        end.to change { BattingAverage.where(game_result_id: game_result.id).count }.from(0).to(1)
+
+        batting_average = BattingAverage.find_by(game_result_id: game_result.id)
+        expect(batting_average.hit).to eq(1)
+        expect(batting_average.at_bats).to eq(1)
+        expect(batting_average.user_id).to eq(user.id)
+      end
+    end
+
+    context '新仕様 PA を update したとき' do
+      it '再集計で batting_average が更新される' do
+        plate_appearance = create(:plate_appearance, user:, game_result:, is_new_format: true,
+                                                     plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        expect(BattingAverage.find_by(game_result_id: game_result.id).hit).to eq(1)
+
+        plate_appearance.update!(plate_result_id: Stats::BattingAverageRecalculator::HOME_RUN_ID)
+        batting_average = BattingAverage.find_by(game_result_id: game_result.id)
+        expect(batting_average.hit).to eq(0)
+        expect(batting_average.home_run).to eq(1)
+      end
+    end
+
+    context '新仕様 PA を最後の 1 件として destroy したとき' do
+      it '孤立した batting_average を削除する' do
+        plate_appearance = create(:plate_appearance, user:, game_result:, is_new_format: true,
+                                                     plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        expect(BattingAverage.where(game_result_id: game_result.id)).to exist
+
+        expect { plate_appearance.destroy! }
+          .to change { BattingAverage.where(game_result_id: game_result.id).count }.from(1).to(0)
+      end
+    end
+
+    context '旧仕様 PA (is_new_format=false) を create したとき' do
+      it 'batting_average は作成されない（混在試合保護）' do
+        expect do
+          create(:plate_appearance, user:, game_result:, is_new_format: false,
+                                    plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        end.not_to(change { BattingAverage.where(game_result_id: game_result.id).count })
+      end
+    end
+
+    context '旧仕様 PA を destroy したとき' do
+      it '直書きされた batting_average を触らない（cleanup_orphan=false）' do
+        create(:plate_appearance, user:, game_result:, is_new_format: false,
+                                  plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        legacy_batting_average = create(:batting_average, game_result:, user:, hit: 99, at_bats: 99)
+
+        game_result.plate_appearances.first.destroy!
+        expect(BattingAverage.find_by(id: legacy_batting_average.id)).to be_present
+      end
+    end
+
+    context '混在試合（旧 PA が 1 件でも残っているとき）' do
+      it '新仕様 PA を追加しても batting_average は触られない' do
+        create(:plate_appearance, user:, game_result:, is_new_format: false,
+                                  plate_result_id: Stats::BattingAverageRecalculator::SINGLE_HIT_ID)
+        legacy_batting_average = create(:batting_average, game_result:, user:, hit: 99, at_bats: 99)
+
+        create(:plate_appearance, user:, game_result:, is_new_format: true,
+                                  plate_result_id: Stats::BattingAverageRecalculator::HOME_RUN_ID)
+        expect(legacy_batting_average.reload.hit).to eq(99)
+        expect(legacy_batting_average.at_bats).to eq(99)
+      end
     end
   end
 end
