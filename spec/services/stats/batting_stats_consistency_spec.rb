@@ -57,6 +57,7 @@ RSpec.describe 'Batting stats SSoT consistency across aggregators', type: :servi
         expect(trend_last[:ops]).to eq(mypage[:ops])
         expect(table_row[:ops]).to eq(mypage[:ops])
         expect(additional[:iso]).to eq(mypage[:iso])
+        expect(table_row[:iso]).to eq(mypage[:iso])
         expect(additional[:isod]).to eq(mypage[:isod])
       end
     end
