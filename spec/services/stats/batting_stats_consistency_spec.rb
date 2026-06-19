@@ -37,7 +37,7 @@ RSpec.describe 'Batting stats SSoT consistency across aggregators', type: :servi
     # 通算: AB=12, hit=3, 2B=1, 3B=0, HR=1, total_hits=5, TB=3+2+0+4=9, BB=1, HBP=0, SF=0
     # 打率 = 5/12 = .417, OBP = 6/13 = .462, SLG = 9/12 = .750, OPS = 1.212
 
-    it '全集計レイヤーで打率 / OBP / SLG / OPS が完全一致する' do
+    it '全集計レイヤーで打率 / OBP / SLG / OPS が完全一致する' do # rubocop:disable RSpec/ExampleLength
       mypage     = BattingAverage.stats_for_user(user.id)
       headline   = Stats::HeadlineStatsAggregator.new(user_id: user.id).call
       additional = Stats::AdditionalStatsAggregator.new(user_id: user.id).call
