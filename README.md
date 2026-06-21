@@ -178,6 +178,22 @@ docker compose exec back bundle exec rspec spec/models/
 - RSpec + FactoryBot + Shoulda Matchers
 - テストファイルは `spec/` 配下に `requests/`, `models/`, `services/`, `serializers/` で分類
 
+### golden master（集計ロジックの不変性テスト）
+
+`spec/qa/` は集計サービスの出力を `spec/golden/*.json` に固定する characterization テスト。
+「既存ユーザーの集計値が変わらないこと」を CI で守る。集計ロジックが意図せず変わると差分で落ちる。
+
+```bash
+# 検証（通常）
+docker compose exec back bundle exec rspec spec/qa
+
+# 集計仕様を意図的に変更したときだけ golden を更新する
+docker compose exec -e SPEC_UPDATE_GOLDEN=1 back bundle exec rspec spec/qa
+```
+
+- `SPEC_UPDATE_GOLDEN=1` で `spec/golden/*.json` を再生成し、差分を**レビューしてからコミット**する
+- 固定データセットは `spec/support/golden_master_seed.rb`（旧仕様 / 混在 / 新仕様の代表試合）
+
 ## 環境変数
 
 | 変数名 | 説明 |

@@ -1,0 +1,167 @@
+{
+  "directions": [
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 1,
+      "label": "投",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 13,
+      "label": "右線",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 2,
+      "label": "捕",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 3,
+      "label": "一",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 5,
+      "label": "三",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 6,
+      "label": "遊",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 7,
+      "label": "左線",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 0,
+      "count": 0,
+      "hits": 0,
+      "home_run": 0,
+      "id": 9,
+      "label": "左中",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 1,
+      "count": 0,
+      "hits": 1,
+      "home_run": 1,
+      "id": 12,
+      "label": "右",
+      "three_base_hit": 0,
+      "top_category": "その他",
+      "total_bases": 4,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 1,
+      "count": 1,
+      "hits": 0,
+      "home_run": 0,
+      "id": 4,
+      "label": "二",
+      "three_base_hit": 0,
+      "top_category": "ゴロ",
+      "total_bases": 0,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 1,
+      "count": 1,
+      "hits": 1,
+      "home_run": 0,
+      "id": 11,
+      "label": "右中",
+      "three_base_hit": 1,
+      "top_category": "長打",
+      "total_bases": 3,
+      "two_base_hit": 0
+    },
+    {
+      "at_bats": 1,
+      "count": 1,
+      "hits": 1,
+      "home_run": 0,
+      "id": 8,
+      "label": "左",
+      "three_base_hit": 0,
+      "top_category": "長打",
+      "total_bases": 2,
+      "two_base_hit": 1
+    },
+    {
+      "at_bats": 3,
+      "count": 4,
+      "hits": 2,
+      "home_run": 0,
+      "id": 10,
+      "label": "中",
+      "three_base_hit": 0,
+      "top_category": "単打",
+      "total_bases": 2,
+      "two_base_hit": 0
+    }
+  ],
+  "home_runs": [
+    {
+      "count": 1,
+      "id": 12,
+      "label": "右"
+    }
+  ]
+}
