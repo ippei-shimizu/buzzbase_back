@@ -18,7 +18,6 @@ class AddColumnsToPlateAppearances < ActiveRecord::Migration[7.0]
       t.references :contact_quality, foreign_key: true, null: true
       t.references :timing, foreign_key: true, null: true
       t.references :pitch_type, foreign_key: true, null: true
-      t.references :hit_depth, foreign_key: true, null: true
 
       t.text :self_analysis_memo
       t.text :opponent_memo
