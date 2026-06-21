@@ -1,0 +1,22 @@
+[
+  {
+    "appearance_type": "String",
+    "batting_order": "String",
+    "created_at": "String",
+    "date_and_time": "String",
+    "defensive_position": "String",
+    "game_result_id": "Integer",
+    "id": "Integer",
+    "inning_format": "Integer",
+    "match_type": "String",
+    "memo": "null",
+    "my_team_id": "Integer",
+    "my_team_score": "Integer",
+    "opponent_team_id": "Integer",
+    "opponent_team_score": "Integer",
+    "stadium_id": "null",
+    "tournament_id": "null",
+    "updated_at": "String",
+    "user_id": "Integer"
+  }
+]
