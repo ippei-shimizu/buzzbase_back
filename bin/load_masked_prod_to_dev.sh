@@ -42,7 +42,7 @@ DB_PASS="password"
 DB="$COMPOSE exec -e PGPASSWORD=$DB_PASS -T db"
 
 echo "対象ダンプ : $DUMP_FILE"
-echo "投入先     : $DEV_DB（既存データは破棄され、匿名化済み本番データで置き換わります）"
+echo "投入先     : ${DEV_DB}（既存データは破棄され、匿名化済み本番データで置き換わります）"
 if [[ "$ASSUME_YES" != "-y" ]]; then
   read -r -p "続行しますか？ [y/N] " answer
   [[ "$answer" == "y" || "$answer" == "Y" ]] || { echo "中止しました"; exit 0; }
