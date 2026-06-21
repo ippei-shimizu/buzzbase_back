@@ -129,6 +129,23 @@ rm -f back/tmp/db_dumps/*.dump
 docker compose exec -e PGPASSWORD=password db dropdb -U user --if-exists buzzbase_qa
 ```
 
+## 開発環境へ匿名化済み本番データを投入する（任意）
+
+migration リハーサルとは別に、**本番相当データで開発環境を動かして不整合を確認**したい場合は
+`bin/load_masked_prod_to_dev.sh` を使う。
+
+```bash
+back/bin/load_masked_prod_to_dev.sh back/tmp/db_dumps/<dump> [-y]
+```
+
+安全方針: 未マスクデータ（`device_tokens` 等の PII）は**一時DB(`app_development_import`)にしか
+置かず、匿名化・検証が完了してから `app_development` に置き換える**。よって開発環境に生の本番
+PII が入る瞬間が無い。フローは「一時DB復元 → `qa:anonymize` → 匿名化検証 → `app_development`
+置換 → `db:migrate`」。
+
+> **破壊的**: 既存の `app_development`（ローカルのシード・テストデータ）は置き換わる。
+> 取得元ダンプは PII を含むため作業後に削除すること。
+
 ## リリース前チェックリスト
 
 - [ ] 本番ダンプを取得し QA 専用 DB に復元した（開発 DB は壊していない）
