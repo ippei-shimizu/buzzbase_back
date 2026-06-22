@@ -121,7 +121,7 @@ module Stats
 
       { hit:, total_bases:, batting_average: avg, slugging_percentage: slg,
         ops: BattingFormulas.ops(obp:, slg:),
-        iso: BattingFormulas.iso(slg:, batting_average: avg),
+        iso: BattingFormulas.iso(total_bases:, total_hits: hit, at_bats:),
         bb_per_k: BattingFormulas.safe_divide(vals['base_on_balls'], vals['strike_out']) }
         .merge(babip: calculate_babip(hit, vals))
     end

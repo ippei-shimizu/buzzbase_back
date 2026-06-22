@@ -162,15 +162,14 @@ class BattingAverage < ApplicationRecord
       hit_by_pitch: stats['hit_by_pitch'], at_bats:,
       sacrifice_fly: stats['sacrifice_fly']
     )
-    slg = Stats::BattingFormulas.slugging_percentage(
-      total_bases: calculate_total_bases(stats), at_bats:
-    )
+    total_bases = calculate_total_bases(stats)
+    slg = Stats::BattingFormulas.slugging_percentage(total_bases:, at_bats:)
     {
       user_id:,
       total_hits:,
       batting_average: avg,
       on_base_percentage: obp,
-      iso: Stats::BattingFormulas.iso(slg:, batting_average: avg),
+      iso: Stats::BattingFormulas.iso(total_bases:, total_hits:, at_bats:),
       ops: Stats::BattingFormulas.ops(obp:, slg:),
       bb_per_k: Stats::BattingFormulas.safe_divide(stats['base_on_balls'], stats['strike_outs']),
       isod: Stats::BattingFormulas.isod(obp:, batting_average: avg),
