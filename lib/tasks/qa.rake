@@ -18,13 +18,15 @@ namespace :qa do
 
       # users: 1 回の UPDATE で全件を id ベースのダミーに置換し、認証情報（パスワード/トークン）を無効化する。
       # 行ごとの update では Docker 経由の往復が積み上がって極端に遅くなるため、id を参照する一括 SQL にする。
+      # tokens は devise_token_auth が Hash 前提で扱うため、無効化しても NULL ではなく空ハッシュ '{}' にする。
+      # NULL にするとログイン時の create_token が nil[]= で 500 になる。
       User.update_all([
                         "email = 'user_' || id || '@example.com', " \
                         "name = 'user_' || id, user_id = 'user_' || id, uid = 'user_' || id, " \
                         'image = NULL, introduction = NULL, positions = NULL, ' \
                         'encrypted_password = ?, ' \
                         'reset_password_token = NULL, confirmation_token = NULL, ' \
-                        'unconfirmed_email = NULL, suspended_reason = NULL, tokens = NULL',
+                        "unconfirmed_email = NULL, suspended_reason = NULL, tokens = '{}'",
                         common_password_hash.to_s
                       ])
       puts "users 匿名化: #{User.count} 件"
