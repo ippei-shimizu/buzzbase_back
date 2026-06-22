@@ -110,6 +110,8 @@ def qa_compare(before, after)
   before.each_key do |table|
     before_rows = before[table]
     after_rows = after[table]
+    # union のため after にしか無い id（migration の新規 INSERT）は nil -> [値] で diff 報告される。
+    # 現状の game-stats migration は対象テーブルへ INSERT しないため誤検知は起きない。
     (before_rows.keys | after_rows.keys).each do |id|
       next if before_rows[id] == after_rows[id]
 
