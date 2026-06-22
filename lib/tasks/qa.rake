@@ -95,7 +95,8 @@ end
 def qa_snapshot
   {
     batting_averages: BattingAverage.order(:id)
-                                    .pluck(:id, :hit, :times_at_bat, :total_bases)
+                                    .pluck(:id, :hit, :two_base_hit, :three_base_hit, :home_run,
+                                           :runs_batted_in, :times_at_bat, :total_bases)
                                     .to_h { |id, *values| [id, values] },
     plate_appearance_keys: PlateAppearance.order(:id)
                                           .pluck(:id, :hit_direction_id, :plate_result_id, :batting_position_id)
