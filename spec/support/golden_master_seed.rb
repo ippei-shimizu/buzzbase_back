@@ -36,7 +36,7 @@ module GoldenMasterSeed
   def build_old_games(user)
     [
       { date: '2026-04-01', at_bats: 4, hit: 1, two_base_hit: 1, total_bases: 3, base_on_balls: 1, strike_out: 1 },
-      { date: '2026-04-15', at_bats: 3, hit: 1, home_run: 1, total_bases: 4, strike_out: 1 }
+      { date: '2026-04-15', at_bats: 3, hit: 1, home_run: 1, total_bases: 5, strike_out: 1 }
     ].map do |attrs|
       game = create_game(user, date: attrs[:date])
       FactoryBot.create(
