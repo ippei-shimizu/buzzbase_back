@@ -32,9 +32,14 @@ RSpec.describe 'Aggregation golden master', type: :service do # rubocop:disable 
   end
 
   it 'BattingResultTextGenerator が各打席で生成する文言が golden と一致する' do
+    # canonicalize は配列をソートするため、打順と文言のマッピングを検証できるよう
+    # batter_box_number をキーにしたハッシュで golden 化する。
     texts = PlateAppearance.where(game_result_id: seed[:new_game_id])
                            .order(:batter_box_number)
-                           .map { |plate_appearance| Stats::BattingResultTextGenerator.generate(plate_appearance) }
-    expect_golden('batting_result_texts', { texts: })
+                           .each_with_object({}) do |plate_appearance, mapping|
+      mapping["box_#{plate_appearance.batter_box_number}"] =
+        Stats::BattingResultTextGenerator.generate(plate_appearance)
+    end
+    expect_golden('batting_result_texts', texts)
   end
 end
