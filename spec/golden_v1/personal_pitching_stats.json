@@ -6,7 +6,7 @@
   "k_per_nine": "Float",
   "number_of_pitches": "Integer",
   "shutouts": "Integer",
-  "user_id": "String",
+  "user_id": "Integer",
   "whip": "Float",
   "win_percentage": "Float"
 }

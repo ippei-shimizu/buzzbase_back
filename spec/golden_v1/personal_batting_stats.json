@@ -7,5 +7,5 @@
   "ops": "Float",
   "slugging_percentage": "Float",
   "total_hits": "Integer",
-  "user_id": "String"
+  "user_id": "Integer"
 }
