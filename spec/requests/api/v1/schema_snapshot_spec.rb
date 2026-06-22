@@ -17,6 +17,8 @@ RSpec.describe 'v1 API レスポンス形スナップショット', type: :reque
     match_result
     create(:batting_average, game_result:, user:)
     create(:pitching_result, game_result:, user:)
+    # positions の要素スキーマも固定したいので、空配列でなく 1 件付与する。
+    user.positions << Position.create!(name: 'ピッチャー')
   end
 
   it 'GET /api/v1/match_results（index）' do
