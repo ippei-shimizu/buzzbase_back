@@ -47,9 +47,10 @@ module Stats
       (obp.to_f + slg.to_f).round(3)
     end
 
-    # ISO (純粋な長打力) = 長打率 - 打率
-    def self.iso(slg:, batting_average:)
-      (slg.to_f - batting_average.to_f).round(3)
+    # ISO (純粋な長打力) = (塁打 - 安打総数) / 打数
+    # 丸め済み SLG・打率の差ではなく生値から直接算出し、二重丸め誤差を避ける
+    def self.iso(total_bases:, total_hits:, at_bats:)
+      safe_divide(total_bases.to_i - total_hits.to_i, at_bats)
     end
 
     # ISOD (純粋な選球眼) = 出塁率 - 打率

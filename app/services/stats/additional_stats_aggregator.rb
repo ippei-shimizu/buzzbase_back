@@ -87,9 +87,8 @@ module Stats
         hit_by_pitch: stats[:hit_by_pitch], at_bats:,
         sacrifice_fly: stats[:sacrifice_fly]
       )
-      slg = BattingFormulas.slugging_percentage(total_bases: stats[:total_bases], at_bats:)
       {
-        iso: BattingFormulas.iso(slg:, batting_average:),
+        iso: BattingFormulas.iso(total_bases: stats[:total_bases], total_hits:, at_bats:),
         isod: BattingFormulas.isod(obp:, batting_average:),
         bb_per_k: BattingFormulas.safe_divide(stats[:base_on_balls], stats[:strike_out])
       }

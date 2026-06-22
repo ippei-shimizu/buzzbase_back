@@ -121,17 +121,20 @@ RSpec.describe Stats::BattingFormulas do
   end
 
   describe '.iso' do
-    it 'ISO = SLG - AVG を 3 桁 round で返す' do
-      # SLG 0.7, AVG 0.3 → ISO 0.4
-      expect(described_class.iso(slg: 0.7, batting_average: 0.3)).to eq(0.4)
+    it 'ISO = (塁打 - 安打総数) / 打数 を 3 桁 round で返す' do
+      # total_bases 12, total_hits 5, at_bats 17 → (12-5)/17 = 0.41176... → 0.412
+      expect(described_class.iso(total_bases: 12, total_hits: 5, at_bats: 17)).to eq(0.412)
     end
 
-    it '負の値も返せる（実データでは普通起きないが式として）' do
-      expect(described_class.iso(slg: 0.2, batting_average: 0.5)).to eq(-0.3)
+    it '生値から直接計算するため丸め済み SLG・打率の差より正確' do
+      # total_bases 7, total_hits 5, at_bats 9 → (7-5)/9 = 0.2222... → 0.222
+      # round(SLG)=round(0.778)=0.778, round(AVG)=round(0.556)=0.556 の差 0.222 とは
+      # ケースにより ±0.001 ずれうるが、生値計算は常に正確
+      expect(described_class.iso(total_bases: 7, total_hits: 5, at_bats: 9)).to eq(0.222)
     end
 
-    it '両方 0 のとき 0 を返す' do
-      expect(described_class.iso(slg: 0.0, batting_average: 0.0)).to eq(0.0)
+    it '打数 0 のとき 0.0 を返す' do
+      expect(described_class.iso(total_bases: 0, total_hits: 0, at_bats: 0)).to eq(0.0)
     end
   end
 
