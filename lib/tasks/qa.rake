@@ -7,7 +7,9 @@ namespace :qa do
 
     require 'bcrypt'
     # 全ユーザー共通で使い回す bcrypt ハッシュ（QA 用の固定パスワード）。
-    common_password_hash = BCrypt::Password.create('buzzbase-qa-password')
+    # フロント/モバイルのログインは半角英数字のみ・6文字以上（/^[a-zA-Z\d]{6,}$/）しか受け付けないため、
+    # 記号を含めると匿名化後の QA ユーザーでログインできなくなる。
+    common_password_hash = BCrypt::Password.create('buzzbaseqapassword')
 
     ActiveRecord::Base.transaction do
       # 最優先: push 通知の誤送信を防ぐため device_token を全削除（2026-05-18 の誤爆事故の再発防止）。
