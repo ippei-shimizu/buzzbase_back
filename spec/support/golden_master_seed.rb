@@ -43,7 +43,7 @@ module GoldenMasterSeed
         :batting_average,
         game_result: game, user:,
         plate_appearances: attrs[:at_bats] + attrs.fetch(:base_on_balls, 0),
-        times_at_bat: attrs[:at_bats] + attrs.fetch(:base_on_balls, 0),
+        times_at_bat: attrs[:at_bats],
         at_bats: attrs[:at_bats], hit: attrs[:hit],
         two_base_hit: attrs.fetch(:two_base_hit, 0), three_base_hit: 0,
         home_run: attrs.fetch(:home_run, 0), total_bases: attrs[:total_bases],
