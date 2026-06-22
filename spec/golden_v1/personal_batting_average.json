@@ -1,0 +1,24 @@
+[
+  {
+    "at_bats": "Integer",
+    "base_on_balls": "Integer",
+    "caught_stealing": "Integer",
+    "error": "Integer",
+    "hit": "Integer",
+    "hit_by_pitch": "Integer",
+    "home_run": "Integer",
+    "id": "null",
+    "number_of_matches": "Integer",
+    "run": "Integer",
+    "runs_batted_in": "Integer",
+    "sacrifice_fly": "Integer",
+    "sacrifice_hit": "Integer",
+    "stealing_base": "Integer",
+    "strike_out": "Integer",
+    "three_base_hit": "Integer",
+    "times_at_bat": "Integer",
+    "total_bases": "Integer",
+    "two_base_hit": "Integer",
+    "user_id": "Integer"
+  }
+]

@@ -1,0 +1,30 @@
+{
+  "allow_password_change": "Boolean",
+  "created_at": "String",
+  "deleted_at": "null",
+  "email": "String",
+  "id": "Integer",
+  "image": {
+    "url": "String"
+  },
+  "introduction": "null",
+  "is_private": "Boolean",
+  "last_login_at": "null",
+  "last_management_notice_read_at": "null",
+  "name": "String",
+  "positions": [
+    {
+      "created_at": "String",
+      "id": "Integer",
+      "name": "String",
+      "updated_at": "String"
+    }
+  ],
+  "provider": "String",
+  "suspended_at": "null",
+  "suspended_reason": "null",
+  "team_id": "null",
+  "uid": "String",
+  "updated_at": "String",
+  "user_id": "null"
+}
