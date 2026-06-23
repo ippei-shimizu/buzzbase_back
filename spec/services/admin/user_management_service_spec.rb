@@ -43,22 +43,40 @@ RSpec.describe Admin::UserManagementService do
         expect(result[:users]).to include(user_a, user_b, user_c)
       end
 
-      it 'filters users by exact users.id when search term is numeric (PostHog id)' do
-        # name / email に数字を含めず、ILIKE の偶発一致を排除して id 完全一致のみを検証する。
-        target = create(:user, name: 'Target', email: 'target@example.com')
-        other = create(:user, name: 'Other', email: 'other@example.com')
+      it 'does not match users.id by the keyword search (id is a dedicated filter)' do
+        # name / email に数字を含めないユーザーを id 文字列で検索しても、
+        # search は ILIKE のみで id 完全一致を持たないためヒットしない。
+        target = create(:user, name: 'Zeta', email: 'zeta@example.com')
 
         result = described_class.new(search: target.id.to_s).call
 
-        expect(result[:users]).to include(target)
-        expect(result[:users]).not_to include(other)
+        expect(result[:users]).not_to include(target)
+      end
+    end
+
+    context 'with id filter' do
+      it 'filters users by exact users.id' do
+        result = described_class.new(id: user_b.id.to_s).call
+
+        expect(result[:users]).to contain_exactly(user_b)
       end
 
-      it 'does not raise when search term is a huge numeric string out of bigint range' do
-        huge_numeric = '9' * 25
+      it 'returns no users when id matches nothing' do
+        result = described_class.new(id: '999999999').call
 
+        expect(result[:users]).to be_empty
+      end
+
+      it 'returns no users and does not raise for a non-numeric id' do
         expect do
-          result = described_class.new(search: huge_numeric).call
+          result = described_class.new(id: 'abc').call
+          expect(result[:users]).to be_empty
+        end.not_to raise_error
+      end
+
+      it 'returns no users and does not raise for a huge numeric id out of bigint range' do
+        expect do
+          result = described_class.new(id: '9' * 25).call
           expect(result[:users]).to be_empty
         end.not_to raise_error
       end
