@@ -3,6 +3,9 @@ module Admin
     DEFAULT_PER_PAGE = 20
     MAX_PER_PAGE = 100
     SORTABLE_COLUMNS = %w[created_at last_login_at name game_results_count followers_count].freeze
+    # PostgreSQL bigint の最大値。検索語を users.id として扱う前にこの範囲をガードし、
+    # 巨大な数値文字列で StatementInvalid（範囲外）になるのを防ぐ。
+    BIGINT_MAX = 9_223_372_036_854_775_807
 
     def initialize(params = {})
       @page = [params[:page].to_i, 1].max
@@ -58,7 +61,16 @@ module Admin
       return users if @search.blank?
 
       search_term = "%#{@search}%"
-      users.where('name ILIKE :term OR email ILIKE :term OR user_id ILIKE :term', term: search_term)
+      # PostHog の distinct_id は users.id（主キー）なので、検索語が数値なら id 完全一致も OR で許す。
+      # 数字を含むハンドル名（user_id）も従来どおりヒットさせるため ILIKE の OR は残す。
+      if @search.match?(/\A\d+\z/) && @search.to_i <= BIGINT_MAX
+        users.where(
+          'users.id = :id OR name ILIKE :term OR email ILIKE :term OR user_id ILIKE :term',
+          id: @search.to_i, term: search_term
+        )
+      else
+        users.where('name ILIKE :term OR email ILIKE :term OR user_id ILIKE :term', term: search_term)
+      end
     end
 
     def apply_date_filter(users)
