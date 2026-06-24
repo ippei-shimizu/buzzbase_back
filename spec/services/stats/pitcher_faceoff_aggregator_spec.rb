@@ -131,8 +131,13 @@ RSpec.describe Stats::PitcherFaceoffAggregator, type: :service do
 
     context 'with pitcher attributes (team / throw_hand / style / velocity_zone)' do
       let!(:team) { create(:team, name: '対戦チーム') }
-      let(:pitcher_style) { PitcherStyle.find_by!(name: '本格派') }
-      let(:velocity_zone) { VelocityZone.find_by!(name: '140-150km/h') }
+      # シード有無に依存しないよう find_or_create_by で確実に用意する（name は unique）。
+      let(:pitcher_style) do
+        PitcherStyle.find_or_create_by!(name: '本格派') { |style| style.display_order = 1 }
+      end
+      let(:velocity_zone) do
+        VelocityZone.find_or_create_by!(name: '140-150km/h') { |zone| zone.display_order = 4 }
+      end
       let!(:lefty) do
         Pitcher.create!(name: '左腕投手', created_by_user: user, team:,
                         throw_hand: :left, pitcher_style:, velocity_zone:)
