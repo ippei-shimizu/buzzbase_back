@@ -17,6 +17,8 @@ module Stats
   # マスタが nil の投手は key: nil の「未設定」バケットに集約し、
   # mobile 側で末尾に表示する。
   class PitcherAttributeSummaryAggregator # rubocop:disable Metrics/ClassLength
+    include Concerns::FilterableConcern
+
     Recalc = ::Stats::BattingAverageRecalculator
     HIT_RESULT_IDS = Recalc::HIT_RESULT_IDS
     TOTAL_BASES_BY_RESULT_ID = {
@@ -241,34 +243,6 @@ module Stats
         scope = apply_season_filter(scope)
         apply_tournament_filter(scope)
       end
-    end
-
-    def apply_year_filter(scope)
-      return scope if @year.blank? || @year.to_s == '通算'
-
-      yr = @year.to_i
-      range_start = Time.zone.local(yr, 1, 1)
-      range_end = Time.zone.local(yr + 1, 1, 1)
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                  range_start, range_end)
-    end
-
-    def apply_match_type_filter(scope)
-      return scope if @match_type.blank? || @match_type == '全て'
-
-      scope.where(match_results: { match_type: @match_type })
-    end
-
-    def apply_season_filter(scope)
-      return scope if @season_id.blank?
-
-      scope.where(game_results: { season_id: @season_id })
-    end
-
-    def apply_tournament_filter(scope)
-      return scope if @tournament_id.blank?
-
-      scope.where(match_results: { tournament_id: @tournament_id })
     end
   end
 end
