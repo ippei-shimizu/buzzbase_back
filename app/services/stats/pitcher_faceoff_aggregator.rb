@@ -33,14 +33,18 @@ module Stats
       @tournament_id = tournament_id
     end
 
-    # @return [Hash] rows: [{ pitcher_id, pitcher_name, plate_appearances,
+    # @return [Hash] rows: [{ pitcher_id, pitcher_name, team_name, throw_hand,
+    #   pitcher_style, velocity_zone, plate_appearances,
     #   at_bats, hits, batting_average, top_result }],
     #   total_target_pa: pitcher_id 付き打席の総数,
     #   min_plate_appearances: しきい値
     def call
       stats = aggregate_stats
       total_target_pa = stats.values.sum { |s| s[:plate_appearances] }
-      pitchers_by_id = Pitcher.where(id: stats.keys).index_by(&:id)
+      # 所属チーム名・投手タイプ・球速帯を行ごとに引くため関連を preload して N+1 を回避する。
+      pitchers_by_id = Pitcher.where(id: stats.keys)
+                              .includes(:team, :pitcher_style, :velocity_zone)
+                              .index_by(&:id)
       # AR オブジェクトを介さず id → name の Hash だけ作る。マスタ件数は少なくても
       # 集計対象投手ごとに 1 名引くだけなので余計なオブジェクト生成を避ける。
       plate_result_names_by_id = PlateResult.pluck(:id, :name).to_h
@@ -74,8 +78,7 @@ module Stats
       top_result_id = stats[:result_counts].max_by { |_, c| c }&.first
       top_result_name = plate_result_names_by_id[top_result_id] || ''
       {
-        pitcher_id: pitcher.id,
-        pitcher_name: pitcher.name,
+        **pitcher_attributes(pitcher),
         plate_appearances: stats[:plate_appearances],
         at_bats:,
         hits:,
@@ -89,6 +92,19 @@ module Stats
         ops: (obp + slg).round(3),
         top_result: top_result_name,
         result_counts: build_result_counts(stats[:result_counts], plate_result_names_by_id)
+      }
+    end
+
+    # 投手マスタの識別情報と属性（所属チーム名 / どっち投げ / 投手タイプ / 球速帯）。
+    # 未設定の属性は nil で返し、フロントで非表示にできるようにする。
+    def pitcher_attributes(pitcher)
+      {
+        pitcher_id: pitcher.id,
+        pitcher_name: pitcher.name,
+        team_name: pitcher.team&.name,
+        throw_hand: pitcher.throw_hand,
+        pitcher_style: pitcher.pitcher_style&.name,
+        velocity_zone: pitcher.velocity_zone&.name
       }
     end
 

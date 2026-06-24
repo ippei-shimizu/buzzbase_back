@@ -129,6 +129,43 @@ RSpec.describe Stats::PitcherFaceoffAggregator, type: :service do
       end
     end
 
+    context 'with pitcher attributes (team / throw_hand / style / velocity_zone)' do
+      let!(:team) { create(:team, name: '対戦チーム') }
+      # シード有無に依存しないよう find_or_create_by で確実に用意する（name は unique）。
+      let(:pitcher_style) do
+        PitcherStyle.find_or_create_by!(name: '本格派') { |style| style.display_order = 1 }
+      end
+      let(:velocity_zone) do
+        VelocityZone.find_or_create_by!(name: '140-150km/h') { |zone| zone.display_order = 4 }
+      end
+      let!(:lefty) do
+        Pitcher.create!(name: '左腕投手', created_by_user: user, team:,
+                        throw_hand: :left, pitcher_style:, velocity_zone:)
+      end
+      let!(:bare) { create_pitcher('属性なし投手') }
+
+      before do
+        3.times { |i| create_pa(pitcher_id: lefty.id, plate_result_id: single_result_id, batter_box_number: i + 1) }
+        3.times { |i| create_pa(pitcher_id: bare.id, plate_result_id: single_result_id, batter_box_number: 10 + i) }
+      end
+
+      it 'exposes team_name / throw_hand / pitcher_style / velocity_zone, nil when unset' do
+        result = described_class.new(user_id: user.id).call
+        lefty_row = result[:rows].find { |r| r[:pitcher_name] == '左腕投手' }
+        bare_row = result[:rows].find { |r| r[:pitcher_name] == '属性なし投手' }
+
+        aggregate_failures do
+          expect(lefty_row).to include(
+            team_name: '対戦チーム', throw_hand: 'left',
+            pitcher_style: '本格派', velocity_zone: '140-150km/h'
+          )
+          expect(bare_row).to include(
+            team_name: nil, throw_hand: nil, pitcher_style: nil, velocity_zone: nil
+          )
+        end
+      end
+    end
+
     context 'when tied appearances, sorts by pitcher_name asc' do
       let!(:pitcher_b) { create_pitcher('Bさん') }
       let!(:pitcher_a) { create_pitcher('Aさん') }
