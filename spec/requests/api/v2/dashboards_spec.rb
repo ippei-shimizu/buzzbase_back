@@ -269,6 +269,16 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         expect(json['aggregate']['hit']).to eq(3)
       end
     end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v2/dashboard/batting_stats', params: { user_id: private_user.id },
+                                               headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
   end
 
   describe 'GET /api/v2/dashboard/pitching_stats' do
@@ -297,6 +307,16 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         expect(json['calculated']).to include('era', 'whip')
         expect(json).not_to have_key('recent_game_results')
         expect(json).not_to have_key('batting_stats')
+      end
+    end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v2/dashboard/pitching_stats', params: { user_id: private_user.id },
+                                                headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
       end
     end
   end

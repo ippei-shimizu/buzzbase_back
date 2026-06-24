@@ -30,6 +30,8 @@ module Api
       # GET /api/v2/dashboard/batting_stats
       def batting_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        return if render_forbidden_if_private!(user)
+
         render json: build_batting_stats(
           user, year: params[:year], match_type: convert_match_type(params[:match_type]),
                 season_id: params[:season_id], tournament_id: params[:tournament_id]
@@ -39,6 +41,8 @@ module Api
       # GET /api/v2/dashboard/pitching_stats
       def pitching_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        return if render_forbidden_if_private!(user)
+
         render json: build_pitching_stats(
           user, year: params[:year], match_type: convert_match_type(params[:match_type]),
                 season_id: params[:season_id], tournament_id: params[:tournament_id]
