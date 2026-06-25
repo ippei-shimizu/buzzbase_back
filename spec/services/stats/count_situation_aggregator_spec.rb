@@ -62,6 +62,32 @@ RSpec.describe Stats::CountSituationAggregator, type: :service do
       end
     end
 
+    context 'with first_pitch PAs that have no BSO count recorded' do
+      before do
+        # 初球で結果が決まった打席はカウントが 0-0 で自明なため、記録側で
+        # BSO カウント（final_balls / final_strikes）を入力しないのが正しい。
+        # それでも first_pitch に集計され、対象打席数にも含まれる。
+        create_pa(plate_result_id: single_result_id, first_pitch_swing: true,
+                  final_balls: nil, final_strikes: nil)
+        create_pa(plate_result_id: strikeout_result_id, first_pitch_swing: true,
+                  final_balls: nil, final_strikes: nil, batter_box_number: 2)
+      end
+
+      it 'includes first_pitch PAs even when final_strikes is NULL' do
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:total_target_pa]).to eq(2)
+          expect(result[:first_pitch][:at_bats]).to eq(2)
+          expect(result[:first_pitch][:hits]).to eq(1)
+          expect(result[:first_pitch][:batting_average]).to eq((1.0 / 2).round(3))
+          # カウント未入力なので有利 / 追い込みには計上されない
+          expect(result[:favorable_count][:at_bats]).to eq(0)
+          expect(result[:pinch_count][:at_bats]).to eq(0)
+        end
+      end
+    end
+
     context 'with favorable_count PAs' do
       before do
         # 有利カウント (final_balls > final_strikes): ヒット

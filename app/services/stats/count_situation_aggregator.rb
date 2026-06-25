@@ -4,9 +4,10 @@ module Stats
   # カウント状況別（初球 / 有利カウント / 追い込み）の打席集計サービス。
   #
   # plate_appearances の first_pitch_swing / final_balls / final_strikes は
-  # 新仕様で記録されたカラムなので、これらが NULL の旧 PA は集計対象外。
-  # filtered_scope 段階で `final_strikes IS NOT NULL` を入れることで、
-  # 新仕様の PA だけを 3 条件で抽出する。
+  # 新仕様で記録されたカラム。集計対象は「BSO カウントを記録した PA」または
+  # 「初球で結果が決まった PA（first_pitch_swing = TRUE）」とする。初球は定義上
+  # カウントが 0-0 で自明なため、記録側で BSO カウントを入力していなくても対象に含める。
+  # 有利 / 追い込みは final_* を参照する FILTER 側で NULL が自然に除外される。
   #
   # 母数 0 のときは batting_average を 0.0 で返し、クライアント側で
   # 「対象データなし」UI に分岐させる。
@@ -86,12 +87,14 @@ module Stats
     def filtered_scope
       @filtered_scope ||= begin
         # is_new_format には index があるため、先頭でこれを当てて新仕様 PA に
-        # 絞ってから final_strikes / plate_result_id NULL の防御を重ねる。
-        # final_strikes / final_balls / first_pitch_swing 自体には index が
-        # 無く、データ量が増えるとフルスキャンになる懸念があるための前段。
+        # 絞ってから対象条件を重ねる。final_strikes / first_pitch_swing 自体には
+        # index が無く、データ量が増えるとフルスキャンになる懸念があるための前段。
+        # 「カウント記録あり OR 初球で結果が決まった」を対象とし、初球で BSO 未入力の
+        # PA を取りこぼさない。
         scope = PlateAppearance.joins(game_result: :match_result)
                                .where(user_id: @user_id, is_new_format: true)
-                               .where.not(final_strikes: nil)
+                               .where('plate_appearances.final_strikes IS NOT NULL OR ' \
+                                      'plate_appearances.first_pitch_swing = TRUE')
                                .where.not(plate_result_id: nil)
         scope = apply_year_filter(scope)
         scope = apply_match_type_filter(scope)

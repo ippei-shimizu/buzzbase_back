@@ -83,46 +83,72 @@ module Stats
       !PlateAppearance.exists?(game_result_id: @game_result_id)
     end
 
-    # 全カラム一気に組み立てる都合上 ABC が高くなるが、各行は独立した集計式で複雑度は低いため許容する。
-    def aggregate_stats # rubocop:disable Metrics/AbcSize
-      scope = PlateAppearance.where(game_result_id: @game_result_id)
-      with_plate_result = scope.joins(:plate_result)
-      # times_at_bat と at_bats は野球統計上は別概念（前者は打席数、後者は打数）だが、
-      # 本アプリでは既存集計テーブルに揃えて同一値で運用している（旧仕様 batting_average も同様）。
-      counted = with_plate_result.where(plate_results: { counted_in_at_bats: true }).count
+    # 集計対象を 1 クエリで取り出す SELECT 句。COUNT(*) FILTER と SUM を 1 度に発行し、
+    # 1 試合分の COUNT/SUM を個別に投げていた ~16 クエリを 1 クエリに集約する。
+    # plate_result_id が NULL の PA も総打席数・各 SUM に含めるため LEFT JOIN を使う
+    # （counted_in_at_bats フィルタは NULL 結合行を自然に除外する）。
+    # 補間値は全て本クラスの整数定数のためインジェクションの懸念は無い。
+    AGGREGATE_SQL = <<~SQL.squish.freeze
+      COUNT(*) AS plate_appearances,
+      COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE) AS counted,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{SINGLE_HIT_ID}) AS single,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{DOUBLE_HIT_ID}) AS double,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{TRIPLE_HIT_ID}) AS triple,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{HOME_RUN_ID}) AS homer,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{STRIKE_OUT_IDS.join(',')})) AS strike_out,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{BASE_ON_BALLS_ID}) AS base_on_balls,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{HIT_BY_PITCH_ID}) AS hit_by_pitch,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{SACRIFICE_HIT_ID}) AS sacrifice_hit,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{SACRIFICE_FLY_ID}) AS sacrifice_fly,
+      COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{ERROR_ID}) AS error,
+      COALESCE(SUM(plate_appearances.rbi), 0) AS runs_batted_in,
+      COALESCE(SUM(plate_appearances.run_scored), 0) AS run,
+      COALESCE(SUM(plate_appearances.stolen_bases), 0) AS stealing_base,
+      COALESCE(SUM(plate_appearances.caught_stealing), 0) AS caught_stealing
+    SQL
 
-      # `batting_averages.hit` は本番運用上「単打のみ」を保持する semantics で揃える。
-      # 2B/3B/HR は別カラムで内訳として持つため、ここで全安打を入れると
-      # マイページ系 (`BattingAverage.stats_for_user` の `SUM(hit + 2B + 3B + HR)`)
-      # で二重計上になる。集計の真は SUM(hit) + SUM(2B) + SUM(3B) + SUM(HR)。
-      single = scope.where(plate_result_id: SINGLE_HIT_ID).count
-      double = scope.where(plate_result_id: DOUBLE_HIT_ID).count
-      triple = scope.where(plate_result_id: TRIPLE_HIT_ID).count
-      homer  = scope.where(plate_result_id: HOME_RUN_ID).count
+    AGGREGATE_KEYS = %i[
+      plate_appearances counted single double triple homer strike_out base_on_balls
+      hit_by_pitch sacrifice_hit sacrifice_fly error runs_batted_in run
+      stealing_base caught_stealing
+    ].freeze
+
+    # ハッシュ各キーへの代入が多く ABC が高くなるが、各行は単純なルックアップで複雑度は低いため許容する。
+    def aggregate_stats # rubocop:disable Metrics/AbcSize
+      row = PlateAppearance.where(game_result_id: @game_result_id)
+                           .left_joins(:plate_result)
+                           .pick(Arel.sql(AGGREGATE_SQL))
+      stats = AGGREGATE_KEYS.zip(Array.wrap(row).map(&:to_i)).to_h
 
       {
-        plate_appearances: scope.count,
-        times_at_bat: counted,
-        at_bats: counted,
-        hit: single,
-        two_base_hit: double,
-        three_base_hit: triple,
-        home_run: homer,
-        # 塁打 (TB) = 単打×1 + 2B×2 + 3B×3 + HR×4。既に取得済みのカウントを再利用して
-        # 同じ COUNT クエリを 4 本余計に発行しないようにする。
+        plate_appearances: stats[:plate_appearances],
+        # times_at_bat と at_bats は野球統計上は別概念（前者は打席数、後者は打数）だが、
+        # 本アプリでは既存集計テーブルに揃えて同一値で運用している（旧仕様 batting_average も同様）。
+        times_at_bat: stats[:counted],
+        at_bats: stats[:counted],
+        # `batting_averages.hit` は本番運用上「単打のみ」を保持する semantics で揃える。
+        # 2B/3B/HR は別カラムで内訳として持つため、ここで全安打を入れると
+        # マイページ系 (`BattingAverage.stats_for_user` の `SUM(hit + 2B + 3B + HR)`)
+        # で二重計上になる。集計の真は SUM(hit) + SUM(2B) + SUM(3B) + SUM(HR)。
+        hit: stats[:single],
+        two_base_hit: stats[:double],
+        three_base_hit: stats[:triple],
+        home_run: stats[:homer],
+        # 塁打 (TB) = 単打×1 + 2B×2 + 3B×3 + HR×4。
         total_bases: BattingFormulas.total_bases(
-          singles: single, doubles: double, triples: triple, home_runs: homer
+          singles: stats[:single], doubles: stats[:double],
+          triples: stats[:triple], home_runs: stats[:homer]
         ),
-        runs_batted_in: scope.sum(:rbi).to_i,
-        run: scope.sum(:run_scored).to_i,
-        strike_out: scope.where(plate_result_id: STRIKE_OUT_IDS).count,
-        base_on_balls: scope.where(plate_result_id: BASE_ON_BALLS_ID).count,
-        hit_by_pitch: scope.where(plate_result_id: HIT_BY_PITCH_ID).count,
-        sacrifice_hit: scope.where(plate_result_id: SACRIFICE_HIT_ID).count,
-        sacrifice_fly: scope.where(plate_result_id: SACRIFICE_FLY_ID).count,
-        stealing_base: scope.sum(:stolen_bases).to_i,
-        caught_stealing: scope.sum(:caught_stealing).to_i,
-        error: scope.where(plate_result_id: ERROR_ID).count
+        runs_batted_in: stats[:runs_batted_in],
+        run: stats[:run],
+        strike_out: stats[:strike_out],
+        base_on_balls: stats[:base_on_balls],
+        hit_by_pitch: stats[:hit_by_pitch],
+        sacrifice_hit: stats[:sacrifice_hit],
+        sacrifice_fly: stats[:sacrifice_fly],
+        stealing_base: stats[:stealing_base],
+        caught_stealing: stats[:caught_stealing],
+        error: stats[:error]
       }
     end
   end

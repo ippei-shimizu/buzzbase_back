@@ -122,10 +122,12 @@ module Stats
       sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
       scope = filtered_scope
               .group('game_results.id, match_results.date_and_time')
+      # 同一日時に複数試合があると取得順が非決定的になるため、game_results.id を
+      # 二次キーにして直近 N 試合の取り出しと並び順を安定させる。
       scope = if limit
-                scope.order(Arel.sql('match_results.date_and_time DESC')).limit(limit)
+                scope.order(Arel.sql('match_results.date_and_time DESC, game_results.id DESC')).limit(limit)
               else
-                scope.order(Arel.sql('match_results.date_and_time ASC'))
+                scope.order(Arel.sql('match_results.date_and_time ASC, game_results.id ASC'))
               end
       rows = scope.pluck(Arel.sql("match_results.date_and_time, #{sum_sql}"))
       rows.reverse! if limit
