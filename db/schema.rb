@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_120000) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -458,6 +458,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["created_by_user_id"], name: "index_stadiums_on_created_by_user_id"
+    t.index ["name", "prefecture_id"], name: "index_stadiums_on_name_prefecture_id_not_null", unique: true, where: "(prefecture_id IS NOT NULL)"
     t.index ["name"], name: "index_stadiums_on_name"
     t.index ["prefecture_id"], name: "index_stadiums_on_prefecture_id"
   end
