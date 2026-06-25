@@ -73,11 +73,13 @@ module Api
       end
 
       def existing_search
-        @match_result = MatchResult.find_by(game_result_id: params[:game_result_id], user_id: params[:user_id])
+        @match_result = MatchResult.includes(:stadium).find_by(game_result_id: params[:game_result_id], user_id: params[:user_id])
         if @match_result
           game_result = GameResult.includes(:season).find_by(id: params[:game_result_id])
           season_id = game_result&.season_id
-          render json: @match_result.as_json.merge(season_id:)
+          # 編集画面が球場名表示のために stadium 一覧を追加取得しなくて済むよう、
+          # stadium_id だけでなく解決済みの stadium_name も返す。
+          render json: @match_result.as_json.merge(season_id:, stadium_name: @match_result.stadium&.name)
         else
           render json: { message: 'No matching record found' }, status: :not_found
         end
