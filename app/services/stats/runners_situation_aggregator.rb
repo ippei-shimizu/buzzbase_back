@@ -66,11 +66,5 @@ module Stats
       scope = apply_season_filter(scope)
       apply_tournament_filter(scope)
     end
-
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.to_i.zero?
-
-      (numerator.to_f / denominator).round(3)
-    end
   end
 end

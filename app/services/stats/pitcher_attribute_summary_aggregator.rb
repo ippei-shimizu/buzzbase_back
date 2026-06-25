@@ -228,12 +228,6 @@ module Stats
       THROW_HAND_ORDER[key] || UNSET_DISPLAY_ORDER
     end
 
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.zero?
-
-      (numerator.to_f / denominator).round(3)
-    end
-
     def filtered_scope
       @filtered_scope ||= begin
         scope = PlateAppearance.joins(game_result: :match_result)

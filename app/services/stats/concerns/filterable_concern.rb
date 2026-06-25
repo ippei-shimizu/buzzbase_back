@@ -37,6 +37,12 @@ module Stats
 
         scope.where(match_results: { tournament_id: @tournament_id })
       end
+
+      # 打率系で共通して使うゼロ除算ガード付き除算。計算式の SSoT を保つため
+      # BattingFormulas に委譲する（分母 nil/0 は 0.0 を返す）。
+      def safe_divide(numerator, denominator)
+        BattingFormulas.safe_divide(numerator, denominator)
+      end
     end
   end
 end

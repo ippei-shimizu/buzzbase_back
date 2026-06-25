@@ -119,12 +119,6 @@ module Stats
       }
     end
 
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.zero?
-
-      (numerator.to_f / denominator).round(3)
-    end
-
     # aggregate_stats が joins(:plate_result) を使うため、ここでも
     # plate_result_id IS NULL の PA を弾いておく。これにより
     # total_target_pa（このスコープに対する .count）と aggregate_stats の

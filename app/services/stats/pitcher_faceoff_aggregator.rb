@@ -157,12 +157,6 @@ module Stats
       bucket[:result_counts][result_id] = bucket[:result_counts].fetch(result_id, 0) + cnt
     end
 
-    def safe_divide(numerator, denominator)
-      return 0.0 if denominator.zero?
-
-      (numerator.to_f / denominator).round(3)
-    end
-
     def filtered_scope
       @filtered_scope ||= begin
         scope = PlateAppearance.joins(game_result: :match_result)
