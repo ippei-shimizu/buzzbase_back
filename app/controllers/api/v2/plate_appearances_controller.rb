@@ -55,7 +55,9 @@ module Api
       end
 
       def by_game
-        game_result = GameResult.find(params[:game_result_id])
+        # 直後の render_forbidden_if_private! が game_result.user を参照するため、
+        # :user を eager load して追加クエリ（N+1）を避ける。
+        game_result = GameResult.includes(:user).find(params[:game_result_id])
         # render_forbidden_if_private! は非公開アカウントへのアクセスを 403 で render し true を返す。
         # 呼び出し側は戻り値で短絡（early return）して以降の処理をスキップする。
         return if render_forbidden_if_private!(game_result.user)
