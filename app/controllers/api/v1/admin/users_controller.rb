@@ -71,7 +71,7 @@ module Api
         end
 
         def search_params
-          params.permit(:page, :per_page, :search, :sort_by, :sort_order, :status, :date_from, :date_to)
+          params.permit(:page, :per_page, :id, :search, :sort_by, :sort_order, :status, :date_from, :date_to)
         end
       end
     end

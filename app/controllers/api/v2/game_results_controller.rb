@@ -7,7 +7,7 @@ module Api
     # - フロントエンド側でN+1 HTTPリクエスト（チーム名・大会名・打席結果を個別取得）を不要にする
     # - シリアライザー(V2::GameResultSerializer)を使用してレスポンス形式を制御する
     # - ページネーション対応（kaminari）
-    class GameResultsController < ApplicationController
+    class GameResultsController < Api::V2::ApplicationController
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!, only: %i[index filtered_index show_user filtered_show_user]
 
@@ -73,20 +73,6 @@ module Api
         game_results = game_results.reorder(nil).apply_sort(params[:sort_by], params[:sort_order]) if params[:sort_by].present?
         game_results = game_results.page(params[:page]).per(params[:per_page])
         render json: paginated_response(game_results, ::V2::GameResultSerializer)
-      end
-
-      private
-
-      def paginated_response(game_results, serializer)
-        {
-          data: ActiveModelSerializers::SerializableResource.new(game_results, each_serializer: serializer),
-          pagination: {
-            current_page: game_results.current_page,
-            per_page: game_results.limit_value,
-            total_count: game_results.total_count,
-            total_pages: game_results.total_pages
-          }
-        }
       end
     end
   end

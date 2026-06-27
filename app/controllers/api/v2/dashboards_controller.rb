@@ -4,7 +4,7 @@ module Api
     #
     # ログインユーザーの直近試合結果・通算成績・グループ内ランキングを
     # 1リクエストで返却する。
-    class DashboardsController < ApplicationController
+    class DashboardsController < Api::V2::ApplicationController
       include Concerns::DashboardRankings
       include MatchTypeConvertible
 
@@ -30,6 +30,8 @@ module Api
       # GET /api/v2/dashboard/batting_stats
       def batting_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        return if render_forbidden_if_private!(user)
+
         render json: build_batting_stats(
           user, year: params[:year], match_type: convert_match_type(params[:match_type]),
                 season_id: params[:season_id], tournament_id: params[:tournament_id]
@@ -39,6 +41,8 @@ module Api
       # GET /api/v2/dashboard/pitching_stats
       def pitching_stats
         user = params[:user_id].present? ? User.find(params[:user_id]) : current_api_v1_user
+        return if render_forbidden_if_private!(user)
+
         render json: build_pitching_stats(
           user, year: params[:year], match_type: convert_match_type(params[:match_type]),
                 season_id: params[:season_id], tournament_id: params[:tournament_id]
@@ -69,7 +73,11 @@ module Api
       end
 
       def serialize_batting(batting)
-        { hit: batting.hit, at_bats: batting.at_bats, home_run: batting.home_run,
+        # `hit` は NPB 標準の全安打（単打 + 2B + 3B + HR）を返す。raw column の
+        # `batting.hit` を直接公開すると単打のみとなり、ダッシュボードの集計表示
+        # （`batting_aggregate_hash`）と「最近の試合」per-game 表示で安打の意味が
+        # 割れてしまう。
+        { hit: batting.total_hits, at_bats: batting.at_bats, home_run: batting.home_run,
           runs_batted_in: batting.runs_batted_in }
       end
 
@@ -135,7 +143,8 @@ module Api
           innings_pitched: agg.innings_pitched.to_f, hits_allowed: agg.hits_allowed.to_i,
           home_runs_hit: agg.home_runs_hit.to_i, strikeouts: agg.strikeouts.to_i,
           base_on_balls: agg.base_on_balls.to_i, hit_by_pitch: agg.hit_by_pitch.to_i,
-          run_allowed: agg.run_allowed.to_i, earned_run: agg.earned_run.to_i }
+          run_allowed: agg.run_allowed.to_i, earned_run: agg.earned_run.to_i,
+          number_of_pitches: agg.number_of_pitches.to_i }
       end
 
       def pitching_calculated_hash(calc)

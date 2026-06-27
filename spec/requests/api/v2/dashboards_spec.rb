@@ -36,14 +36,16 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr
       end
 
-      it 'returns recent_game_results with batting data' do
+      it 'returns recent_game_results with batting data (hit = NPB 標準の全安打)' do
         get '/api/v2/dashboard', headers: auth_headers_for(user)
 
         json = response.parsed_body
         recent = json['recent_game_results']
         expect(recent.size).to eq(1)
         expect(recent.first['id']).to eq(game_result.id)
-        expect(recent.first['batting_average']).to include('hit' => 2, 'at_bats' => 4, 'home_run' => 1)
+        # 単打 2 + HR 1 = 全安打 3。`batting_averages.hit` は単打のみだが、
+        # per-game 表示でも aggregate 表示と同じく全安打を返す。
+        expect(recent.first['batting_average']).to include('hit' => 3, 'at_bats' => 4, 'home_run' => 1)
       end
 
       it 'returns batting_stats with aggregate and calculated values' do
@@ -51,7 +53,8 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         json = response.parsed_body
         batting = json['batting_stats']
-        expect(batting['aggregate']).to include('hit' => 2, 'at_bats' => 4, 'home_run' => 1)
+        # 単打 2 + HR 1 = 全安打 3 (aggregate_columns で NPB 標準の安打を返す)
+        expect(batting['aggregate']).to include('hit' => 3, 'at_bats' => 4, 'home_run' => 1)
         expect(batting['calculated']).to include('batting_average', 'on_base_percentage', 'slugging_percentage', 'ops')
         expect(batting['calculated']['batting_average']).to be_a(Numeric)
       end
@@ -70,7 +73,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 15))
         create(:pitching_result, game_result: gr, user:,
                                  win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
-                                 base_on_balls: 1, hits_allowed: 4)
+                                 base_on_balls: 1, hits_allowed: 4, number_of_pitches: 95)
         gr
       end
 
@@ -79,7 +82,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         json = response.parsed_body
         pitching = json['pitching_stats']
-        expect(pitching['aggregate']).to include('win' => 1, 'strikeouts' => 8)
+        expect(pitching['aggregate']).to include('win' => 1, 'strikeouts' => 8, 'number_of_pitches' => 95)
         expect(pitching['aggregate']['innings_pitched']).to eq(7.0)
         expect(pitching['calculated']).to include('era', 'whip', 'k_per_nine', 'win_percentage')
         expect(pitching['calculated']['era']).to be_a(Numeric)
@@ -266,6 +269,16 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         expect(json['aggregate']['hit']).to eq(3)
       end
     end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v2/dashboard/batting_stats', params: { user_id: private_user.id },
+                                               headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
   end
 
   describe 'GET /api/v2/dashboard/pitching_stats' do
@@ -282,7 +295,7 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
         gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 15))
         create(:pitching_result, game_result: gr, user:,
                                  win: 1, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
-                                 base_on_balls: 1, hits_allowed: 4)
+                                 base_on_balls: 1, hits_allowed: 4, number_of_pitches: 95)
       end
 
       it 'returns only pitching stats' do
@@ -290,10 +303,20 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
 
         expect(response).to have_http_status(:ok)
         json = response.parsed_body
-        expect(json['aggregate']).to include('win' => 1, 'strikeouts' => 8)
+        expect(json['aggregate']).to include('win' => 1, 'strikeouts' => 8, 'number_of_pitches' => 95)
         expect(json['calculated']).to include('era', 'whip')
         expect(json).not_to have_key('recent_game_results')
         expect(json).not_to have_key('batting_stats')
+      end
+    end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v2/dashboard/pitching_stats', params: { user_id: private_user.id },
+                                                headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
       end
     end
   end

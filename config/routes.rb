@@ -236,7 +236,34 @@ Rails.application.routes.draw do
         get :pitching, on: :member
         get :era_trend, on: :member
         get :game_summary, on: :member
+        get :headline_stats, on: :member
+        get :runners_situation, on: :member
+        get :hit_locations, on: :member
+        get :out_type_breakdown, on: :member
+        get :count_situations, on: :member
+        get :contact_qualities, on: :member
+        get :pitch_types, on: :member
+        get :pitcher_faceoffs, on: :member
+        get :pitcher_attribute_summary, on: :member
+        get :batting_trend, on: :member
+        get :additional_stats, on: :member
+        get :timing_breakdown, on: :member
       end
+
+      resources :plate_appearances, only: %i[create update destroy] do
+        collection do
+          get 'by_game/:game_result_id', action: :by_game
+        end
+      end
+      resources :stadiums, only: %i[index create]
+      resources :pitchers, only: %i[index create update]
+      resources :pitch_types, only: :index
+      resources :contact_qualities, only: :index
+      resources :timings, only: :index
+      resources :arm_angles, only: :index
+      resources :velocity_zones, only: :index
+      resources :pitcher_styles, only: :index
+      resources :appearance_situations, only: :index
     end
   end
 

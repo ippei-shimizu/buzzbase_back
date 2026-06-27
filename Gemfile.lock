@@ -88,6 +88,7 @@ GEM
     addressable (2.8.5)
       public_suffix (>= 2.0.2, < 6.0)
     ast (2.4.2)
+    attr_extras (7.1.0)
     base64 (0.3.0)
     bcrypt (3.1.22)
     benchmark (0.5.0)
@@ -270,12 +271,15 @@ GEM
       hashie (>= 3.4.6)
       rack (>= 2.2.3)
       rack-protection
+    optimist (3.2.1)
     orm_adapter (0.5.0)
     os (1.1.4)
     parallel (1.23.0)
     parser (3.2.2.4)
       ast (~> 2.4.1)
       racc
+    patience_diff (1.2.0)
+      optimist (~> 3.0)
     pg (1.5.4)
     pluginator (1.5.0)
     pre-commit (0.40.0)
@@ -420,6 +424,10 @@ GEM
     stripe (19.1.0)
       bigdecimal
       logger
+    super_diff (0.19.0)
+      attr_extras (>= 6.2.4, < 8)
+      diff-lcs (~> 1.5)
+      patience_diff (~> 1.2)
     thor (1.5.0)
     timeout (0.6.1)
     tsort (0.2.0)
@@ -481,6 +489,7 @@ DEPENDENCIES
   shoulda-matchers
   solid_queue
   stripe
+  super_diff
   tzinfo-data
 
 RUBY VERSION

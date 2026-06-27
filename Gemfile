@@ -70,6 +70,8 @@ end
 
 group :test do
   gem 'shoulda-matchers'
+  # golden master 比較で差分を読みやすくする
+  gem 'super_diff'
 end
 
 group :development do

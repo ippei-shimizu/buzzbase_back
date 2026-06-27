@@ -38,7 +38,7 @@ class GameResult < ApplicationRecord
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
@@ -90,7 +90,7 @@ class GameResult < ApplicationRecord
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
@@ -123,14 +123,14 @@ class GameResult < ApplicationRecord
   # opponent_team_name, tournament_name, plate_appearances を1リクエストで返却可能にする。
 
   # 特定ユーザーの試合一覧を関連データ付きで取得する（認証ユーザー向け）
-  # match_result -> opponent_team, tournament と plate_appearances, batting_average, pitching_result を eager-load し、
+  # match_result -> opponent_team, tournament, stadium と plate_appearances, batting_average, pitching_result を eager-load し、
   # N+1クエリを防止する
   # @param user [User, Integer] Userオブジェクトまたはuser_id
   # @return [ActiveRecord::Relation<GameResult>] 日付降順の試合結果リレーション
   def self.v2_game_associated_data_user(user)
     includes(
       :season,
-      match_result: %i[my_team opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament stadium],
       plate_appearances: [],
       batting_average: [],
       pitching_result: []
@@ -158,7 +158,7 @@ class GameResult < ApplicationRecord
   def self.v2_all_game_associated_data
     includes(
       :user,
-      match_result: %i[my_team opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament stadium],
       plate_appearances: [],
       pitching_result: []
     ).where.not(match_result_id: nil)

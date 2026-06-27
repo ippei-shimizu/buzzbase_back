@@ -25,39 +25,43 @@ RSpec.describe BattingAverage, type: :model do
       gr
     end
 
+    # `hit` カラムは「単打のみ」を保持するが、aggregate_for_user では NPB 標準の
+    # 全安打 (単打 + 2B + 3B + HR) を返すよう SQL 側で集計済みのため、
+    # game_2024_regular: 単打3 + HR1 = 全安打 4 / game_2024_open: 単打1 = 全安打 1 /
+    # game_2023_regular: 単打2 = 全安打 2 が期待値となる。
     it 'returns aggregated stats for all games when no filter is given' do
       result = described_class.filtered_aggregate_for_user(user.id).take
-      expect(result.hit.to_i).to eq(6) # 3+1+2
+      expect(result.hit.to_i).to eq(7) # (3+1) + 1 + 2
       expect(result.at_bats.to_i).to eq(12) # 4+3+5
       expect(result.home_run.to_i).to eq(1)
     end
 
     it 'filters by year' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2024').take
-      expect(result.hit.to_i).to eq(4) # 3+1
+      expect(result.hit.to_i).to eq(5) # (3+1) + 1 = 全安打 4 + 1
       expect(result.at_bats.to_i).to eq(7) # 4+3
     end
 
     it 'filters by match_type' do
       result = described_class.filtered_aggregate_for_user(user.id, match_type: 'regular').take
-      expect(result.hit.to_i).to eq(5) # 3+2
+      expect(result.hit.to_i).to eq(6) # (3+1) + 2 = 全安打 4 + 2
       expect(result.at_bats.to_i).to eq(9) # 4+5
     end
 
     it 'filters by both year and match_type' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2024', match_type: 'regular').take
-      expect(result.hit.to_i).to eq(3)
+      expect(result.hit.to_i).to eq(4) # 単打3 + HR1
       expect(result.at_bats.to_i).to eq(4)
     end
 
     it 'skips year filter when year is "通算"' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '通算').take
-      expect(result.hit.to_i).to eq(6)
+      expect(result.hit.to_i).to eq(7)
     end
 
     it 'skips match_type filter when match_type is "全て"' do
       result = described_class.filtered_aggregate_for_user(user.id, match_type: '全て').take
-      expect(result.hit.to_i).to eq(6)
+      expect(result.hit.to_i).to eq(7)
     end
 
     it 'returns nil when no games match the filter' do
