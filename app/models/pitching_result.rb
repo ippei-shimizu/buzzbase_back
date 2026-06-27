@@ -4,7 +4,8 @@ class PitchingResult < ApplicationRecord
 
   validate :must_have_any_stats
 
-  ZERO = 0
+  # 分母 0 のフォールバック値。正常時は round が Float を返すため、型を安定させるよう Float にする。
+  ZERO = 0.0
 
   # 投手集計クエリは ERA / K/9 / BB/9 を「試合のイニング制（match_results.inning_format）で加重平均」する。
   # 従来の `× 9 / 投球回` 固定ではなく、各試合のイニング制（7 or 9）を係数として掛けることで、

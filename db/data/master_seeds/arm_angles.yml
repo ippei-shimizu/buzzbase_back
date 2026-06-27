@@ -1,0 +1,12 @@
+- id: 1
+  name: オーバースロー
+  display_order: 1
+- id: 2
+  name: スリークォーター
+  display_order: 2
+- id: 3
+  name: サイドスロー
+  display_order: 3
+- id: 4
+  name: アンダースロー
+  display_order: 4

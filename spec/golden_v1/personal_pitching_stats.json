@@ -1,0 +1,12 @@
+{
+  "bb_per_nine": "Float",
+  "complete_games": "Integer",
+  "era": "Float",
+  "k_bb": "Float",
+  "k_per_nine": "Float",
+  "number_of_pitches": "Integer",
+  "shutouts": "Integer",
+  "user_id": "Integer",
+  "whip": "Float",
+  "win_percentage": "Float"
+}

@@ -120,6 +120,64 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'stadium_id 保存サポート' do
+    let(:stadium) { create(:stadium) }
+    let(:match_result) do
+      game_result = create(:game_result, user:)
+      game_result.match_result
+    end
+
+    it 'PUT 時に stadium_id を更新できる（permit 経路を担保）' do
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: stadium.id } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to eq(stadium.id)
+    end
+
+    it 'PUT で stadium_id を nil に戻せる（球場を未指定に変更）' do
+      match_result.update!(stadium_id: stadium.id)
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: nil } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to be_nil
+    end
+  end
+
+  describe 'GET /api/v1/existing_search' do
+    let(:stadium) { create(:stadium, name: '神宮球場') }
+    let(:match_result) do
+      game_result = create(:game_result, user:)
+      game_result.match_result
+    end
+
+    it 'stadium_id がある場合は stadium_name を含めて返す' do
+      match_result.update!(stadium_id: stadium.id)
+      get '/api/v1/existing_search',
+          params: { game_result_id: match_result.game_result_id, user_id: user.id },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['stadium_id']).to eq(stadium.id)
+      expect(json['stadium_name']).to eq('神宮球場')
+    end
+
+    it 'stadium_id が NULL の場合は stadium_name が nil になる' do
+      match_result.update!(stadium_id: nil)
+      get '/api/v1/existing_search',
+          params: { game_result_id: match_result.game_result_id, user_id: user.id },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['stadium_name']).to be_nil
+    end
+  end
+
   describe 'GET /api/v1/match_results/available_years' do
     # game_result factory が after(:create) で match_result を自動生成するため、
     # game_result を作成 → 自動生成された match_result の date_and_time を更新

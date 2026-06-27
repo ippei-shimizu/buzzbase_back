@@ -1,3 +1,38 @@
+# `batting_averages.hit` カラムは **単打のみ** を保持する semantics で運用されている
+# （v1 フォーム手入力時代から一貫）。NPB / MLB スコアボードの「H（安打）」とは
+# 意味が異なる点に注意。
+#
+# == カラム定義（実データ）
+# - `hit`                : 単打数のみ（NPB 用語では「単打」「1B」相当）
+# - `two_base_hit`       : 二塁打の本数
+# - `three_base_hit`     : 三塁打の本数
+# - `home_run`           : 本塁打の本数
+# - `total_bases`        : 塁打 = `hit + 2*two_base_hit + 3*three_base_hit + 4*home_run`
+#
+# == 「安打」として画面に出す値（NPB 標準）
+#
+# 画面の「安打」ラベルが指す値は **全安打 = `hit + two_base_hit + three_base_hit + home_run`**。
+# 直接 `SUM(hit)` を画面表示すると単打数のみが表示され、ユーザーが手計算で
+# 「安打 / 打数 = 打率」と検算しても合わない問題が起きる（過去に起きた）。
+#
+# 集計時は以下の式で安打 / 打率 / OBP / SLG を算出する:
+#   total_hits = hit + two_base_hit + three_base_hit + home_run
+#   batting_average = total_hits / at_bats
+#   OBP = (total_hits + base_on_balls + hit_by_pitch) / (at_bats + base_on_balls + hit_by_pitch + sacrifice_fly)
+#   SLG = total_bases / at_bats
+#
+# == 各レイヤーの実装
+# - 本モデル `aggregate_columns` / `stats_columns`     : 内部で `SUM(hit + 2B + 3B + HR)` を返す
+# - `Stats::HeadlineStatsAggregator` (stats タブ主要)  : 同様に total_hits を導出
+# - `Stats::AdditionalStatsAggregator` (追加指標)      : 同様
+# - `Stats::BattingTrendAggregator` (打撃推移)         : 同様
+# - `Stats::BattingStatsTableService` (打撃成績表)     : 同様
+# - `Stats::BattingAverageRecalculator` (書き込み側)   : 新仕様 PA から hit カラムを
+#                                                         書き込むときは SINGLE_HIT_ID (= 7) のみ
+#                                                         をカウントし、旧データと同じ semantics を保つ
+#
+# == 単打のみの値が欲しい場合
+# 個別レコード列の `hit` を直接参照する（マイページ等の表示には出さない方針）。
 class BattingAverage < ApplicationRecord
   belongs_to :game_result
   belongs_to :user
@@ -6,6 +41,24 @@ class BattingAverage < ApplicationRecord
   validate :must_have_any_stats
 
   ZERO = 0
+
+  # NPB / MLB スコアボードでいう「安打 (H)」相当の総安打数を返す。
+  # `hit` カラムは単打のみを保持する semantics のため、per-game 表示で
+  # 画面に「安打 N」と出す値はこのメソッドを必ず通すこと（直接 `hit` を
+  # 公開すると単打のみが表示され、二塁打 / 三塁打 / 本塁打が抜け落ちる）。
+  def total_hits
+    Stats::BattingFormulas.total_hits(
+      singles: hit, doubles: two_base_hit, triples: three_base_hit, home_runs: home_run
+    )
+  end
+
+  # per-game レスポンスで画面表示用に attributes を返す。`hit` を全安打に
+  # 差し替えた状態の Hash で、ダッシュボードや試合一覧などレコードを直接
+  # JSON として返す controller / model helper で利用する（v1 batting_averages
+  # の編集系 API は raw カラムが必要なので、こちらは使わない）。
+  def display_attributes
+    attributes.merge('hit' => total_hits)
+  end
 
   def self.aggregate_for_user(user_id)
     aggregate_query.where(user_id:)
@@ -24,7 +77,9 @@ class BattingAverage < ApplicationRecord
      'COUNT(batting_averages.game_result_id) AS number_of_matches',
      'SUM(times_at_bat) AS times_at_bat',
      'SUM(at_bats) AS at_bats',
-     'SUM(hit) AS hit',
+     # `hit` カラムは本番運用上「単打のみ」を保持するが、画面で「安打」として
+     # 表示する値は NPB 標準の全安打 (Stats::BattingFormulas::TOTAL_HITS_SQL)。
+     "SUM#{Stats::BattingFormulas::TOTAL_HITS_SQL} AS hit",
      'SUM(two_base_hit) AS two_base_hit',
      'SUM(three_base_hit) AS three_base_hit',
      'SUM(home_run) AS home_run',
@@ -84,7 +139,7 @@ class BattingAverage < ApplicationRecord
   end
 
   def self.stats_columns
-    ['SUM(hit + two_base_hit + three_base_hit + home_run) AS total_hits',
+    ["SUM#{Stats::BattingFormulas::TOTAL_HITS_SQL} AS total_hits",
      'SUM(hit) AS hit',
      'SUM(two_base_hit) AS two_base_hit',
      'SUM(three_base_hit) AS three_base_hit',
@@ -99,50 +154,37 @@ class BattingAverage < ApplicationRecord
   end
 
   def self.build_stats_hash(user_id, stats)
+    total_hits = stats['total_hits'].to_i
+    at_bats = stats['at_bats'].to_i
+    avg = Stats::BattingFormulas.batting_average(total_hits:, at_bats:)
+    obp = Stats::BattingFormulas.on_base_percentage(
+      total_hits:, base_on_balls: stats['base_on_balls'],
+      hit_by_pitch: stats['hit_by_pitch'], at_bats:,
+      sacrifice_fly: stats['sacrifice_fly']
+    )
+    total_bases = calculate_total_bases(stats)
+    slg = Stats::BattingFormulas.slugging_percentage(total_bases:, at_bats:)
     {
       user_id:,
-      total_hits: stats['total_hits'].to_i,
-      batting_average: safe_divide(stats['total_hits'].to_f, stats['at_bats'].to_i),
-      on_base_percentage: calculate_on_base_percentage(stats),
-      iso: safe_divide(
-        (stats['two_base_hit'].to_i + (stats['three_base_hit'].to_i * 2) + (stats['home_run'].to_i * 3)).to_f,
-        stats['at_bats'].to_i
-      ),
-      ops: calculate_ops(stats).round(3),
-      bb_per_k: safe_divide(stats['base_on_balls'].to_f, stats['strike_outs'].to_i),
-      isod: calculate_isod(stats).round(3),
-      slugging_percentage: calculate_slugging_percentage(stats).round(3)
+      total_hits:,
+      batting_average: avg,
+      on_base_percentage: obp,
+      iso: Stats::BattingFormulas.iso(total_bases:, total_hits:, at_bats:),
+      ops: Stats::BattingFormulas.ops(obp:, slg:),
+      bb_per_k: Stats::BattingFormulas.safe_divide(stats['base_on_balls'], stats['strike_outs']),
+      isod: Stats::BattingFormulas.isod(obp:, batting_average: avg),
+      slugging_percentage: slg
     }
   end
 
-  def self.safe_divide(numerator, denominator)
-    denominator.zero? ? ZERO : (numerator / denominator).round(3)
-  end
-
-  def self.calculate_on_base_percentage(stats)
-    denominator = stats['at_bats'].to_i + stats['base_on_balls'].to_i +
-                  stats['hit_by_pitch'].to_i + stats['sacrifice_fly'].to_i
-    numerator = stats['total_hits'].to_f + stats['base_on_balls'].to_i + stats['hit_by_pitch'].to_i
-    denominator.zero? ? ZERO : (numerator / denominator).round(3)
-  end
-
-  def self.calculate_ops(stats)
-    slg = calculate_slugging_percentage(stats)
-    obp = calculate_on_base_percentage(stats)
-    (obp + slg).round(3)
-  end
-
-  def self.calculate_isod(stats)
-    avg = safe_divide(stats['total_hits'].to_f, stats['at_bats'].to_i)
-    obp = calculate_on_base_percentage(stats)
-    (obp - avg).round(3)
-  end
-
-  def self.calculate_slugging_percentage(stats)
-    at_bats = stats['at_bats'].to_i
-    total_bases = stats['hit'].to_i + (stats['two_base_hit'].to_i * 2) +
-                  (stats['three_base_hit'].to_i * 3) + (stats['home_run'].to_i * 4)
-    at_bats.zero? ? ZERO : total_bases.to_f / at_bats
+  # SLG / ISO 計算で参照する塁打 (TB)。stats_columns の `hit` は単打のみを
+  # 保持する semantics なので、Stats::BattingFormulas.total_bases で
+  # 単打×1 + 2B×2 + 3B×3 + HR×4 を求める。
+  def self.calculate_total_bases(stats)
+    Stats::BattingFormulas.total_bases(
+      singles: stats['hit'], doubles: stats['two_base_hit'],
+      triples: stats['three_base_hit'], home_runs: stats['home_run']
+    )
   end
 
   private

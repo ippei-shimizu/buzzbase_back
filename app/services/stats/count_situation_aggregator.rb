@@ -1,0 +1,106 @@
+# frozen_string_literal: true
+
+module Stats
+  # カウント状況別（初球 / 有利カウント / 追い込み）の打席集計サービス。
+  #
+  # plate_appearances の first_pitch_swing / final_balls / final_strikes は
+  # 新仕様で記録されたカラム。集計対象は「BSO カウントを記録した PA」または
+  # 「初球で結果が決まった PA（first_pitch_swing = TRUE）」とする。初球は定義上
+  # カウントが 0-0 で自明なため、記録側で BSO カウントを入力していなくても対象に含める。
+  # 有利 / 追い込みは final_* を参照する FILTER 側で NULL が自然に除外される。
+  #
+  # 母数 0 のときは batting_average を 0.0 で返し、クライアント側で
+  # 「対象データなし」UI に分岐させる。
+  class CountSituationAggregator
+    include Concerns::FilterableConcern
+
+    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
+
+    SITUATIONS = {
+      first_pitch: 'plate_appearances.first_pitch_swing = TRUE',
+      favorable_count: 'plate_appearances.final_balls > plate_appearances.final_strikes',
+      pinch_count: 'plate_appearances.final_strikes = 2'
+    }.freeze
+
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+      @user_id = user_id
+      @year = year
+      @match_type = match_type
+      @season_id = season_id
+      @tournament_id = tournament_id
+    end
+
+    # @return [Hash] :first_pitch / :favorable_count / :pinch_count の各セットと
+    #   :total_target_pa（新仕様で記録された対象打席数）
+    #
+    # 注意: 3 カテゴリは排他ではない。特に **フルカウント (final_balls=3,
+    # final_strikes=2)** は `final_balls > final_strikes` と `final_strikes = 2` の
+    # 両方を満たすため、`favorable_count` と `pinch_count` の両方に同じ打席が
+    # 計上される。これは意図的な設計（「有利カウントで打てたか」と「追い込みから
+    # 粘れたか」を独立した指標として見たいため）で、フロントの母数表示でも
+    # 重複を考慮しない。
+    def call
+      counts = aggregate_counts
+      {
+        first_pitch: build_result(counts[:first_pitch_at_bats], counts[:first_pitch_hits]),
+        favorable_count: build_result(counts[:favorable_at_bats], counts[:favorable_hits]),
+        pinch_count: build_result(counts[:pinch_at_bats], counts[:pinch_hits]),
+        total_target_pa: counts[:total_target_pa]
+      }
+    end
+
+    private
+
+    # 3 条件 × (at_bats, hits) + total_target_pa を 1 クエリで集約する。
+    def aggregate_counts
+      sql = <<~SQL.squish
+        COUNT(*) AS total_target_pa,
+        COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE
+                           AND #{SITUATIONS[:first_pitch]}) AS first_pitch_at_bats,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')})
+                           AND #{SITUATIONS[:first_pitch]}) AS first_pitch_hits,
+        COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE
+                           AND #{SITUATIONS[:favorable_count]}) AS favorable_at_bats,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')})
+                           AND #{SITUATIONS[:favorable_count]}) AS favorable_hits,
+        COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE
+                           AND #{SITUATIONS[:pinch_count]}) AS pinch_at_bats,
+        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')})
+                           AND #{SITUATIONS[:pinch_count]}) AS pinch_hits
+      SQL
+      row = filtered_scope.joins(:plate_result).pick(Arel.sql(sql))
+      values = Array.wrap(row).map(&:to_i)
+      %i[total_target_pa
+         first_pitch_at_bats first_pitch_hits
+         favorable_at_bats favorable_hits
+         pinch_at_bats pinch_hits].zip(values).to_h
+    end
+
+    def build_result(at_bats, hits)
+      {
+        at_bats:,
+        hits:,
+        batting_average: safe_divide(hits, at_bats)
+      }
+    end
+
+    def filtered_scope
+      @filtered_scope ||= begin
+        # is_new_format には index があるため、先頭でこれを当てて新仕様 PA に
+        # 絞ってから対象条件を重ねる。final_strikes / first_pitch_swing 自体には
+        # index が無く、データ量が増えるとフルスキャンになる懸念があるための前段。
+        # 「カウント記録あり OR 初球で結果が決まった」を対象とし、初球で BSO 未入力の
+        # PA を取りこぼさない。
+        scope = PlateAppearance.joins(game_result: :match_result)
+                               .where(user_id: @user_id, is_new_format: true)
+                               .where('plate_appearances.final_strikes IS NOT NULL OR ' \
+                                      'plate_appearances.first_pitch_swing = TRUE')
+                               .where.not(plate_result_id: nil)
+        scope = apply_year_filter(scope)
+        scope = apply_match_type_filter(scope)
+        scope = apply_season_filter(scope)
+        apply_tournament_filter(scope)
+      end
+    end
+  end
+end

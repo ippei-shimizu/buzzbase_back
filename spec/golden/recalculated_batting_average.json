@@ -1,0 +1,24 @@
+{
+  "rows": [
+    {
+      "at_bats": 7,
+      "base_on_balls": 1,
+      "caught_stealing": 0,
+      "error": 0,
+      "hit": 1,
+      "hit_by_pitch": 0,
+      "home_run": 1,
+      "plate_appearances": 9,
+      "run": 2,
+      "runs_batted_in": 8,
+      "sacrifice_fly": 1,
+      "sacrifice_hit": 0,
+      "stealing_base": 0,
+      "strike_out": 1,
+      "three_base_hit": 1,
+      "times_at_bat": 7,
+      "total_bases": 10,
+      "two_base_hit": 1
+    }
+  ]
+}

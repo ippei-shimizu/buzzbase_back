@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -92,6 +92,24 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["week_start_date"], name: "index_admin_weekly_statistics_on_week_start_date", unique: true
   end
 
+  create_table "appearance_situations", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_appearance_situations_on_display_order"
+    t.index ["name"], name: "index_appearance_situations_on_name", unique: true
+  end
+
+  create_table "arm_angles", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_arm_angles_on_display_order"
+    t.index ["name"], name: "index_arm_angles_on_name", unique: true
+  end
+
   create_table "awards", force: :cascade do |t|
     t.string "title", null: false
     t.datetime "created_at", null: false
@@ -142,6 +160,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.integer "sacrifice_fly"
     t.index ["game_result_id"], name: "index_batting_averages_on_game_result_id", unique: true
     t.index ["user_id"], name: "index_batting_averages_on_user_id"
+  end
+
+  create_table "contact_qualities", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_contact_qualities_on_display_order"
+    t.index ["name"], name: "index_contact_qualities_on_name", unique: true
   end
 
   create_table "device_tokens", force: :cascade do |t|
@@ -254,9 +281,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.integer "inning_format", default: 9, null: false
     t.string "appearance_type", default: "starter", null: false
+    t.bigint "stadium_id"
     t.index ["game_result_id"], name: "index_match_results_on_game_result_id_unique", unique: true, where: "(game_result_id IS NOT NULL)"
     t.index ["my_team_id"], name: "index_match_results_on_my_team_id"
     t.index ["opponent_team_id"], name: "index_match_results_on_opponent_team_id"
+    t.index ["stadium_id"], name: "index_match_results_on_stadium_id"
     t.index ["user_id"], name: "index_match_results_on_user_id"
   end
 
@@ -268,6 +297,44 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.datetime "read_at"
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
+  end
+
+  create_table "pitch_types", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_pitch_types_on_display_order"
+    t.index ["name"], name: "index_pitch_types_on_name", unique: true
+  end
+
+  create_table "pitcher_styles", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_pitcher_styles_on_display_order"
+    t.index ["name"], name: "index_pitcher_styles_on_name", unique: true
+  end
+
+  create_table "pitchers", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "team_id"
+    t.integer "throw_hand"
+    t.bigint "arm_angle_id"
+    t.bigint "velocity_zone_id"
+    t.bigint "pitcher_style_id"
+    t.bigint "created_by_user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "memo"
+    t.index ["arm_angle_id"], name: "index_pitchers_on_arm_angle_id"
+    t.index ["created_by_user_id", "name"], name: "index_pitchers_on_user_name_without_team", unique: true, where: "(team_id IS NULL)"
+    t.index ["created_by_user_id", "team_id", "name"], name: "index_pitchers_on_user_team_name", unique: true
+    t.index ["created_by_user_id"], name: "index_pitchers_on_created_by_user_id"
+    t.index ["pitcher_style_id"], name: "index_pitchers_on_pitcher_style_id"
+    t.index ["team_id"], name: "index_pitchers_on_team_id"
+    t.index ["velocity_zone_id"], name: "index_pitchers_on_velocity_zone_id"
   end
 
   create_table "pitching_results", force: :cascade do |t|
@@ -303,8 +370,50 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.integer "batting_position_id"
     t.integer "plate_result_id"
     t.integer "hit_direction_id"
+    t.integer "out_type"
+    t.integer "hit_type"
+    t.integer "rbi"
+    t.integer "run_scored"
+    t.integer "stolen_bases"
+    t.integer "caught_stealing"
+    t.integer "final_balls"
+    t.integer "final_strikes"
+    t.integer "final_outs"
+    t.boolean "first_pitch_swing"
+    t.integer "runners_state"
+    t.integer "inning"
+    t.bigint "contact_quality_id"
+    t.bigint "timing_id"
+    t.bigint "pitch_type_id"
+    t.text "self_analysis_memo"
+    t.text "opponent_memo"
+    t.decimal "hit_location_x", precision: 4, scale: 3
+    t.decimal "hit_location_y", precision: 4, scale: 3
+    t.boolean "is_new_format", default: false, null: false
+    t.bigint "pitcher_id"
+    t.bigint "appearance_situation_id"
+    t.integer "swing_type"
+    t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
+    t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
+    t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
+    t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
+    t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
+    t.index ["plate_result_id"], name: "index_plate_appearances_on_plate_result_id"
+    t.index ["swing_type"], name: "index_plate_appearances_on_swing_type", where: "(swing_type IS NOT NULL)"
+    t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
+  end
+
+  create_table "plate_results", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.boolean "hit_direction_required", default: false, null: false
+    t.boolean "counted_in_at_bats", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_plate_results_on_display_order"
+    t.index ["name"], name: "index_plate_results_on_name", unique: true
   end
 
   create_table "positions", force: :cascade do |t|
@@ -342,6 +451,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_seasons_on_user_id"
   end
 
+  create_table "stadiums", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "prefecture_id"
+    t.bigint "created_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_user_id"], name: "index_stadiums_on_created_by_user_id"
+    t.index ["name", "prefecture_id"], name: "index_stadiums_on_name_prefecture_id_not_null", unique: true, where: "(prefecture_id IS NOT NULL)"
+    t.index ["name"], name: "index_stadiums_on_name"
+    t.index ["prefecture_id"], name: "index_stadiums_on_prefecture_id"
+  end
+
   create_table "teams", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "category_id"
@@ -350,6 +471,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.datetime "updated_at", null: false
     t.index ["category_id"], name: "index_teams_on_category_id"
     t.index ["prefecture_id"], name: "index_teams_on_prefecture_id"
+  end
+
+  create_table "timings", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_timings_on_display_order"
+    t.index ["name"], name: "index_timings_on_name", unique: true
   end
 
   create_table "tournaments", force: :cascade do |t|
@@ -424,6 +554,15 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
 
+  create_table "velocity_zones", force: :cascade do |t|
+    t.string "name", null: false
+    t.integer "display_order", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["display_order"], name: "index_velocity_zones_on_display_order"
+    t.index ["name"], name: "index_velocity_zones_on_name", unique: true
+  end
+
   add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
@@ -442,14 +581,27 @@ ActiveRecord::Schema[7.1].define(version: 2026_05_12_142637) do
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
   add_foreign_key "management_notices", "admin_users", column: "created_by_id"
+  add_foreign_key "match_results", "stadiums"
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "pitchers", "arm_angles"
+  add_foreign_key "pitchers", "pitcher_styles"
+  add_foreign_key "pitchers", "teams"
+  add_foreign_key "pitchers", "users", column: "created_by_user_id"
+  add_foreign_key "pitchers", "velocity_zones"
   add_foreign_key "pitching_results", "users"
+  add_foreign_key "plate_appearances", "appearance_situations"
+  add_foreign_key "plate_appearances", "contact_qualities"
   add_foreign_key "plate_appearances", "game_results", on_delete: :cascade
+  add_foreign_key "plate_appearances", "pitch_types"
+  add_foreign_key "plate_appearances", "pitchers"
+  add_foreign_key "plate_appearances", "timings"
   add_foreign_key "plate_appearances", "users"
   add_foreign_key "seasons", "users"
+  add_foreign_key "stadiums", "prefectures"
+  add_foreign_key "stadiums", "users", column: "created_by_user_id"
   add_foreign_key "teams", "baseball_categories", column: "category_id"
   add_foreign_key "teams", "prefectures"
   add_foreign_key "user_awards", "awards"
