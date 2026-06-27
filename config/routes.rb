@@ -273,6 +273,10 @@ Rails.application.routes.draw do
           post :upsert
         end
       end
+      resources :shadow_swing_sessions, only: %i[create] do
+        member { post :complete }
+        collection { get :stats }
+      end
     end
   end
 
