@@ -7,6 +7,7 @@ RSpec.describe MatchResult, type: :model do
     it { should belong_to(:opponent_team).class_name('Team') }
     it { should belong_to(:tournament).optional }
     it { should belong_to(:game_result) }
+    it { should belong_to(:stadium).optional }
   end
 
   describe 'validations' do

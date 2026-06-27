@@ -2,6 +2,8 @@
 
 module Stats
   class HitDirectionAggregator
+    include Concerns::FilterableConcern
+
     DIRECTION_LABELS = {
       1 => '投', 2 => '捕', 3 => '一', 4 => '二', 5 => '三',
       6 => '遊', 7 => '左線', 8 => '左', 9 => '左中',
@@ -25,6 +27,11 @@ module Stats
     }.freeze
 
     HR_RESULT_ID = 10
+    # 値の食い違いを避けるため BattingAverageRecalculator の HIT_RESULT_IDS を SSoT として参照する。
+    HIT_RESULT_IDS = ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS
+    TWO_BASE_RESULT_ID = 8
+    THREE_BASE_RESULT_ID = 9
+    TOTAL_BASES_PER_RESULT = { 7 => 1, 8 => 2, 9 => 3, 10 => 4 }.freeze
 
     def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
       @user_id = user_id
@@ -34,10 +41,25 @@ module Stats
       @tournament_id = tournament_id
     end
 
+    # 方向別の打球集計を返す。
+    #
+    # @return [Hash{Symbol=>Array<Hash>}] :directions と :home_runs を持つハッシュ。
+    #   `directions` の各要素はキー `:count` と `:hits` の意味が異なる点に注意：
+    #   - `count`: 本塁打を **除いた** 打球数。スキャッターチャート（バブル）の
+    #     方向別件数として表示するために、本塁打を別グループ (`home_runs`) に
+    #     寄せて二重表示しない設計になっている。
+    #   - `hits`: 本塁打を **含む** 安打数（単打・二塁打・三塁打・本塁打の合計）。
+    #     方向別の打率計算 (hits / at_bats) で使うため。
+    #   そのため、ある方向が本塁打のみのときは `count: 0, hits: 1, home_run: 1`
+    #   になり得る。フロントで `count < hits` を検知しても異常ではない。
     def call
       dir_categories = aggregate_direction_categories
+      dir_stats = aggregate_direction_stats
 
-      { directions: build_directions(dir_categories), home_runs: build_home_runs(dir_categories) }
+      {
+        directions: build_directions(dir_categories, dir_stats),
+        home_runs: build_home_runs(dir_categories)
+      }
     end
 
     private
@@ -59,6 +81,34 @@ module Stats
       dir_categories
     end
 
+    # 方向別の打数 / 安打 / 長打打数を集計する。
+    # plate_results.counted_in_at_bats を SSoT として打数を導出するため joins(:plate_result) で結合する。
+    def aggregate_direction_stats
+      base = filtered_scope
+      direction_sql = build_direction_sql
+      cross = base
+              .joins(:plate_result)
+              .where("#{direction_sql} IS NOT NULL AND #{direction_sql} > 0")
+              .group(Arel.sql(direction_sql), :plate_result_id, 'plate_results.counted_in_at_bats')
+              .count
+
+      dir_stats = Hash.new do |h, k|
+        h[k] = { at_bats: 0, hits: 0, two_base_hit: 0, three_base_hit: 0, home_run: 0, total_bases: 0 }
+      end
+      cross.each do |(dir_id, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
+        bucket = dir_stats[dir_id]
+        bucket[:at_bats] += cnt if counted
+        next unless HIT_RESULT_IDS.include?(result_id)
+
+        bucket[:hits] += cnt
+        bucket[:total_bases] += cnt * TOTAL_BASES_PER_RESULT.fetch(result_id, 0)
+        bucket[:two_base_hit] += cnt if result_id == TWO_BASE_RESULT_ID
+        bucket[:three_base_hit] += cnt if result_id == THREE_BASE_RESULT_ID
+        bucket[:home_run] += cnt if result_id == HR_RESULT_ID
+      end
+      dir_stats
+    end
+
     def build_direction_sql
       <<~SQL.squish
         COALESCE(
@@ -71,13 +121,25 @@ module Stats
       SQL
     end
 
-    def build_directions(dir_categories)
+    def build_directions(dir_categories, dir_stats)
       DIRECTION_LABELS.map do |id, label|
         cats = dir_categories[id]
         non_hr = cats.except('本塁打')
         total = non_hr.values.sum
         top_category = non_hr.max_by { |_, v| v }&.first || 'その他'
-        { id:, label:, count: total, top_category: }
+        stats = dir_stats[id]
+        {
+          id:,
+          label:,
+          count: total,
+          top_category:,
+          at_bats: stats[:at_bats],
+          hits: stats[:hits],
+          two_base_hit: stats[:two_base_hit],
+          three_base_hit: stats[:three_base_hit],
+          home_run: stats[:home_run],
+          total_bases: stats[:total_bases]
+        }
       end
     end
 
@@ -90,39 +152,17 @@ module Stats
       end
     end
 
+    # call 内で aggregate_direction_categories / aggregate_direction_stats から
+    # 2 回参照されるため、同一インスタンス内では scope 構築を再利用する。
     def filtered_scope
-      scope = PlateAppearance.joins(game_result: :match_result)
-                             .where(user_id: @user_id)
-      scope = apply_year_filter(scope)
-      scope = apply_match_type_filter(scope)
-      scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
-    end
-
-    def apply_year_filter(scope)
-      return scope if @year.blank? || @year.to_s == '通算'
-
-      yr = @year.to_i
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                  "#{yr}-01-01 00:00:00", "#{yr + 1}-01-01 00:00:00")
-    end
-
-    def apply_match_type_filter(scope)
-      return scope if @match_type.blank? || @match_type == '全て'
-
-      scope.where(match_results: { match_type: @match_type })
-    end
-
-    def apply_season_filter(scope)
-      return scope if @season_id.blank?
-
-      scope.where(game_results: { season_id: @season_id })
-    end
-
-    def apply_tournament_filter(scope)
-      return scope if @tournament_id.blank?
-
-      scope.where(match_results: { tournament_id: @tournament_id })
+      @filtered_scope ||= begin
+        scope = PlateAppearance.joins(game_result: :match_result)
+                               .where(user_id: @user_id)
+        scope = apply_year_filter(scope)
+        scope = apply_match_type_filter(scope)
+        scope = apply_season_filter(scope)
+        apply_tournament_filter(scope)
+      end
     end
   end
 end

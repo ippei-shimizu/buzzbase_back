@@ -81,7 +81,8 @@ module Api
       end
 
       def personal_batting_stats
-        user_id = params[:user_id]
+        # params は常に String。レスポンスへ user_id を埋め込むため Integer に揃える（DB 由来の他経路と型を一致させる）。
+        user_id = params[:user_id].to_i
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
