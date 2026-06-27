@@ -25,3 +25,18 @@ ja:
     signup_subject: "buzzbaseにご登録ありがとうございます！"
   email_subjects:
     account_confirmation: "メールアドレスの確認 - BUZZ BASE"
+  subscription_mailer:
+    trial_expiring_soon:
+      subject: "【BUZZ BASE Pro】トライアル終了 3 日前のお知らせ"
+    pro_expiring_soon:
+      subject: "【BUZZ BASE Pro】Pro 期間終了 3 日前のお知らせ"
+    cancelled:
+      subject: "【BUZZ BASE Pro】解約申請を受け付けました"
+    expired:
+      subject: "【BUZZ BASE Pro】Pro 期間が終了しました"
+    billing_issue:
+      subject: "【BUZZ BASE Pro】決済情報の確認をお願いします"
+    refunded:
+      subject: "【BUZZ BASE Pro】返金が完了しました"
+    recovered:
+      subject: "【BUZZ BASE Pro】決済が完了し Pro 機能を再開しました"

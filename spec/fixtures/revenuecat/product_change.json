@@ -1,0 +1,12 @@
+{
+  "event": {
+    "id": "evt_product_change_001",
+    "type": "PRODUCT_CHANGE",
+    "app_user_id": "1",
+    "event_timestamp_ms": 1751000000000,
+    "expiration_at_ms": 1782967600000,
+    "product_id": "buzzbase_pro_yearly",
+    "store": "APP_STORE",
+    "period_type": "NORMAL"
+  }
+}

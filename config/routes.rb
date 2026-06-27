@@ -151,6 +151,22 @@ Rails.application.routes.draw do
 
       resources :management_notices, only: %i[index show]
 
+      resources :feature_flags, only: %i[index]
+
+      namespace :pro do
+        resource :status, only: %i[show], controller: 'status'
+        resource :sync, only: %i[create], controller: 'sync'
+        resources :entitlements, only: %i[index]
+        resource :checkout, only: %i[create], controller: 'checkout'
+        resource :subscription, only: %i[destroy update], controller: 'subscription'
+        resources :cancellation_feedbacks, only: %i[create]
+      end
+
+      namespace :webhooks do
+        resource :revenuecat, only: %i[create], controller: 'revenuecat'
+        resource :stripe, only: %i[create], controller: 'stripe'
+      end
+
       namespace :admin do
         resources :analytics, only: [] do
           collection do

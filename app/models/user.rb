@@ -1,5 +1,12 @@
 class User < ActiveRecord::Base
+  include Entitlement
+  include PlanLimits
+  include SubscriptionCallbacks
+
   mount_uploader :image, AvatarUploader
+  has_one :subscription, dependent: :destroy
+  has_many :user_subscription_events, dependent: :destroy
+  has_many :cancellation_feedbacks, dependent: :destroy
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
   belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
@@ -90,6 +97,13 @@ class User < ActiveRecord::Base
     provider == 'apple'
   end
 
+  # Apple private relay (@privaterelay.appleid.com) はフォワード不達 + SMTP 上限浪費のため対象外とする。
+  def email_deliverable?
+    return false if email.blank?
+
+    !email.downcase.end_with?('@privaterelay.appleid.com')
+  end
+
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }
@@ -164,6 +178,21 @@ class User < ActiveRecord::Base
   delegate :count, to: :following, prefix: true
 
   delegate :count, to: :followers, prefix: true
+
+  # subscription が未生成の場合に「無料状態」を表す未保存レコードを返す。
+  # API レスポンス時に nil チェックを避ける目的で利用する。
+  # @return [Subscription]
+  def subscription_or_default
+    subscription || Subscription.new(user: self, status: 'free')
+  end
+
+  # Pro 機能が利用可能か。
+  # @return [Boolean]
+  delegate :pro_active?, to: :subscription_or_default
+
+  # トライアル期間中か。
+  # @return [Boolean]
+  delegate :in_trial?, to: :subscription_or_default
 
   private
 
