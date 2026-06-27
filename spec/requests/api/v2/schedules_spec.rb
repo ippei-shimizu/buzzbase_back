@@ -44,6 +44,16 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
       expect(body['menus'].first['practice_menu_id']).to eq(menu.id)
     end
 
+    it '他ユーザーのメニューは紐付けられない（IDOR防止）' do
+      other_menu = create(:practice_menu, user: create(:user))
+      post '/api/v2/schedules',
+           params: { schedule: { title: 'x', days_of_week: '1', scheduled_time: '06:00',
+                                 menus: [{ practice_menu_id: other_menu.id, target_value: 1 }] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['menus']).to be_empty
+    end
+
     context '無料ユーザーが上限(3)を超える' do
       before { create_list(:schedule, 3, user:) }
 

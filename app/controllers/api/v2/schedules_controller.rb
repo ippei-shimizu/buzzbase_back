@@ -57,8 +57,12 @@ module Api
 
       def assign_menus(schedule)
         menus = params.dig(:schedule, :menus) || []
+        # 他ユーザーの practice_menu_id を紐付けられないよう、所有メニューに限定する（IDOR 防止）。
+        allowed_ids = schedule.user.practice_menus.where(id: menus.pluck(:practice_menu_id)).pluck(:id).to_set
         schedule.schedule_menus.destroy_all if schedule.persisted?
         menus.each_with_index do |menu, index|
+          next unless allowed_ids.include?(menu[:practice_menu_id].to_i)
+
           schedule.schedule_menus.build(
             practice_menu_id: menu[:practice_menu_id],
             target_value: menu[:target_value],
