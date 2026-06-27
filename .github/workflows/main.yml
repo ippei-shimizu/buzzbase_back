@@ -23,16 +23,14 @@ jobs:
       - name: Build and Push Docker image
         run: |
           docker build -t registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web .
+          docker tag registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/release
           docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/web
+          docker push registry.heroku.com/${{ secrets.HEROKU_APP_NAME }}/release
 
+      # web の公開前に release プロセス（Procfile の `release: rails db:migrate`）が実行される。
+      # マイグレーション失敗時はリリースが中止され、新カラム不在のまま新コードが公開される事故を防ぐ。
       - name: Release to Heroku
         run: |
-          heroku container:release web --app ${{ secrets.HEROKU_APP_NAME }}
-        env:
-          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
-
-      - name: Run database migrations
-        run: |
-          heroku run rails db:migrate --app ${{ secrets.HEROKU_APP_NAME }}
+          heroku container:release web release --app ${{ secrets.HEROKU_APP_NAME }}
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
