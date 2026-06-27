@@ -23,7 +23,7 @@ module Stats
     # - `month`: 月単独（各月でリセット）
     # - `year`: 年単独（シーズン比較）
     # - `recent_games`: 直近 RECENT_GAMES_WINDOW 試合だけを取り出してその中で累積
-    SUPPORTED_GRANULARITIES = %w[game month year recent_games].freeze
+    SUPPORTED_GRANULARITIES = %w[game month year recent_games season].freeze
 
     # 「直近 N 試合」モードの N。短期コンディションの可視化に使うため
     # 10 に固定する（NPB / MLB の hot streak 表示で一般的な値）。
@@ -46,6 +46,7 @@ module Stats
       points = case @granularity
                when 'month' then aggregate_by_month
                when 'year' then aggregate_by_year
+               when 'season' then aggregate_by_season
                when 'recent_games' then aggregate_by_recent_games
                else aggregate_by_game
                end
@@ -90,6 +91,19 @@ module Stats
         build_point(
           key: row[:key],
           label: "#{row[:year]}年",
+          period_stats: row,
+          cumulative_stats: row
+        )
+      end
+    end
+
+    # シーズンごとの SUM をそのまま使い、シーズン単独の打率等を返す（シーズン跨ぎ比較）。
+    # season_id が未割り当ての試合は集計対象外（INNER JOIN seasons）。
+    def aggregate_by_season
+      aggregate_per_season_rows.map do |row|
+        build_point(
+          key: row[:key],
+          label: row[:season_name],
           period_stats: row,
           cumulative_stats: row
         )
@@ -170,6 +184,23 @@ module Stats
         {
           key: format('%<year>04d', year: year.to_i),
           year: year.to_i
+        }.merge(SUM_COLUMNS.zip(values.map(&:to_i)).to_h)
+      end
+    end
+
+    def aggregate_per_season_rows
+      sum_sql = SUM_COLUMNS.map { |col| "SUM(COALESCE(batting_averages.#{col}, 0)) AS #{col}" }.join(', ')
+      rows = filtered_scope
+             .joins('INNER JOIN seasons ON seasons.id = game_results.season_id')
+             .group('seasons.id, seasons.name, seasons.created_at')
+             .order(Arel.sql('seasons.created_at ASC'))
+             .pluck(Arel.sql("seasons.id, seasons.name, #{sum_sql}"))
+
+      rows.map do |row|
+        season_id, season_name, *values = row
+        {
+          key: "season-#{season_id}",
+          season_name:
         }.merge(SUM_COLUMNS.zip(values.map(&:to_i)).to_h)
       end
     end

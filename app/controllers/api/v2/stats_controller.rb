@@ -54,6 +54,11 @@ module Api
       end
 
       def batting_trend
+        # シーズン粒度（シーズン跨ぎ推移）は Pro 限定。既存の試合/月/年/直近10は無料据え置き。
+        if params[:granularity].to_s == 'season' && !current_api_v1_user.has_entitlement?('season_transition_graph')
+          return render json: { error: 'シーズン推移は Pro プラン限定です' }, status: :forbidden
+        end
+
         render json: Stats::BattingTrendAggregator.new(
           **aggregator_params, granularity: params[:granularity]
         ).call
