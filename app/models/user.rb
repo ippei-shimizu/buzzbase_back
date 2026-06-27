@@ -1,4 +1,4 @@
-class User < ActiveRecord::Base
+class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   include Entitlement
   include PlanLimits
   include SubscriptionCallbacks
@@ -41,6 +41,10 @@ class User < ActiveRecord::Base
   has_many :pitching_results, dependent: :destroy
   has_many :plate_appearances, dependent: :destroy
   has_many :created_pitchers, class_name: 'Pitcher', foreign_key: 'created_by_user_id', dependent: :destroy, inverse_of: :created_by_user
+  has_many :practice_menus, dependent: :destroy
+  has_many :practice_logs, dependent: :destroy
+  has_many :condition_logs, dependent: :destroy
+  has_many :activity_logs, dependent: :destroy
 
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable

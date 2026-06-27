@@ -5,12 +5,12 @@
 module PlanLimits
   extend ActiveSupport::Concern
 
-  PRACTICE_MENU_FREE_LIMIT = 3
+  PRACTICE_MENU_FREE_LIMIT = 5
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
   SCHEDULE_FREE_LIMIT = 1
   MONTHLY_GOAL_FREE_LIMIT = 1
 
-  # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
+  # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
   # @return [Boolean]
   def can_create_practice_menu?
     return true if has_entitlement?('unlimited_practice_menus')
@@ -52,7 +52,7 @@ module PlanLimits
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
   def practice_menus_count_for_business_rules
-    0
+    practice_menus.where(archived: false).count
   end
 
   def media_attachments_count_this_month

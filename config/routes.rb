@@ -264,6 +264,15 @@ Rails.application.routes.draw do
       resources :velocity_zones, only: :index
       resources :pitcher_styles, only: :index
       resources :appearance_situations, only: :index
+
+      resources :practice_menus, only: %i[index create update destroy]
+      resources :practice_logs, only: %i[index create destroy]
+      resources :condition_logs, only: [] do
+        collection do
+          get :by_date
+          post :upsert
+        end
+      end
     end
   end
 
