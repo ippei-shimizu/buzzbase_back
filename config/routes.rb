@@ -280,6 +280,7 @@ Rails.application.routes.draw do
       resources :activity_logs, only: %i[index] do
         collection { get :streak }
       end
+      resources :schedules, only: %i[index create update destroy]
     end
   end
 

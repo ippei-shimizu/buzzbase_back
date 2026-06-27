@@ -7,7 +7,7 @@ module PlanLimits
 
   PRACTICE_MENU_FREE_LIMIT = 5
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
-  SCHEDULE_FREE_LIMIT = 1
+  SCHEDULE_FREE_LIMIT = 3
   MONTHLY_GOAL_FREE_LIMIT = 1
 
   # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
@@ -60,7 +60,7 @@ module PlanLimits
   end
 
   def active_schedules_count
-    0
+    schedules.active.count
   end
 
   def active_monthly_goals_count

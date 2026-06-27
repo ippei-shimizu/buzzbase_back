@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_27_110001) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_27_120002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -529,6 +529,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_110001) do
     t.index ["follower_id"], name: "index_relationships_on_follower_id"
   end
 
+  create_table "schedule_menus", force: :cascade do |t|
+    t.bigint "schedule_id", null: false
+    t.bigint "practice_menu_id", null: false
+    t.float "target_value"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_menu_id"], name: "index_schedule_menus_on_practice_menu_id"
+    t.index ["schedule_id"], name: "index_schedule_menus_on_schedule_id"
+  end
+
+  create_table "schedules", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "days_of_week", null: false
+    t.time "scheduled_time", null: false
+    t.text "note"
+    t.boolean "notification_enabled", default: true, null: false
+    t.boolean "active", default: true, null: false
+    t.string "notification_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "active"], name: "index_schedules_on_user_id_and_active"
+    t.index ["user_id"], name: "index_schedules_on_user_id"
+  end
+
   create_table "seasons", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "user_id", null: false
@@ -890,6 +916,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_110001) do
   add_foreign_key "practice_logs", "practice_menus", on_delete: :nullify
   add_foreign_key "practice_logs", "users"
   add_foreign_key "practice_menus", "users"
+  add_foreign_key "schedule_menus", "practice_menus"
+  add_foreign_key "schedule_menus", "schedules"
+  add_foreign_key "schedules", "users"
   add_foreign_key "seasons", "users"
   add_foreign_key "shadow_swing_sessions", "practice_logs", on_delete: :nullify
   add_foreign_key "shadow_swing_sessions", "users"
