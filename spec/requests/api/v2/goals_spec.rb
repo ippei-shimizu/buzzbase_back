@@ -67,6 +67,18 @@ RSpec.describe 'Api::V2::Goals', type: :request do
     end
   end
 
+  describe 'PATCH /api/v2/goals/:id' do
+    it '更新で種類（period_type）は変更できない（Pro制限回避防止）' do
+      goal = create(:goal, user:, period_type: 'monthly')
+      patch "/api/v2/goals/#{goal.id}",
+            params: { goal: { period_type: 'season', title: '変更' } },
+            headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(goal.reload.period_type).to eq('monthly')
+      expect(goal.title).to eq('変更')
+    end
+  end
+
   describe 'FinalizeGoalsJob' do
     it '期限切れ目標を確定し達成ならバッジ付与' do
       goal = create(:goal, user:, deadline: today - 1, target_value: 1, metric_key: 'practice_days',

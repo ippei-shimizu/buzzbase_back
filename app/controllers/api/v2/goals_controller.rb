@@ -27,7 +27,8 @@ module Api
       end
 
       def update
-        if @goal.update(goal_params)
+        # period_type / season_id は作成後に変更不可（Pro 制限の回避を防ぐ）。
+        if @goal.update(update_params)
           render json: ::V2::GoalSerializer.new(@goal).as_json, status: :ok
         else
           render json: { errors: @goal.errors.full_messages }, status: :unprocessable_entity
@@ -60,6 +61,12 @@ module Api
 
       def goal_params
         params.require(:goal).permit(:title, :period_type, :season_id, :month_start, :deadline,
+                                     :metric_key, :target_value, :comparison_type)
+      end
+
+      # 更新では種類（period_type / season_id）を変更させない。
+      def update_params
+        params.require(:goal).permit(:title, :month_start, :deadline,
                                      :metric_key, :target_value, :comparison_type)
       end
     end
