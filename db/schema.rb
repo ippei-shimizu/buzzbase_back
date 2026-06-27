@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_27_130002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_27_140001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -145,6 +145,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_130002) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "game_result_id"
+    t.bigint "practice_log_id"
+    t.index ["game_result_id"], name: "index_baseball_notes_on_game_result_id"
+    t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["user_id"], name: "index_baseball_notes_on_user_id"
   end
 
@@ -908,6 +912,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_130002) do
 
   add_foreign_key "activity_logs", "users"
   add_foreign_key "admin_refresh_tokens", "admin_users"
+  add_foreign_key "baseball_notes", "game_results", on_delete: :nullify
+  add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
   add_foreign_key "cancellation_feedbacks", "subscriptions", on_delete: :nullify

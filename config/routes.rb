@@ -284,6 +284,7 @@ Rails.application.routes.draw do
       resources :goals, only: %i[index create update destroy] do
         collection { get :history }
       end
+      resources :baseball_notes, only: %i[index show create update destroy]
     end
   end
 
