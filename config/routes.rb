@@ -277,6 +277,9 @@ Rails.application.routes.draw do
         member { post :complete }
         collection { get :stats }
       end
+      resources :activity_logs, only: %i[index] do
+        collection { get :streak }
+      end
     end
   end
 

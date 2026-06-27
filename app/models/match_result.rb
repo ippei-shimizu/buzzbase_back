@@ -22,6 +22,9 @@ class MatchResult < ApplicationRecord
   validates :inning_format, presence: true, inclusion: { in: [7, 9] }
   validates :appearance_type, presence: true, inclusion: { in: APPEARANCE_TYPES }
 
+  # 試合の有無は草・Streak の強度に効くため、当日の activity_logs を再計算する。
+  after_commit :recalculate_activity, on: %i[create update destroy]
+
   # 指定ユーザーの試合データに紐づく年度を新しい順で返す
   # @param user [User]
   # @return [Array<Integer>]
@@ -30,5 +33,14 @@ class MatchResult < ApplicationRecord
       .pluck(Arel.sql('DISTINCT EXTRACT(YEAR FROM date_and_time)::int'))
       .sort
       .reverse
+  end
+
+  private
+
+  def recalculate_activity
+    activity_date = date_and_time&.in_time_zone('Asia/Tokyo')&.to_date
+    return unless activity_date
+
+    Activities::DailyActivityRecalculator.new(user_id:, date: activity_date).call
   end
 end
