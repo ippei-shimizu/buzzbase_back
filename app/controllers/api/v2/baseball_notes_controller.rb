@@ -11,6 +11,7 @@ module Api
         notes = notes.where(date: params[:date]) if params[:date].present?
         notes = notes.where(game_result_id: params[:game_result_id]) if params[:game_result_id].present?
         notes = notes.where(practice_log_id: params[:practice_log_id]) if params[:practice_log_id].present?
+        notes = notes.where(practice_session_id: params[:practice_session_id]) if params[:practice_session_id].present?
         render json: notes, each_serializer: ::V2::BaseballNoteSerializer, status: :ok
       end
 
@@ -52,7 +53,7 @@ module Api
       end
 
       def note_params
-        params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id)
+        params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id, :practice_session_id)
       end
 
       # 他ユーザーの試合 / 練習に紐付けられないよう所有を検証する（IDOR 防止）。
@@ -63,6 +64,10 @@ module Api
         end
         if note.practice_log_id && !current_api_v1_user.practice_logs.exists?(note.practice_log_id)
           render json: { error: '不正な練習の指定です' }, status: :forbidden
+          return false
+        end
+        if note.practice_session_id && !current_api_v1_user.practice_sessions.exists?(note.practice_session_id)
+          render json: { error: '不正な練習記録の指定です' }, status: :forbidden
           return false
         end
         true

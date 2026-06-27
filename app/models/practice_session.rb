@@ -1,6 +1,7 @@
 class PracticeSession < ApplicationRecord
   belongs_to :user
   has_many :practice_logs, dependent: :nullify
+  has_many :baseball_notes, dependent: :nullify
 
   validates :logged_on, presence: true
   validates :user_id, uniqueness: { scope: :logged_on }

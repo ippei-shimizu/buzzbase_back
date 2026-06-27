@@ -40,5 +40,33 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
            headers: auth_headers_for(user)
       expect(response).to have_http_status(:forbidden)
     end
+
+    it '練習記録（日次セッション）に紐付けて作成できる' do
+      session = create(:practice_session, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: '気づき', date: Date.current, memo:, practice_session_id: session.id } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['practice_session_id']).to eq(session.id)
+    end
+
+    it '他ユーザーの練習記録には紐付けられない（IDOR防止）' do
+      other_session = create(:practice_session, user: create(:user))
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, practice_session_id: other_session.id } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'GET /api/v2/baseball_notes（練習記録で絞り込み）' do
+    it 'practice_session_id で絞り込める' do
+      session = create(:practice_session, user:)
+      create(:baseball_note, user:, practice_session: session, memo:, date: Date.current)
+      create(:baseball_note, user:, memo:, date: Date.current)
+      get '/api/v2/baseball_notes', params: { practice_session_id: session.id }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.size).to eq(1)
+    end
   end
 end
