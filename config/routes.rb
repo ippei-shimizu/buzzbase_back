@@ -281,6 +281,9 @@ Rails.application.routes.draw do
         collection { get :streak }
       end
       resources :schedules, only: %i[index create update destroy]
+      resources :goals, only: %i[index create update destroy] do
+        collection { get :history }
+      end
     end
   end
 

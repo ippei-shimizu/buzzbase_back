@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_27_120002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_27_130002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -249,6 +249,39 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_120002) do
     t.index ["pitching_result_id"], name: "index_game_results_on_pitching_result_id"
     t.index ["season_id"], name: "index_game_results_on_season_id"
     t.index ["user_id"], name: "index_game_results_on_user_id"
+  end
+
+  create_table "goal_badges", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "goal_id", null: false
+    t.string "badge_type", null: false
+    t.string "badge_name", null: false
+    t.datetime "awarded_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["goal_id"], name: "index_goal_badges_on_goal_id"
+    t.index ["user_id"], name: "index_goal_badges_on_user_id"
+  end
+
+  create_table "goals", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "period_type", null: false
+    t.bigint "season_id"
+    t.date "month_start"
+    t.date "deadline", null: false
+    t.string "metric_key", null: false
+    t.float "target_value", null: false
+    t.string "comparison_type", default: "greater_than", null: false
+    t.float "achieved_value"
+    t.datetime "achieved_at"
+    t.boolean "is_achieved", default: false, null: false
+    t.boolean "is_finalized", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["season_id"], name: "index_goals_on_season_id"
+    t.index ["user_id", "period_type", "is_finalized"], name: "index_goals_on_user_id_and_period_type_and_is_finalized"
+    t.index ["user_id"], name: "index_goals_on_user_id"
   end
 
   create_table "group_invitations", force: :cascade do |t|
@@ -886,6 +919,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_120002) do
   add_foreign_key "game_results", "pitching_results"
   add_foreign_key "game_results", "seasons", on_delete: :nullify
   add_foreign_key "game_results", "users"
+  add_foreign_key "goal_badges", "goals"
+  add_foreign_key "goal_badges", "users"
+  add_foreign_key "goals", "seasons", on_delete: :nullify
+  add_foreign_key "goals", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"
   add_foreign_key "group_invite_links", "groups"
