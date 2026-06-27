@@ -525,7 +525,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_140001) do
     t.text "memo"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "practice_session_id"
     t.index ["practice_menu_id"], name: "index_practice_logs_on_practice_menu_id"
+    t.index ["practice_session_id"], name: "index_practice_logs_on_practice_session_id"
     t.index ["user_id", "logged_on"], name: "index_practice_logs_on_user_id_and_logged_on"
     t.index ["user_id"], name: "index_practice_logs_on_user_id"
   end
@@ -544,6 +546,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_140001) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "archived"], name: "index_practice_menus_on_user_id_and_archived"
     t.index ["user_id"], name: "index_practice_menus_on_user_id"
+  end
+
+  create_table "practice_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "logged_on", null: false
+    t.text "memo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "logged_on"], name: "index_practice_sessions_on_user_id_and_logged_on", unique: true
+    t.index ["user_id"], name: "index_practice_sessions_on_user_id"
   end
 
   create_table "prefectures", force: :cascade do |t|
@@ -957,8 +969,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_140001) do
   add_foreign_key "plate_appearances", "timings"
   add_foreign_key "plate_appearances", "users"
   add_foreign_key "practice_logs", "practice_menus", on_delete: :nullify
+  add_foreign_key "practice_logs", "practice_sessions"
   add_foreign_key "practice_logs", "users"
   add_foreign_key "practice_menus", "users"
+  add_foreign_key "practice_sessions", "users"
   add_foreign_key "schedule_menus", "practice_menus"
   add_foreign_key "schedule_menus", "schedules"
   add_foreign_key "schedules", "users"

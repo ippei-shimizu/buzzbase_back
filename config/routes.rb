@@ -267,11 +267,8 @@ Rails.application.routes.draw do
 
       resources :practice_menus, only: %i[index create update destroy]
       resources :practice_logs, only: %i[index create destroy]
-      resources :condition_logs, only: [] do
-        collection do
-          get :by_date
-          post :upsert
-        end
+      resources :practice_sessions, only: %i[index create destroy] do
+        collection { get :by_date }
       end
       resources :shadow_swing_sessions, only: %i[create] do
         member { post :complete }
