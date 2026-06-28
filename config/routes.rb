@@ -270,6 +270,7 @@ Rails.application.routes.draw do
       resources :practice_sessions, only: %i[index show create destroy] do
         collection { get :by_date }
       end
+      resources :practice_menu_summaries, only: %i[index]
       resources :shadow_swing_sessions, only: %i[create] do
         member { post :complete }
         collection { get :stats }
