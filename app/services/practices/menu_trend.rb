@@ -1,8 +1,7 @@
 module Practices
-  # 単一メニューの推移（直近6ヶ月の月次集計）・自己ベスト・最近の履歴を返す。
+  # 単一メニューの推移を年別・月別・日別で集計して返す。
   class MenuTrend
-    JST = 'Asia/Tokyo'.freeze
-    MONTHS = 6
+    DAY_LIMIT = 60
 
     def initialize(user, menu)
       @user = user
@@ -14,12 +13,9 @@ module Practices
       logs = @user.practice_logs.where(practice_menu_id: @menu.id).order(logged_on: :desc).to_a
       {
         menu: menu_info,
-        monthly: monthly(logs),
-        best: {
-          max_amount: logs.filter_map(&:amount).max&.to_f,
-          max_weight: logs.filter_map(&:weight).max&.to_f
-        },
-        recent: logs.first(10).map { |log| serialize_log(log) }
+        by_year: grouped(logs) { |log| log.logged_on.year.to_s },
+        by_month: grouped(logs) { |log| log.logged_on.strftime('%Y-%m') },
+        by_day: grouped(logs) { |log| log.logged_on.to_s }.first(DAY_LIMIT)
       }
     end
 
@@ -35,26 +31,18 @@ module Practices
       }
     end
 
-    def serialize_log(log)
-      { id: log.id, logged_on: log.logged_on.to_s, amount: log.amount&.to_f, weight: log.weight&.to_f }
+    def grouped(logs, &)
+      logs.group_by(&)
+          .map { |period, group| bucket(period, group) }
+          .sort_by { |entry| entry[:period] }
+          .reverse
     end
 
-    def monthly(logs)
-      start = Time.find_zone(JST).today.beginning_of_month.prev_month(MONTHS - 1)
-      grouped = logs.select { |log| log.logged_on >= start }
-                    .group_by { |log| log.logged_on.beginning_of_month }
-      (0...MONTHS).map do |index|
-        month = start.next_month(index)
-        bucket(month, grouped[month] || [])
-      end
-    end
-
-    def bucket(month, group)
+    def bucket(period, group)
       {
-        month: month.strftime('%Y-%m'),
+        period:,
         total_amount: group.sum { |log| log.amount.to_f },
         total_volume: group.sum { |log| log.amount.to_f * log.weight.to_f },
-        max_weight: group.filter_map(&:weight).max&.to_f,
         days_count: group.map(&:logged_on).uniq.size
       }
     end
