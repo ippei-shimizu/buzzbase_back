@@ -9,6 +9,7 @@ class PracticeLog < ApplicationRecord
   validates :menu_name, presence: true
   validates :source, presence: true, inclusion: { in: SOURCES }
   validates :amount, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
+  validates :weight, numericality: { greater_than_or_equal_to: 0 }, allow_nil: true
 
   # 単票でログを作っても当日の日次セッションへ束ねる（お気に入りワンタップ・素振り自動ログ含む）。
   before_validation :assign_practice_session, on: :create

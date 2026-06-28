@@ -49,6 +49,19 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
       expect(session.practice_logs.find_by(practice_menu: batting_menu).amount.to_i).to eq(300)
     end
 
+    it '筋トレ（weight_reps）は重さと回数を保存する' do
+      strength_menu = create(:practice_menu, user:, name: 'ベンチプレス', category: 'strength',
+                                             unit: 'weight_reps', unit_label: '回')
+      post '/api/v2/practice_sessions',
+           params: { practice_session: { logged_on: today,
+                                         items: [{ practice_menu_id: strength_menu.id, weight: 60, amount: 10 }] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      log = response.parsed_body['practice_logs'].first
+      expect(log['weight'].to_f).to eq(60.0)
+      expect(log['amount'].to_f).to eq(10.0)
+    end
+
     it '保存で当日の activity_log が再計算される' do
       expect do
         post '/api/v2/practice_sessions', params: { practice_session: { logged_on: today, items: } },

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_28_035942) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -529,6 +529,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_035942) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "practice_session_id"
+    t.decimal "weight", precision: 10, scale: 2
     t.index ["practice_menu_id"], name: "index_practice_logs_on_practice_menu_id"
     t.index ["practice_session_id"], name: "index_practice_logs_on_practice_session_id"
     t.index ["user_id", "logged_on"], name: "index_practice_logs_on_user_id_and_logged_on"

@@ -56,7 +56,7 @@ module Api
       def session_params
         params.require(:practice_session).permit(
           :logged_on, :memo,
-          items: %i[practice_menu_id amount memo],
+          items: %i[practice_menu_id amount weight memo],
           condition: [:fatigue_level, :physical_level, :sleep_hours, :mood, :memo, { injuries: %i[part memo] }]
         )
       end

@@ -2,8 +2,8 @@ class PracticeMenu < ApplicationRecord
   belongs_to :user
   has_many :practice_logs, dependent: :nullify
 
-  CATEGORIES = %w[batting pitching defense baserunning training care other].freeze
-  UNITS = %w[count minutes distance].freeze
+  CATEGORIES = %w[batting pitching defense baserunning training strength care other].freeze
+  UNITS = %w[count minutes distance weight_reps].freeze
 
   validates :name, presence: true, length: { maximum: 50 }
   validates :category, presence: true, inclusion: { in: CATEGORIES }

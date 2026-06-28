@@ -38,7 +38,7 @@ module Api
       private
 
       def practice_log_params
-        params.require(:practice_log).permit(:practice_menu_id, :logged_on, :amount, :memo)
+        params.require(:practice_log).permit(:practice_menu_id, :logged_on, :amount, :weight, :memo)
       end
     end
   end

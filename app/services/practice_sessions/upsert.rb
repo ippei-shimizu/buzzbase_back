@@ -48,15 +48,20 @@ module PracticeSessions
         next if menu.nil?
 
         kept_menu_ids << menu.id
-        attributes = { amount: item[:amount], memo: item[:memo], menu_name: menu.name, unit_label: menu.unit_label }
-        if (log = existing[menu.id])
-          log.update!(attributes)
-        else
-          session.practice_logs.create!(attributes.merge(user: @user, logged_on: @logged_on, practice_menu: menu))
-        end
+        upsert_item(session, existing[menu.id], item, menu)
       end
 
       existing.each_value { |log| log.destroy! unless kept_menu_ids.include?(log.practice_menu_id) }
+    end
+
+    def upsert_item(session, log, item, menu)
+      attributes = { amount: item[:amount], weight: item[:weight], memo: item[:memo],
+                     menu_name: menu.name, unit_label: menu.unit_label }
+      if log
+        log.update!(attributes)
+      else
+        session.practice_logs.create!(attributes.merge(user: @user, logged_on: @logged_on, practice_menu: menu))
+      end
     end
 
     def upsert_condition
