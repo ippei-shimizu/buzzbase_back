@@ -220,7 +220,7 @@ Rails.application.routes.draw do
         get :pitching_stats, on: :member
       end
 
-      resources :game_results, only: [:index] do
+      resources :game_results, only: %i[index show] do
         collection do
           get :all
           get :filtered_index
@@ -267,7 +267,7 @@ Rails.application.routes.draw do
 
       resources :practice_menus, only: %i[index create update destroy]
       resources :practice_logs, only: %i[index create destroy]
-      resources :practice_sessions, only: %i[index create destroy] do
+      resources :practice_sessions, only: %i[index show create destroy] do
         collection { get :by_date }
       end
       resources :shadow_swing_sessions, only: %i[create] do

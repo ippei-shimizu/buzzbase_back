@@ -76,6 +76,23 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
     end
   end
 
+  describe 'GET /api/v2/practice_sessions/:id' do
+    it '自分のセッションを項目付きで返す' do
+      session = create(:practice_session, user:, logged_on: today)
+      create(:practice_log, user:, practice_session: session, practice_menu: batting_menu, logged_on: today)
+      get "/api/v2/practice_sessions/#{session.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['id']).to eq(session.id)
+      expect(response.parsed_body['practice_logs'].size).to eq(1)
+    end
+
+    it '他ユーザーのセッションは 404' do
+      other = create(:practice_session, user: create(:user))
+      get "/api/v2/practice_sessions/#{other.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   describe 'GET /api/v2/practice_sessions/by_date' do
     it '指定日のセッションを項目付きで返す' do
       post '/api/v2/practice_sessions',

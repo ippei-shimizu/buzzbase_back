@@ -15,6 +15,11 @@ module Api
         render json: sessions, each_serializer: ::V2::PracticeSessionSerializer, status: :ok
       end
 
+      def show
+        session = current_api_v1_user.practice_sessions.includes(:practice_logs).find(params[:id])
+        render json: session, serializer: ::V2::PracticeSessionSerializer, status: :ok
+      end
+
       # GET /api/v2/practice_sessions/by_date?date=YYYY-MM-DD
       def by_date
         session = current_api_v1_user.practice_sessions
