@@ -8,5 +8,14 @@ FactoryBot.define do
     metric_key { 'practice_days' }
     target_value { 20 }
     comparison_type { 'greater_than' }
+
+    trait :tournament do
+      tournament
+      period_type { 'tournament' }
+      month_start { nil }
+      metric_key { 'batting_average' }
+      target_value { 0.3 }
+      deadline { Time.find_zone('Asia/Tokyo').today + 7.days }
+    end
   end
 end

@@ -28,6 +28,7 @@ module Entitlement
     'unlimited_schedules',          # 自主練スケジュール無制限(無料は1件まで)
     'unlimited_monthly_goals',      # 月次目標無制限(無料は1件まで)
     'season_goals',                 # シーズン目標(無料は利用不可)
+    'tournament_goals',             # 大会目標(無料は利用不可)
     'custom_notification_messages', # カスタム通知メッセージの設定
     'advanced_goal_tracking',       # 高度な目標トラッキング(達成率の詳細推移)
     'detailed_condition_log'        # 詳細コンディションログ(体調・気分の詳細記録)

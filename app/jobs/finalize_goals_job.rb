@@ -20,12 +20,19 @@ class FinalizeGoalsJob < ApplicationJob
   private
 
   def award_badge(goal)
-    season = goal.period_type == 'season'
+    badge_type = "#{goal.period_type}_achieved"
+    badge_name = BADGE_NAMES.fetch(goal.period_type, '目標達成')
     goal.goal_badges.create!(
       user: goal.user,
-      badge_type: season ? 'season_achieved' : 'monthly_achieved',
-      badge_name: season ? 'シーズン目標達成' : '月間目標達成',
+      badge_type:,
+      badge_name:,
       awarded_at: Time.current
     )
   end
+
+  BADGE_NAMES = {
+    'season' => 'シーズン目標達成',
+    'monthly' => '月間目標達成',
+    'tournament' => '大会目標達成'
+  }.freeze
 end

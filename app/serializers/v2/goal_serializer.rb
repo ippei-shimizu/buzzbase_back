@@ -1,6 +1,6 @@
 module V2
   class GoalSerializer < ActiveModel::Serializer
-    attributes :id, :title, :period_type, :season_id, :month_start, :deadline,
+    attributes :id, :title, :period_type, :season_id, :tournament_id, :month_start, :deadline,
                :metric_key, :target_value, :comparison_type,
                :is_achieved, :is_finalized, :achieved_value,
                :current_value, :progress_percent, :days_remaining

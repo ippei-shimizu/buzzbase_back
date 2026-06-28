@@ -47,20 +47,24 @@ module Api
       end
 
       def allowed_to_create?(goal)
-        if goal.period_type == 'season'
-          current_api_v1_user.can_create_season_goal?
-        else
-          current_api_v1_user.can_create_monthly_goal?
+        case goal.period_type
+        when 'season' then current_api_v1_user.can_create_season_goal?
+        when 'tournament' then current_api_v1_user.can_create_tournament_goal?
+        else current_api_v1_user.can_create_monthly_goal?
         end
       end
 
       def render_limit_error(goal)
-        message = goal.period_type == 'season' ? 'シーズン目標は Pro プラン限定です' : 'Pro プランで月次目標を無制限に設定できます'
+        message = case goal.period_type
+                  when 'season' then 'シーズン目標は Pro プラン限定です'
+                  when 'tournament' then '大会目標は Pro プラン限定です'
+                  else 'Pro プランで月次目標を無制限に設定できます'
+                  end
         render json: { error: message }, status: :forbidden
       end
 
       def goal_params
-        params.require(:goal).permit(:title, :period_type, :season_id, :month_start, :deadline,
+        params.require(:goal).permit(:title, :period_type, :season_id, :tournament_id, :month_start, :deadline,
                                      :metric_key, :target_value, :comparison_type)
       end
 

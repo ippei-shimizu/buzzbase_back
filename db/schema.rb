@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_27_140002) do
+ActiveRecord::Schema[7.1].define(version: 2026_06_28_035942) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -285,6 +285,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_140002) do
     t.boolean "is_finalized", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "tournament_id"
     t.index ["season_id"], name: "index_goals_on_season_id"
     t.index ["user_id", "period_type", "is_finalized"], name: "index_goals_on_user_id_and_period_type_and_is_finalized"
     t.index ["user_id"], name: "index_goals_on_user_id"
@@ -943,6 +944,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_27_140002) do
   add_foreign_key "goal_badges", "goals"
   add_foreign_key "goal_badges", "users"
   add_foreign_key "goals", "seasons", on_delete: :nullify
+  add_foreign_key "goals", "tournaments", on_delete: :nullify
   add_foreign_key "goals", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"

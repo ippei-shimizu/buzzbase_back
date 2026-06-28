@@ -65,6 +65,34 @@ RSpec.describe 'Api::V2::Goals', type: :request do
         expect(response).to have_http_status(:created)
       end
     end
+
+    context '大会目標' do
+      let(:tournament) { create(:tournament) }
+      let(:tournament_params) do
+        { goal: { title: '大会で3割', period_type: 'tournament', tournament_id: tournament.id,
+                  deadline: today + 7, metric_key: 'batting_average', target_value: 0.3 } }
+      end
+
+      it '無料は403' do
+        post '/api/v2/goals', params: tournament_params, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'Pro は作成でき tournament_id を返す' do
+        make_pro(user)
+        post '/api/v2/goals', params: tournament_params, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['tournament_id']).to eq(tournament.id)
+      end
+
+      it 'tournament_id が無いと作成できない' do
+        make_pro(user)
+        post '/api/v2/goals',
+             params: { goal: tournament_params[:goal].except(:tournament_id) },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
   end
 
   describe 'PATCH /api/v2/goals/:id' do

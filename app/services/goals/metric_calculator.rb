@@ -26,6 +26,11 @@ module Goals
 
     private
 
+    # 大会目標のときは、対象期間内でも対象大会の試合だけに絞る（成績系 metric）。
+    def tournament_filter
+      @goal.period_type == 'tournament' ? @goal.tournament_id : nil
+    end
+
     def practice_days(from, to)
       @user.activity_logs.where(activity_date: from.to_date..to.to_date)
            .where('intensity_level >= 1').count
@@ -36,14 +41,18 @@ module Goals
     end
 
     def game_count(from, to)
-      MatchResult.joins(:game_result)
-                 .where(game_results: { user_id: @user.id }, date_and_time: from..to).count
+      scope = MatchResult.joins(:game_result)
+                         .where(game_results: { user_id: @user.id }, date_and_time: from..to)
+      scope = scope.where(tournament_id: tournament_filter) if tournament_filter
+      scope.count
     end
 
     def batting_scope(from, to)
-      BattingAverage.joins(game_result: :match_result)
-                    .where(game_results: { user_id: @user.id })
-                    .where(match_results: { date_and_time: from..to })
+      scope = BattingAverage.joins(game_result: :match_result)
+                            .where(game_results: { user_id: @user.id })
+                            .where(match_results: { date_and_time: from..to })
+      scope = scope.where(match_results: { tournament_id: tournament_filter }) if tournament_filter
+      scope
     end
 
     def batting_average(from, to)
@@ -70,6 +79,7 @@ module Goals
       scope = PitchingResult.joins(game_result: :match_result)
                             .where(game_results: { user_id: @user.id })
                             .where(match_results: { date_and_time: from..to })
+      scope = scope.where(match_results: { tournament_id: tournament_filter }) if tournament_filter
       innings = scope.sum(:innings_pitched)
       return 0 if innings.zero?
 

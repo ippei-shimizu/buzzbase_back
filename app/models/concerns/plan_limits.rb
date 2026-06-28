@@ -48,6 +48,12 @@ module PlanLimits
     has_entitlement?('season_goals')
   end
 
+  # 大会目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_tournament_goal?
+    has_entitlement?('tournament_goals')
+  end
+
   private
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
