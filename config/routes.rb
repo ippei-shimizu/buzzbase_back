@@ -271,6 +271,8 @@ Rails.application.routes.draw do
         collection { get :by_date }
       end
       resources :practice_menu_summaries, only: %i[index]
+      resources :practice_menu_trends, only: %i[show]
+      resource :practice_overview, only: %i[show], controller: 'practice_overview'
       resources :shadow_swing_sessions, only: %i[create] do
         member { post :complete }
         collection { get :stats }
