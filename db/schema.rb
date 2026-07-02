@@ -10,9 +10,22 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_030001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "activity_logs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "activity_date", null: false
+    t.integer "practice_menu_count", default: 0, null: false
+    t.integer "total_swing_count", default: 0, null: false
+    t.boolean "has_game", default: false, null: false
+    t.integer "intensity_level", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "activity_date"], name: "index_activity_logs_on_user_id_and_activity_date", unique: true
+    t.index ["user_id"], name: "index_activity_logs_on_user_id"
+  end
 
   create_table "admin_daily_statistics", force: :cascade do |t|
     t.date "date", null: false
@@ -132,6 +145,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "game_result_id"
+    t.bigint "practice_log_id"
+    t.bigint "practice_session_id"
+    t.bigint "improvement_theme_id"
+    t.jsonb "reflection_answers", default: [], null: false
+    t.bigint "reflection_template_id"
+    t.index ["game_result_id"], name: "index_baseball_notes_on_game_result_id"
+    t.index ["improvement_theme_id"], name: "index_baseball_notes_on_improvement_theme_id"
+    t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
+    t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
+    t.index ["reflection_template_id"], name: "index_baseball_notes_on_reflection_template_id"
     t.index ["user_id"], name: "index_baseball_notes_on_user_id"
   end
 
@@ -171,6 +195,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.datetime "updated_at", null: false
     t.index ["subscription_id"], name: "index_cancellation_feedbacks_on_subscription_id"
     t.index ["user_id"], name: "index_cancellation_feedbacks_on_user_id"
+  end
+
+  create_table "condition_logs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "logged_on", null: false
+    t.integer "fatigue_level"
+    t.integer "physical_level"
+    t.decimal "sleep_hours", precision: 4, scale: 1
+    t.string "mood"
+    t.text "memo"
+    t.jsonb "injuries", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "logged_on"], name: "index_condition_logs_on_user_id_and_logged_on", unique: true
+    t.index ["user_id"], name: "index_condition_logs_on_user_id"
   end
 
   create_table "contact_qualities", force: :cascade do |t|
@@ -221,6 +260,40 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["pitching_result_id"], name: "index_game_results_on_pitching_result_id"
     t.index ["season_id"], name: "index_game_results_on_season_id"
     t.index ["user_id"], name: "index_game_results_on_user_id"
+  end
+
+  create_table "goal_badges", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "goal_id", null: false
+    t.string "badge_type", null: false
+    t.string "badge_name", null: false
+    t.datetime "awarded_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["goal_id"], name: "index_goal_badges_on_goal_id"
+    t.index ["user_id"], name: "index_goal_badges_on_user_id"
+  end
+
+  create_table "goals", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "period_type", null: false
+    t.bigint "season_id"
+    t.date "month_start"
+    t.date "deadline", null: false
+    t.string "metric_key", null: false
+    t.float "target_value", null: false
+    t.string "comparison_type", default: "greater_than", null: false
+    t.float "achieved_value"
+    t.datetime "achieved_at"
+    t.boolean "is_achieved", default: false, null: false
+    t.boolean "is_finalized", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "tournament_id"
+    t.index ["season_id"], name: "index_goals_on_season_id"
+    t.index ["user_id", "period_type", "is_finalized"], name: "index_goals_on_user_id_and_period_type_and_is_finalized"
+    t.index ["user_id"], name: "index_goals_on_user_id"
   end
 
   create_table "group_invitations", force: :cascade do |t|
@@ -279,6 +352,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "improvement_themes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "category"
+    t.text "purpose"
+    t.string "status", default: "open", null: false
+    t.date "started_on", null: false
+    t.date "achieved_on"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "status"], name: "index_improvement_themes_on_user_id_and_status"
+    t.index ["user_id"], name: "index_improvement_themes_on_user_id"
+  end
+
   create_table "management_notices", force: :cascade do |t|
     t.string "title", null: false
     t.text "body", null: false
@@ -324,6 +412,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.datetime "updated_at", null: false
     t.datetime "read_at"
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
+  end
+
+  create_table "periodic_reviews", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "period_type", null: false
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.jsonb "summary", default: {}, null: false
+    t.boolean "read", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "period_type", "period_start"], name: "idx_on_user_id_period_type_period_start_0e0b7c275d", unique: true
+    t.index ["user_id"], name: "index_periodic_reviews_on_user_id"
   end
 
   create_table "pitch_types", force: :cascade do |t|
@@ -449,6 +550,53 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.datetime "updated_at", null: false
   end
 
+  create_table "practice_logs", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "practice_menu_id"
+    t.date "logged_on", null: false
+    t.decimal "amount", precision: 10, scale: 2
+    t.string "menu_name", null: false
+    t.string "unit_label"
+    t.string "source", default: "manual", null: false
+    t.text "memo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "practice_session_id"
+    t.decimal "weight", precision: 10, scale: 2
+    t.index ["practice_menu_id"], name: "index_practice_logs_on_practice_menu_id"
+    t.index ["practice_session_id"], name: "index_practice_logs_on_practice_session_id"
+    t.index ["user_id", "logged_on"], name: "index_practice_logs_on_user_id_and_logged_on"
+    t.index ["user_id"], name: "index_practice_logs_on_user_id"
+  end
+
+  create_table "practice_menus", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.string "category", null: false
+    t.string "unit", null: false
+    t.string "unit_label"
+    t.decimal "default_value", precision: 10, scale: 2
+    t.boolean "is_favorite", default: false, null: false
+    t.integer "sort_order", default: 0, null: false
+    t.boolean "archived", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "archived"], name: "index_practice_menus_on_user_id_and_archived"
+    t.index ["user_id"], name: "index_practice_menus_on_user_id"
+  end
+
+  create_table "practice_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "logged_on", null: false
+    t.text "memo"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "improvement_theme_id"
+    t.index ["improvement_theme_id"], name: "index_practice_sessions_on_improvement_theme_id"
+    t.index ["user_id", "logged_on"], name: "index_practice_sessions_on_user_id_and_logged_on", unique: true
+    t.index ["user_id"], name: "index_practice_sessions_on_user_id"
+  end
+
   create_table "prefectures", force: :cascade do |t|
     t.string "name"
     t.datetime "created_at", null: false
@@ -456,6 +604,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.string "hiragana"
     t.string "katakana"
     t.string "alphabet"
+  end
+
+  create_table "reflection_templates", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "title", null: false
+    t.jsonb "questions", default: [], null: false
+    t.boolean "is_preset", default: false, null: false
+    t.boolean "is_default", default: false, null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["is_preset"], name: "index_reflection_templates_on_is_preset"
+    t.index ["user_id"], name: "index_reflection_templates_on_user_id"
   end
 
   create_table "relationships", force: :cascade do |t|
@@ -469,6 +630,32 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["follower_id"], name: "index_relationships_on_follower_id"
   end
 
+  create_table "schedule_menus", force: :cascade do |t|
+    t.bigint "schedule_id", null: false
+    t.bigint "practice_menu_id", null: false
+    t.float "target_value"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_menu_id"], name: "index_schedule_menus_on_practice_menu_id"
+    t.index ["schedule_id"], name: "index_schedule_menus_on_schedule_id"
+  end
+
+  create_table "schedules", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "days_of_week", null: false
+    t.time "scheduled_time", null: false
+    t.text "note"
+    t.boolean "notification_enabled", default: true, null: false
+    t.boolean "active", default: true, null: false
+    t.string "notification_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "active"], name: "index_schedules_on_user_id_and_active"
+    t.index ["user_id"], name: "index_schedules_on_user_id"
+  end
+
   create_table "seasons", force: :cascade do |t|
     t.string "name", null: false
     t.bigint "user_id", null: false
@@ -476,6 +663,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "name"], name: "index_seasons_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_seasons_on_user_id"
+  end
+
+  create_table "shadow_swing_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "logged_on", null: false
+    t.integer "target_count", null: false
+    t.integer "swing_count", default: 0, null: false
+    t.datetime "completed_at"
+    t.bigint "practice_log_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_log_id"], name: "index_shadow_swing_sessions_on_practice_log_id"
+    t.index ["user_id", "logged_on"], name: "index_shadow_swing_sessions_on_user_id_and_logged_on"
+    t.index ["user_id"], name: "index_shadow_swing_sessions_on_user_id"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -599,6 +800,18 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "stadiums", force: :cascade do |t|
+    t.string "name", null: false
+    t.bigint "prefecture_id"
+    t.bigint "created_by_user_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_user_id"], name: "index_stadiums_on_created_by_user_id"
+    t.index ["name", "prefecture_id"], name: "index_stadiums_on_name_prefecture_id_not_null", unique: true, where: "(prefecture_id IS NOT NULL)"
+    t.index ["name"], name: "index_stadiums_on_name"
+    t.index ["prefecture_id"], name: "index_stadiums_on_prefecture_id"
+  end
+
   create_table "subscriptions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "status", default: "free", null: false
@@ -625,18 +838,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["stripe_customer_id"], name: "index_subscriptions_on_stripe_customer_id", unique: true, where: "(stripe_customer_id IS NOT NULL)"
     t.index ["stripe_subscription_id"], name: "index_subscriptions_on_stripe_subscription_id", unique: true, where: "(stripe_subscription_id IS NOT NULL)"
     t.index ["user_id"], name: "index_subscriptions_on_user_id", unique: true
-  end
-
-  create_table "stadiums", force: :cascade do |t|
-    t.string "name", null: false
-    t.bigint "prefecture_id"
-    t.bigint "created_by_user_id"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["created_by_user_id"], name: "index_stadiums_on_created_by_user_id"
-    t.index ["name", "prefecture_id"], name: "index_stadiums_on_name_prefecture_id_not_null", unique: true, where: "(prefecture_id IS NOT NULL)"
-    t.index ["name"], name: "index_stadiums_on_name"
-    t.index ["prefecture_id"], name: "index_stadiums_on_prefecture_id"
   end
 
   create_table "teams", force: :cascade do |t|
@@ -773,17 +974,29 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
     t.index ["status"], name: "index_webhook_events_on_status"
   end
 
+  add_foreign_key "activity_logs", "users"
   add_foreign_key "admin_refresh_tokens", "admin_users"
+  add_foreign_key "baseball_notes", "game_results", on_delete: :nullify
+  add_foreign_key "baseball_notes", "improvement_themes"
+  add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
+  add_foreign_key "baseball_notes", "practice_sessions"
+  add_foreign_key "baseball_notes", "reflection_templates"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
   add_foreign_key "cancellation_feedbacks", "subscriptions", on_delete: :nullify
   add_foreign_key "cancellation_feedbacks", "users"
+  add_foreign_key "condition_logs", "users"
   add_foreign_key "device_tokens", "users"
   add_foreign_key "game_results", "batting_averages"
   add_foreign_key "game_results", "match_results", on_delete: :cascade
   add_foreign_key "game_results", "pitching_results"
   add_foreign_key "game_results", "seasons", on_delete: :nullify
   add_foreign_key "game_results", "users"
+  add_foreign_key "goal_badges", "goals"
+  add_foreign_key "goal_badges", "users"
+  add_foreign_key "goals", "seasons", on_delete: :nullify
+  add_foreign_key "goals", "tournaments", on_delete: :nullify
+  add_foreign_key "goals", "users"
   add_foreign_key "group_invitations", "groups"
   add_foreign_key "group_invitations", "users"
   add_foreign_key "group_invite_links", "groups"
@@ -792,12 +1005,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   add_foreign_key "group_ranking_snapshots", "users"
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
+  add_foreign_key "improvement_themes", "users"
   add_foreign_key "management_notices", "admin_users", column: "created_by_id"
   add_foreign_key "match_results", "stadiums"
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "periodic_reviews", "users"
   add_foreign_key "pitchers", "arm_angles"
   add_foreign_key "pitchers", "pitcher_styles"
   add_foreign_key "pitchers", "teams"
@@ -811,7 +1026,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_25_130000) do
   add_foreign_key "plate_appearances", "pitchers"
   add_foreign_key "plate_appearances", "timings"
   add_foreign_key "plate_appearances", "users"
+  add_foreign_key "practice_logs", "practice_menus", on_delete: :nullify
+  add_foreign_key "practice_logs", "practice_sessions"
+  add_foreign_key "practice_logs", "users"
+  add_foreign_key "practice_menus", "users"
+  add_foreign_key "practice_sessions", "improvement_themes"
+  add_foreign_key "practice_sessions", "users"
+  add_foreign_key "reflection_templates", "users"
+  add_foreign_key "schedule_menus", "practice_menus"
+  add_foreign_key "schedule_menus", "schedules"
+  add_foreign_key "schedules", "users"
   add_foreign_key "seasons", "users"
+  add_foreign_key "shadow_swing_sessions", "practice_logs", on_delete: :nullify
+  add_foreign_key "shadow_swing_sessions", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

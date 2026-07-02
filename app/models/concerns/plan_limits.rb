@@ -5,12 +5,14 @@
 module PlanLimits
   extend ActiveSupport::Concern
 
-  PRACTICE_MENU_FREE_LIMIT = 3
+  PRACTICE_MENU_FREE_LIMIT = 5
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
-  SCHEDULE_FREE_LIMIT = 1
-  MONTHLY_GOAL_FREE_LIMIT = 1
+  SCHEDULE_FREE_LIMIT = 3
+  MONTHLY_GOAL_FREE_LIMIT = 2
+  IMPROVEMENT_THEME_FREE_LIMIT = 1
+  REFLECTION_TEMPLATE_FREE_LIMIT = 1
 
-  # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
+  # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
   # @return [Boolean]
   def can_create_practice_menu?
     return true if has_entitlement?('unlimited_practice_menus')
@@ -48,11 +50,33 @@ module PlanLimits
     has_entitlement?('season_goals')
   end
 
+  # 大会目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_tournament_goal?
+    has_entitlement?('tournament_goals')
+  end
+
+  # 課題テーマを新規作成できるか。無料は取組中（open）が1つまで。
+  # @return [Boolean]
+  def can_create_improvement_theme?
+    return true if has_entitlement?('unlimited_improvement_themes')
+
+    open_improvement_themes_count < IMPROVEMENT_THEME_FREE_LIMIT
+  end
+
+  # 振り返りテンプレを自作できるか。無料は1つまで。プリセット利用は本制限の対象外。
+  # @return [Boolean]
+  def can_create_reflection_template?
+    return true if has_entitlement?('unlimited_reflection_templates')
+
+    custom_reflection_templates_count < REFLECTION_TEMPLATE_FREE_LIMIT
+  end
+
   private
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
   def practice_menus_count_for_business_rules
-    0
+    practice_menus.where(archived: false).count
   end
 
   def media_attachments_count_this_month
@@ -60,10 +84,18 @@ module PlanLimits
   end
 
   def active_schedules_count
-    0
+    schedules.active.count
   end
 
   def active_monthly_goals_count
-    0
+    goals.active.monthly.count
+  end
+
+  def open_improvement_themes_count
+    improvement_themes.where(status: 'open').count
+  end
+
+  def custom_reflection_templates_count
+    reflection_templates.count
   end
 end

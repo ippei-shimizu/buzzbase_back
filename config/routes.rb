@@ -220,7 +220,7 @@ Rails.application.routes.draw do
         get :pitching_stats, on: :member
       end
 
-      resources :game_results, only: [:index] do
+      resources :game_results, only: %i[index show] do
         collection do
           get :all
           get :filtered_index
@@ -264,6 +264,31 @@ Rails.application.routes.draw do
       resources :velocity_zones, only: :index
       resources :pitcher_styles, only: :index
       resources :appearance_situations, only: :index
+
+      resources :practice_menus, only: %i[index create update destroy]
+      resources :practice_logs, only: %i[index create destroy]
+      resources :practice_sessions, only: %i[index show create destroy] do
+        collection { get :by_date }
+      end
+      resources :practice_menu_summaries, only: %i[index]
+      resources :practice_menu_trends, only: %i[show]
+      resource :practice_overview, only: %i[show], controller: 'practice_overview'
+      resources :shadow_swing_sessions, only: %i[create] do
+        member { post :complete }
+        collection { get :stats }
+      end
+      resources :activity_logs, only: %i[index] do
+        collection { get :streak }
+      end
+      resources :schedules, only: %i[index create update destroy]
+      resources :goals, only: %i[index create update destroy] do
+        collection { get :history }
+      end
+      resources :baseball_notes, only: %i[index show create update destroy]
+      resources :improvement_themes, only: %i[index create update destroy]
+      resources :reflection_templates, only: %i[index create update destroy]
+      resources :periodic_reviews, only: %i[index update]
+      resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
     end
   end
 

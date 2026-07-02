@@ -9,7 +9,7 @@ module Api
     # - ページネーション対応（kaminari）
     class GameResultsController < Api::V2::ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[index filtered_index show_user filtered_show_user]
+      before_action :authenticate_api_v1_user!, only: %i[index show filtered_index show_user filtered_show_user]
 
       # GET /api/v2/game_results
       # 認証ユーザー自身の試合一覧を取得する
@@ -17,6 +17,13 @@ module Api
         game_results = GameResult.v2_game_associated_data_user(current_api_v1_user)
                                  .page(params[:page]).per(params[:per_page])
         render json: paginated_response(game_results, ::V2::GameResultSerializer)
+      end
+
+      # GET /api/v2/game_results/:id
+      # 認証ユーザー自身の試合1件を取得する（野球ノートの紐付け表示などに利用）
+      def show
+        game_result = GameResult.v2_game_associated_data_user(current_api_v1_user).find(params[:id])
+        render json: game_result, serializer: ::V2::GameResultSerializer, status: :ok
       end
 
       # GET /api/v2/game_results/all
