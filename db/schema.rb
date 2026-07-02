@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_020003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -149,10 +149,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
     t.bigint "practice_log_id"
     t.bigint "practice_session_id"
     t.bigint "improvement_theme_id"
+    t.jsonb "reflection_answers", default: [], null: false
+    t.bigint "reflection_template_id"
     t.index ["game_result_id"], name: "index_baseball_notes_on_game_result_id"
     t.index ["improvement_theme_id"], name: "index_baseball_notes_on_improvement_theme_id"
     t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
+    t.index ["reflection_template_id"], name: "index_baseball_notes_on_reflection_template_id"
     t.index ["user_id"], name: "index_baseball_notes_on_user_id"
   end
 
@@ -590,6 +593,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
     t.string "alphabet"
   end
 
+  create_table "reflection_templates", force: :cascade do |t|
+    t.bigint "user_id"
+    t.string "title", null: false
+    t.jsonb "questions", default: [], null: false
+    t.boolean "is_preset", default: false, null: false
+    t.boolean "is_default", default: false, null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["is_preset"], name: "index_reflection_templates_on_is_preset"
+    t.index ["user_id"], name: "index_reflection_templates_on_user_id"
+  end
+
   create_table "relationships", force: :cascade do |t|
     t.integer "follower_id"
     t.integer "followed_id"
@@ -951,6 +967,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
   add_foreign_key "baseball_notes", "improvement_themes"
   add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
   add_foreign_key "baseball_notes", "practice_sessions"
+  add_foreign_key "baseball_notes", "reflection_templates"
   add_foreign_key "baseball_notes", "users"
   add_foreign_key "batting_averages", "users"
   add_foreign_key "cancellation_feedbacks", "subscriptions", on_delete: :nullify
@@ -1001,6 +1018,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
   add_foreign_key "practice_menus", "users"
   add_foreign_key "practice_sessions", "improvement_themes"
   add_foreign_key "practice_sessions", "users"
+  add_foreign_key "reflection_templates", "users"
   add_foreign_key "schedule_menus", "practice_menus"
   add_foreign_key "schedule_menus", "schedules"
   add_foreign_key "schedules", "users"

@@ -55,7 +55,8 @@ module Api
 
       def note_params
         params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id,
-                                              :practice_session_id, :improvement_theme_id)
+                                              :practice_session_id, :improvement_theme_id, :reflection_template_id,
+                                              reflection_answers: %i[question answer])
       end
 
       # 紐付け先カラム => { association:, error: } の対応。所有検証（IDOR 防止）に使う。
@@ -75,7 +76,16 @@ module Api
           render json: { error: config[:error] }, status: :forbidden
           return false
         end
-        true
+        valid_reflection_template?(note)
+      end
+
+      # 振り返りテンプレはプリセット or 自作のみ紐付け可（他ユーザーの自作は不可）。
+      def valid_reflection_template?(note)
+        return true if note.reflection_template_id.blank?
+        return true if ReflectionTemplate.available_for(current_api_v1_user).exists?(note.reflection_template_id)
+
+        render json: { error: '不正なテンプレの指定です' }, status: :forbidden
+        false
       end
     end
   end

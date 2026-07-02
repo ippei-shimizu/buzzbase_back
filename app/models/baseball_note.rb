@@ -5,6 +5,7 @@ class BaseballNote < ApplicationRecord
   belongs_to :practice_log, optional: true
   belongs_to :practice_session, optional: true
   belongs_to :improvement_theme, optional: true
+  belongs_to :reflection_template, optional: true
 
   def extract_and_truncate_memo
     return '' if memo.blank?
