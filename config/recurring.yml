@@ -13,3 +13,11 @@ production:
   clear_solid_queue_finished_jobs:
     command: "SolidQueue::Job.clear_finished_in_batches(sleep_between_batches: 0.3)"
     schedule: every hour at minute 12
+  generate_weekly_periodic_reviews:
+    class: GeneratePeriodicReviewJob
+    args: [ "weekly" ]
+    schedule: every monday at 5am
+  generate_monthly_periodic_reviews:
+    class: GeneratePeriodicReviewJob
+    args: [ "monthly" ]
+    schedule: every month on the 1st at 5am

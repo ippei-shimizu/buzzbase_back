@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_020003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_030001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -412,6 +412,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_020003) do
     t.datetime "updated_at", null: false
     t.datetime "read_at"
     t.index ["actor_id"], name: "index_notifications_on_actor_id"
+  end
+
+  create_table "periodic_reviews", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "period_type", null: false
+    t.date "period_start", null: false
+    t.date "period_end", null: false
+    t.jsonb "summary", default: {}, null: false
+    t.boolean "read", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "period_type", "period_start"], name: "idx_on_user_id_period_type_period_start_0e0b7c275d", unique: true
+    t.index ["user_id"], name: "index_periodic_reviews_on_user_id"
   end
 
   create_table "pitch_types", force: :cascade do |t|
@@ -999,6 +1012,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_020003) do
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "periodic_reviews", "users"
   add_foreign_key "pitchers", "arm_angles"
   add_foreign_key "pitchers", "pitcher_styles"
   add_foreign_key "pitchers", "teams"
