@@ -26,6 +26,18 @@ RSpec.describe 'Api::V2::PracticeMenuSummaries', type: :request do
       expect(summary['last_logged_on']).to eq(today.to_s)
     end
 
+    it '直近に記録した（作成が新しい）メニュー順に返す' do
+      older_menu = create(:practice_menu, user:, name: '先に記録', unit: 'count')
+      create(:practice_log, user:, practice_menu: older_menu, logged_on: today, amount: 10)
+
+      newer_menu = create(:practice_menu, user:, name: '後に記録', unit: 'count')
+      create(:practice_log, user:, practice_menu: newer_menu, logged_on: today - 40, amount: 20)
+
+      get '/api/v2/practice_menu_summaries', headers: auth_headers_for(user)
+      names = response.parsed_body.pluck('menu_name')
+      expect(names).to eq(%w[後に記録 先に記録])
+    end
+
     it '筋トレは総挙上重量（重さ×回数の合計）を返す' do
       menu = create(:practice_menu, user:, name: 'ベンチプレス', category: 'strength',
                                     unit: 'weight_reps', unit_label: '回')

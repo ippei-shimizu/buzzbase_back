@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_02_010002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -148,7 +148,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
     t.bigint "game_result_id"
     t.bigint "practice_log_id"
     t.bigint "practice_session_id"
+    t.bigint "improvement_theme_id"
     t.index ["game_result_id"], name: "index_baseball_notes_on_game_result_id"
+    t.index ["improvement_theme_id"], name: "index_baseball_notes_on_improvement_theme_id"
     t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
     t.index ["user_id"], name: "index_baseball_notes_on_user_id"
@@ -345,6 +347,21 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
     t.string "icon"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "improvement_themes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.string "category"
+    t.text "purpose"
+    t.string "status", default: "open", null: false
+    t.date "started_on", null: false
+    t.date "achieved_on"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "status"], name: "index_improvement_themes_on_user_id_and_status"
+    t.index ["user_id"], name: "index_improvement_themes_on_user_id"
   end
 
   create_table "management_notices", force: :cascade do |t|
@@ -558,6 +575,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
     t.text "memo"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "improvement_theme_id"
+    t.index ["improvement_theme_id"], name: "index_practice_sessions_on_improvement_theme_id"
     t.index ["user_id", "logged_on"], name: "index_practice_sessions_on_user_id_and_logged_on", unique: true
     t.index ["user_id"], name: "index_practice_sessions_on_user_id"
   end
@@ -929,6 +948,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
   add_foreign_key "activity_logs", "users"
   add_foreign_key "admin_refresh_tokens", "admin_users"
   add_foreign_key "baseball_notes", "game_results", on_delete: :nullify
+  add_foreign_key "baseball_notes", "improvement_themes"
   add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
   add_foreign_key "baseball_notes", "practice_sessions"
   add_foreign_key "baseball_notes", "users"
@@ -955,6 +975,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
   add_foreign_key "group_ranking_snapshots", "users"
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
+  add_foreign_key "improvement_themes", "users"
   add_foreign_key "management_notices", "admin_users", column: "created_by_id"
   add_foreign_key "match_results", "stadiums"
   add_foreign_key "match_results", "teams", column: "my_team_id"
@@ -978,6 +999,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_06_28_060308) do
   add_foreign_key "practice_logs", "practice_sessions"
   add_foreign_key "practice_logs", "users"
   add_foreign_key "practice_menus", "users"
+  add_foreign_key "practice_sessions", "improvement_themes"
   add_foreign_key "practice_sessions", "users"
   add_foreign_key "schedule_menus", "practice_menus"
   add_foreign_key "schedule_menus", "schedules"

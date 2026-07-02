@@ -6,12 +6,13 @@ module Api
       before_action :authenticate_api_v1_user!
       before_action :load_note, only: %i[show update destroy]
 
+      FILTERABLE_COLUMNS = %i[date game_result_id practice_log_id practice_session_id improvement_theme_id].freeze
+
       def index
         notes = current_api_v1_user.baseball_notes.order(date: :desc, created_at: :desc)
-        notes = notes.where(date: params[:date]) if params[:date].present?
-        notes = notes.where(game_result_id: params[:game_result_id]) if params[:game_result_id].present?
-        notes = notes.where(practice_log_id: params[:practice_log_id]) if params[:practice_log_id].present?
-        notes = notes.where(practice_session_id: params[:practice_session_id]) if params[:practice_session_id].present?
+        FILTERABLE_COLUMNS.each do |column|
+          notes = notes.where(column => params[column]) if params[column].present?
+        end
         render json: notes, each_serializer: ::V2::BaseballNoteSerializer, status: :ok
       end
 
@@ -53,21 +54,25 @@ module Api
       end
 
       def note_params
-        params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id, :practice_session_id)
+        params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id,
+                                              :practice_session_id, :improvement_theme_id)
       end
 
-      # 他ユーザーの試合 / 練習に紐付けられないよう所有を検証する（IDOR 防止）。
+      # 紐付け先カラム => { association:, error: } の対応。所有検証（IDOR 防止）に使う。
+      LINK_OWNERSHIPS = {
+        game_result_id: { association: :game_results, error: '不正な試合の指定です' },
+        practice_log_id: { association: :practice_logs, error: '不正な練習の指定です' },
+        practice_session_id: { association: :practice_sessions, error: '不正な練習記録の指定です' },
+        improvement_theme_id: { association: :improvement_themes, error: '不正な課題の指定です' }
+      }.freeze
+
+      # 他ユーザーの試合 / 練習 / 課題に紐付けられないよう所有を検証する（IDOR 防止）。
       def valid_links?(note)
-        if note.game_result_id && !current_api_v1_user.game_results.exists?(note.game_result_id)
-          render json: { error: '不正な試合の指定です' }, status: :forbidden
-          return false
-        end
-        if note.practice_log_id && !current_api_v1_user.practice_logs.exists?(note.practice_log_id)
-          render json: { error: '不正な練習の指定です' }, status: :forbidden
-          return false
-        end
-        if note.practice_session_id && !current_api_v1_user.practice_sessions.exists?(note.practice_session_id)
-          render json: { error: '不正な練習記録の指定です' }, status: :forbidden
+        LINK_OWNERSHIPS.each do |column, config|
+          id = note.public_send(column)
+          next if id.blank? || current_api_v1_user.public_send(config[:association]).exists?(id)
+
+          render json: { error: config[:error] }, status: :forbidden
           return false
         end
         true

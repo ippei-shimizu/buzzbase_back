@@ -1,5 +1,6 @@
 class PracticeSession < ApplicationRecord
   belongs_to :user
+  belongs_to :improvement_theme, optional: true
   has_many :practice_logs, dependent: :nullify
   has_many :baseball_notes, dependent: :nullify
 

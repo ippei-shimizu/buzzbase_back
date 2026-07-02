@@ -285,6 +285,10 @@ Rails.application.routes.draw do
         collection { get :history }
       end
       resources :baseball_notes, only: %i[index show create update destroy]
+      resources :improvement_themes, only: %i[index create update destroy]
+      resources :reflection_templates, only: %i[index create update destroy]
+      resources :periodic_reviews, only: %i[index update]
+      resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
     end
   end
 

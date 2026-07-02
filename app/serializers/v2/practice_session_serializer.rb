@@ -1,7 +1,7 @@
 module V2
   # 日次の練習セッション。その日の量ログ（メニュー項目）とコンディションを束ねて返す。
   class PracticeSessionSerializer < ActiveModel::Serializer
-    attributes :id, :logged_on, :memo, :created_at
+    attributes :id, :logged_on, :memo, :improvement_theme_id, :created_at
 
     has_many :practice_logs, serializer: V2::PracticeLogSerializer
 

@@ -13,12 +13,14 @@ module PracticeSessions
     # @param user [User]
     # @param logged_on [Date, String]
     # @param memo [String, nil] その日の振り返りメモ
+    # @param improvement_theme_id [Integer, String, nil] 紐付ける課題テーマ（空文字は紐付け解除）
     # @param items [Array<Hash>] [{ practice_menu_id:, amount:, memo: }]
     # @param condition [Hash, nil] コンディション入力（nil なら更新しない）
-    def initialize(user:, logged_on:, memo: nil, items: [], condition: nil)
+    def initialize(user:, logged_on:, memo: nil, improvement_theme_id: nil, items: [], condition: nil) # rubocop:disable Metrics/ParameterLists
       @user = user
       @logged_on = logged_on
       @memo = memo
+      @improvement_theme_id = improvement_theme_id
       @items = items || []
       @condition = condition
     end
@@ -29,6 +31,7 @@ module PracticeSessions
       ActiveRecord::Base.transaction do
         session = PracticeSession.for(@user, @logged_on)
         session.update!(memo: @memo) unless @memo.nil?
+        assign_theme(session) unless @improvement_theme_id.nil?
         sync_items(session)
         upsert_condition if @condition.present?
       end
@@ -36,6 +39,13 @@ module PracticeSessions
     end
 
     private
+
+    # 自分の課題テーマのみ紐付ける（他ユーザーの課題は無視）。空文字なら紐付け解除。
+    def assign_theme(session)
+      theme_id = @improvement_theme_id.presence
+      owned = theme_id && @user.improvement_themes.exists?(theme_id)
+      session.update!(improvement_theme_id: owned ? theme_id : nil)
+    end
 
     # メニュー量ログを practice_menu_id ベースで差分同期する。
     def sync_items(session)

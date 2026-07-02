@@ -9,14 +9,15 @@ module Practices
       @user = user
     end
 
-    # @return [Array<Hash>] last_logged_on の新しい順
+    # @return [Array<Hash>] 直近に記録した（created_at が新しい）メニュー順
     def call
       month_start = Time.find_zone(JST).today.beginning_of_month
       @user.practice_logs.includes(:practice_menu).to_a
            .group_by { |log| log.practice_menu_id || "name:#{log.menu_name}" }
-           .map { |_, group| summarize(group, month_start) }
-           .sort_by { |summary| summary[:last_logged_on].to_s }
+           .values
+           .sort_by { |group| group.map(&:created_at).max }
            .reverse
+           .map { |group| summarize(group, month_start) }
     end
 
     private

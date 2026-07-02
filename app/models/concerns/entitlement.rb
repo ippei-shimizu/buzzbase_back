@@ -31,7 +31,11 @@ module Entitlement
     'tournament_goals',             # 大会目標(無料は利用不可)
     'custom_notification_messages', # カスタム通知メッセージの設定
     'advanced_goal_tracking',       # 高度な目標トラッキング(達成率の詳細推移)
-    'detailed_condition_log'        # 詳細コンディションログ(体調・気分の詳細記録)
+    'detailed_condition_log',       # 詳細コンディションログ(体調・気分の詳細記録)
+    'unlimited_improvement_themes', # 課題テーマ無制限(無料は取組中1つまで)
+    'correlation_insights',         # 相関インサイト(練習量・コンディション×成績の傾向)
+    'unlimited_reflection_templates', # 振り返りテンプレの自作無制限(無料は1つまで・プリセットは全員可)
+    'advanced_periodic_review' # 週次/月次レポートの詳細(課題別内訳・相関・成績前週比・月次)
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze

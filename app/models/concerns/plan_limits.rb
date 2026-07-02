@@ -9,6 +9,8 @@ module PlanLimits
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
   SCHEDULE_FREE_LIMIT = 3
   MONTHLY_GOAL_FREE_LIMIT = 2
+  IMPROVEMENT_THEME_FREE_LIMIT = 1
+  REFLECTION_TEMPLATE_FREE_LIMIT = 1
 
   # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
   # @return [Boolean]
@@ -54,6 +56,22 @@ module PlanLimits
     has_entitlement?('tournament_goals')
   end
 
+  # 課題テーマを新規作成できるか。無料は取組中（open）が1つまで。
+  # @return [Boolean]
+  def can_create_improvement_theme?
+    return true if has_entitlement?('unlimited_improvement_themes')
+
+    open_improvement_themes_count < IMPROVEMENT_THEME_FREE_LIMIT
+  end
+
+  # 振り返りテンプレを自作できるか。無料は1つまで。プリセット利用は本制限の対象外。
+  # @return [Boolean]
+  def can_create_reflection_template?
+    return true if has_entitlement?('unlimited_reflection_templates')
+
+    custom_reflection_templates_count < REFLECTION_TEMPLATE_FREE_LIMIT
+  end
+
   private
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
@@ -71,5 +89,13 @@ module PlanLimits
 
   def active_monthly_goals_count
     goals.active.monthly.count
+  end
+
+  def open_improvement_themes_count
+    improvement_themes.where(status: 'open').count
+  end
+
+  def custom_reflection_templates_count
+    reflection_templates.count
   end
 end
