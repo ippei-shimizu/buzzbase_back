@@ -19,12 +19,14 @@ module Stats
 
     SCORING_POSITION_STATES = %w[second third first_second first_third second_third bases_loaded].freeze
 
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @year = year
       @match_type = match_type
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     # @return [Hash] at_bats / hits / two_base_hit / three_base_hit / home_run / batting_average
@@ -64,7 +66,8 @@ module Stats
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
+      scope = apply_tournament_filter(scope)
+      apply_date_range_filter(scope)
     end
   end
 end

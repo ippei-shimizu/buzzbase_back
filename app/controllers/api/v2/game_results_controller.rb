@@ -36,7 +36,10 @@ module Api
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
         tournament_id = params[:tournament_id]
-        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id, tournament_id:)
+        game_results = GameResult.v2_filtered_game_associated_data_user(
+          current_api_v1_user, year, match_type, season_id, tournament_id:,
+                                                            start_month: params[:start_month], end_month: params[:end_month]
+        )
         game_results = game_results.search_by_opponent(params[:search]) if params[:search].present?
         game_results = game_results.reorder(nil).apply_sort(params[:sort_by], params[:sort_order]) if params[:sort_by].present?
         game_results = game_results.page(params[:page]).per(params[:per_page])
@@ -68,7 +71,10 @@ module Api
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
         tournament_id = params[:tournament_id]
-        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type, season_id, tournament_id:)
+        game_results = GameResult.v2_filtered_game_associated_data_user(
+          user, year, match_type, season_id, tournament_id:,
+                                             start_month: params[:start_month], end_month: params[:end_month]
+        )
         game_results = game_results.search_by_opponent(params[:search]) if params[:search].present?
         game_results = game_results.reorder(nil).apply_sort(params[:sort_by], params[:sort_order]) if params[:sort_by].present?
         game_results = game_results.page(params[:page]).per(params[:per_page])

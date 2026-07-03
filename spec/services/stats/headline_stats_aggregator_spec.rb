@@ -113,6 +113,33 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
       end
     end
 
+    context 'with period (start_month / end_month) filter' do
+      before do
+        build_game(date: '2025-04-30', batting_attrs: { at_bats: 4, hit: 1, total_bases: 1 })
+        build_game(date: '2025-05-15', batting_attrs: { at_bats: 5, hit: 2, total_bases: 2 })
+        build_game(date: '2025-07-31', batting_attrs: { at_bats: 3, hit: 1, total_bases: 1 })
+        build_game(date: '2025-08-01', batting_attrs: { at_bats: 2, hit: 1, total_bases: 1 })
+      end
+
+      it 'only counts games within the inclusive month range' do
+        result = described_class.new(user_id: user.id, start_month: '2025-05', end_month: '2025-07').call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(8)
+          expect(result[:hit]).to eq(3)
+        end
+      end
+
+      it 'supports a single month (start_month == end_month)' do
+        result = described_class.new(user_id: user.id, start_month: '2025-05', end_month: '2025-05').call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(5)
+          expect(result[:hit]).to eq(2)
+        end
+      end
+    end
+
     context 'with JST early-morning records around the year boundary' do
       before do
         build_game(date: '2026-01-01 05:00', batting_attrs: { at_bats: 4, hit: 1, total_bases: 1 })

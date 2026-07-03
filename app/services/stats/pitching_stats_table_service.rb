@@ -13,12 +13,14 @@ module Stats
 
     # mode: :yearly, :monthly, :daily
     # year: required for :monthly and :daily
-    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil)
+    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @mode = mode.to_sym
       @year = year
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     def call
@@ -38,7 +40,7 @@ module Stats
                             .where('pitching_results.innings_pitched > 0')
       scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?
       scope = scope.where(match_results: { tournament_id: @tournament_id }) if @tournament_id.present?
-      scope
+      PeriodRange.apply(scope, @start_month, @end_month)
     end
 
     # --- yearly ---

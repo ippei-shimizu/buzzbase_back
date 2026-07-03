@@ -72,8 +72,10 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        aggregated_data = if year.present? || match_type.present? || season_id.present?
-                            BattingAverage.filtered_aggregate_for_user(user_id, year:, match_type:, season_id:)
+        start_month = params[:start_month]
+        end_month = params[:end_month]
+        aggregated_data = if year.present? || match_type.present? || season_id.present? || start_month.present? || end_month.present?
+                            BattingAverage.filtered_aggregate_for_user(user_id, year:, match_type:, season_id:, start_month:, end_month:)
                           else
                             BattingAverage.aggregate_for_user(user_id)
                           end
@@ -86,7 +88,10 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        batting_stats = BattingAverage.stats_for_user(user_id, year:, match_type:, season_id:)
+        batting_stats = BattingAverage.stats_for_user(
+          user_id, year:, match_type:, season_id:,
+                   start_month: params[:start_month], end_month: params[:end_month]
+        )
         if batting_stats.present?
           render json: batting_stats
         else
