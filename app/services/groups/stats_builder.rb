@@ -16,6 +16,7 @@ module Groups
         pitching_aggregate:,
         pitching_stats:,
         available_years:,
+        available_months:,
         available_tournaments:
       }
     end
@@ -51,6 +52,10 @@ module Groups
                  .select('EXTRACT(YEAR FROM date_and_time) AS year')
                  .distinct.order(Arel.sql('year DESC'))
                  .map { |r| r.year.to_i }
+    end
+
+    def available_months
+      MatchResult.available_months_for(user_ids)
     end
 
     def available_tournaments

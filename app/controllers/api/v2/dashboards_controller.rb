@@ -23,7 +23,8 @@ module Api
           batting_stats: build_batting_stats(user, year:, match_type:, season_id:, tournament_id:),
           pitching_stats: build_pitching_stats(user, year:, match_type:, season_id:, tournament_id:),
           group_rankings: build_group_rankings(user),
-          available_years: build_available_years(user)
+          available_years: build_available_years(user),
+          available_months: MatchResult.available_months_for(user.id)
         }
       end
 
