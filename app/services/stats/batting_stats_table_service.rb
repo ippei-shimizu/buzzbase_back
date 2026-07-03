@@ -57,10 +57,7 @@ module Stats
     # --- monthly ---
     def monthly_rows
       scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
-      months = scope.select(Arel.sql("DISTINCT #{Stats::JstDateSql::MONTH_JST_INT_SQL} AS mon"))
-                    .filter_map(&:mon).sort
-
-      rows = months.map { |mon| build_row(label: "#{mon}月", scope: scope_for_month(scope, mon)) }
+      rows = monthly_buckets(scope).map { |label, month_scope| build_row(label:, scope: month_scope) }
       rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
