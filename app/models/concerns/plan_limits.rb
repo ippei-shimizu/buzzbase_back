@@ -96,6 +96,7 @@ module PlanLimits
   end
 
   def custom_reflection_templates_count
-    reflection_templates.count
+    # 編集で置き換えられた旧版（archived）は上限に数えない。
+    reflection_templates.where(archived_at: nil).count
   end
 end

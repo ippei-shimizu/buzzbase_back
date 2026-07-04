@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_02_030001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_04_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -615,7 +615,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_02_030001) do
     t.integer "sort_order", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "archived_at"
+    t.bigint "origin_template_id"
+    t.index ["archived_at"], name: "index_reflection_templates_on_archived_at"
     t.index ["is_preset"], name: "index_reflection_templates_on_is_preset"
+    t.index ["origin_template_id"], name: "index_reflection_templates_on_origin_template_id"
     t.index ["user_id"], name: "index_reflection_templates_on_user_id"
   end
 
