@@ -257,6 +257,57 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'GET /api/v1/match_results/available_months' do
+    def create_match_for(user_record, at:)
+      gr = create(:game_result, user: user_record)
+      gr.match_result.update!(date_and_time: Time.zone.parse(at))
+      gr.match_result
+    end
+
+    context 'when authenticated (current user)' do
+      it 'returns distinct "YYYY-MM" months in descending order' do
+        create_match_for(user, at: '2026-06-15 12:00')
+        create_match_for(user, at: '2026-06-20 12:00')
+        create_match_for(user, at: '2026-05-01 12:00')
+
+        get '/api/v1/match_results/available_months', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq(%w[2026-06 2026-05])
+      end
+    end
+
+    context 'when the user has no match results' do
+      let(:no_match_user) { create(:user) }
+
+      it 'returns an empty array' do
+        get '/api/v1/match_results/available_months',
+            params: { user_id: no_match_user.id }, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq([])
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/match_results/available_months'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v1/match_results/available_months',
+            params: { user_id: private_user.id }, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+  end
+
   describe 'GET /api/v1/match_results/form_defaults' do
     context 'when the user has no match_results and no profile positions' do
       it 'returns inning_format=9 and nil for the other fields' do
