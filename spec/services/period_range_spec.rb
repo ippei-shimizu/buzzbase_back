@@ -84,5 +84,10 @@ RSpec.describe PeriodRange, type: :service do
     it 'returns the scope unchanged when both bounds are blank' do
       expect(described_class.apply(scope, nil, nil).pluck(:id)).to match_array(scope.pluck(:id))
     end
+
+    it 'normalizes a reversed range (start > end) by swapping the bounds' do
+      ids = described_class.apply(scope, '2025-07', '2025-05').pluck(:id)
+      expect(ids).to contain_exactly(may_start.id, may_end.id, july.id)
+    end
   end
 end
