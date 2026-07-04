@@ -3,7 +3,7 @@ module Api
     class MatchResultsController < ApplicationController
       include MatchTypeConvertible
 
-      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years form_defaults]
+      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years available_months form_defaults]
       before_action :set_match_result, only: %i[show]
       before_action :set_owned_match_result, only: %i[update destroy]
       before_action :normalize_match_type, only: %i[create update]
@@ -70,6 +70,18 @@ module Api
 
         years = MatchResult.available_years_for(user)
         render json: years.map(&:to_s)
+      end
+
+      # GET /api/v1/match_results/available_months
+      # 指定ユーザー（またはログインユーザー）の試合データに紐づく年月一覧を "YYYY-MM" で返す
+      def available_months
+        user = params[:user_id].present? ? User.find_by(id: params[:user_id]) : current_api_v1_user
+        return render json: { error: 'ユーザーが存在しません' }, status: :not_found unless user
+        unless user == current_api_v1_user || user.profile_visible_to?(current_api_v1_user)
+          return render json: { error: 'このアカウントは非公開です' }, status: :forbidden
+        end
+
+        render json: MatchResult.available_months_for(user.id)
       end
 
       def existing_search
