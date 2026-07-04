@@ -30,14 +30,17 @@ jobs:
         run: |
           docker build -t "registry.heroku.com/$HEROKU_APP_NAME/web" .
           docker push "registry.heroku.com/$HEROKU_APP_NAME/web"
-          printf 'FROM registry.heroku.com/%s/web\nCMD ["./bin/rails", "db:migrate"]\n' "$HEROKU_APP_NAME" > Dockerfile.release
-          docker build -f Dockerfile.release -t "registry.heroku.com/$HEROKU_APP_NAME/release" .
+          # release プロセス用: web イメージの CMD を db:migrate に上書きした別イメージ。
+          # FROM は直前にビルドしたローカルの web を参照し、COPY が無いのでコンテキストは空（stdin）で十分。
+          printf 'FROM registry.heroku.com/%s/web\nCMD ["./bin/rails", "db:migrate"]\n' "$HEROKU_APP_NAME" \
+            | docker build -t "registry.heroku.com/$HEROKU_APP_NAME/release" -
           docker push "registry.heroku.com/$HEROKU_APP_NAME/release"
 
       # web の公開前に release プロセス（db:migrate）が実行される。
       # マイグレーション失敗時はリリースが中止され、新カラム不在のまま新コードが公開される事故を防ぐ。
       - name: Release to Heroku
-        run: |
-          heroku container:release web release --app ${{ secrets.HEROKU_APP_NAME }}
         env:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          heroku container:release web release --app "$HEROKU_APP_NAME"
