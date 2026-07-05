@@ -163,6 +163,32 @@ RSpec.describe 'Api::V2::Goals', type: :request do
     end
   end
 
+  describe '自由指標（manual）' do
+    it '指標名・現在値を持つ自由指標目標を作成し、手入力の現在値が進捗に反映される' do
+      params = { goal: { title: '球速アップ', kind: 'manual', period_type: 'monthly',
+                         month_start: today.beginning_of_month, deadline: today.end_of_month,
+                         custom_metric_label: '球速', custom_unit: 'km/h',
+                         target_value: 130, manual_current_value: 125, comparison_type: 'greater_than' } }
+      post '/api/v2/goals', params:, headers: auth_headers_for(user)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:created)
+        body = response.parsed_body
+        expect(body['kind']).to eq('manual')
+        expect(body['custom_metric_label']).to eq('球速')
+        expect(body['current_value']).to eq(125.0)
+        expect(body['progress_percent']).to eq(96.2)
+      end
+    end
+
+    it '指標名が無いと作成できない（422）' do
+      params = { goal: { title: '球速', kind: 'manual', period_type: 'monthly',
+                         month_start: today.beginning_of_month, deadline: today.end_of_month, target_value: 130 } }
+      post '/api/v2/goals', params:, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
   describe 'FinalizeGoalsJob' do
     it '期限切れ目標を確定し達成ならバッジ付与' do
       goal = create(:goal, user:, deadline: today - 1, target_value: 1, metric_key: 'practice_days',

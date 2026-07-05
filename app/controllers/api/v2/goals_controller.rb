@@ -65,13 +65,15 @@ module Api
 
       def goal_params
         params.require(:goal).permit(:title, :kind, :period_type, :season_id, :tournament_id, :month_start, :deadline,
-                                     :metric_key, :target_value, :comparison_type, :practice_menu_id)
+                                     :metric_key, :target_value, :comparison_type, :practice_menu_id,
+                                     :custom_metric_label, :custom_unit, :manual_current_value)
       end
 
       # 更新では種類（period_type / season_id）を変更させない。
       def update_params
         params.require(:goal).permit(:title, :month_start, :deadline,
-                                     :metric_key, :target_value, :comparison_type, :practice_menu_id)
+                                     :metric_key, :target_value, :comparison_type, :practice_menu_id,
+                                     :custom_metric_label, :custom_unit, :manual_current_value)
       end
     end
   end

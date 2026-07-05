@@ -7,7 +7,7 @@ class Goal < ApplicationRecord
 
   PERIOD_TYPES = %w[season monthly tournament].freeze
   COMPARISON_TYPES = %w[greater_than less_than].freeze
-  KINDS = %w[numeric qualitative].freeze
+  KINDS = %w[numeric qualitative manual].freeze
   METRIC_KEYS = %w[
     practice_days total_swing_count game_count menu_practice_days
     batting_average on_base_percentage slugging_percentage ops
@@ -19,9 +19,12 @@ class Goal < ApplicationRecord
   validates :period_type, inclusion: { in: PERIOD_TYPES }
   validates :kind, inclusion: { in: KINDS }
   validates :comparison_type, inclusion: { in: COMPARISON_TYPES }
-  # 数値目標のみ指標・目標値を必須にする（定性目標は達成/未達で管理）。
+  # 数値目標のみ指標必須（定性は達成/未達、自由指標は指標名で管理）。
   validates :metric_key, inclusion: { in: METRIC_KEYS }, if: :numeric?
-  validates :target_value, presence: true, if: :numeric?
+  # 数値・自由指標は目標値必須（定性目標のみ不要）。
+  validates :target_value, presence: true, unless: :qualitative?
+  # 自由指標（手動更新）は指標名必須。
+  validates :custom_metric_label, presence: true, length: { maximum: 40 }, if: :manual?
   # 継続目標（メニュー継続日数）は対象メニュー必須。
   validates :practice_menu_id, presence: true, if: -> { metric_key == 'menu_practice_days' }
   # 他ユーザーの練習メニューを指定できないようにする（IDOR / 名称漏洩防止）。
@@ -40,6 +43,10 @@ class Goal < ApplicationRecord
 
   def qualitative?
     kind == 'qualitative'
+  end
+
+  def manual?
+    kind == 'manual'
   end
 
   # 集計対象の期間（[from, to] の Time 範囲）。

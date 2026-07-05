@@ -2,6 +2,7 @@ module V2
   class GoalSerializer < ActiveModel::Serializer
     attributes :id, :title, :kind, :period_type, :season_id, :tournament_id, :month_start, :deadline,
                :metric_key, :target_value, :comparison_type, :practice_menu_id, :practice_menu_name,
+               :custom_metric_label, :custom_unit, :manual_current_value,
                :is_achieved, :is_finalized, :achieved_value,
                :current_value, :progress_percent, :days_remaining
 

@@ -7,6 +7,8 @@ module Goals
     end
 
     def current_value
+      # 自由指標はユーザーが手入力した現在値、定性目標は数値を持たない。
+      return @goal.manual_current_value.to_f if @goal.manual?
       return 0 if @goal.qualitative?
 
       @current_value ||= MetricCalculator.new(@goal).current_value
