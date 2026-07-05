@@ -135,6 +135,15 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
       expect(ids).to include(session_today.id)
       expect(ids).not_to include(session_old.id)
     end
+
+    it 'improvement_theme_id で課題に紐づくものだけ返す' do
+      theme = create(:improvement_theme, user:)
+      linked = create(:practice_session, user:, logged_on: today - 1, improvement_theme: theme)
+
+      get '/api/v2/practice_sessions', params: { improvement_theme_id: theme.id }, headers: auth_headers_for(user)
+      ids = response.parsed_body.pluck('id')
+      expect(ids).to contain_exactly(linked.id)
+    end
   end
 
   describe 'DELETE /api/v2/practice_sessions/:id' do

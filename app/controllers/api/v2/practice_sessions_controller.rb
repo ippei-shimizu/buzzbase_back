@@ -12,6 +12,7 @@ module Api
                                       .ordered
         sessions = sessions.where(logged_on: params[:from]..) if params[:from].present?
         sessions = sessions.where(logged_on: ..params[:to]) if params[:to].present?
+        sessions = sessions.where(improvement_theme_id: params[:improvement_theme_id]) if params[:improvement_theme_id].present?
         render json: sessions, each_serializer: ::V2::PracticeSessionSerializer, status: :ok
       end
 
