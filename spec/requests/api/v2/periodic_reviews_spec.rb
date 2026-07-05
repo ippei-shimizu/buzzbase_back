@@ -26,14 +26,14 @@ RSpec.describe 'Api::V2::PeriodicReviews', type: :request do
     end
 
     context '無料ユーザー' do
-      it '週次のみ返し、詳細部は除外される' do
+      it '週次のみ返し、成績（打撃）は見せるが Pro 詳細部は除外される' do
         get '/api/v2/periodic_reviews', headers: auth_headers_for(user)
         expect(response).to have_http_status(:ok)
         body = response.parsed_body
         expect(body.pluck('period_type')).to eq(['weekly'])
         expect(body.first['summary']).to include('practice_days')
+        expect(body.first['summary']).to have_key('batting')
         expect(body.first['summary']).not_to have_key('theme_breakdown')
-        expect(body.first['summary']).not_to have_key('batting')
       end
     end
 
