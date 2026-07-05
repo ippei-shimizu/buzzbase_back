@@ -6,7 +6,12 @@ class Goal < ApplicationRecord
 
   PERIOD_TYPES = %w[season monthly tournament].freeze
   COMPARISON_TYPES = %w[greater_than less_than].freeze
-  METRIC_KEYS = %w[practice_days total_swing_count game_count batting_average ops era].freeze
+  METRIC_KEYS = %w[
+    practice_days total_swing_count game_count
+    batting_average on_base_percentage slugging_percentage ops
+    hits home_runs runs_batted_in runs_scored stolen_bases
+    era whip strikeouts wins saves
+  ].freeze
 
   validates :title, presence: true, length: { maximum: 60 }
   validates :period_type, inclusion: { in: PERIOD_TYPES }

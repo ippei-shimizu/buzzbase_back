@@ -1,7 +1,28 @@
 module Goals
   # 目標の指標を、その目標の対象期間で集計して現在値を返す。
-  # MVP対応 metric: practice_days / total_swing_count / game_count / batting_average / ops / era。
+  # 対応 metric は DISPATCH（Goal::METRIC_KEYS と対応）。自動集計できる打撃/投手/練習の値。
   class MetricCalculator
+    # metric_key → 集計メソッド。Goal::METRIC_KEYS で検証済みの許可リスト。
+    DISPATCH = {
+      'practice_days' => :practice_days,
+      'total_swing_count' => :total_swing_count,
+      'game_count' => :game_count,
+      'batting_average' => :batting_average,
+      'on_base_percentage' => :on_base_percentage,
+      'slugging_percentage' => :slugging_percentage,
+      'ops' => :ops,
+      'hits' => :hits,
+      'home_runs' => :home_runs,
+      'runs_batted_in' => :runs_batted_in,
+      'runs_scored' => :runs_scored,
+      'stolen_bases' => :stolen_bases,
+      'era' => :era,
+      'whip' => :whip,
+      'strikeouts' => :strikeouts,
+      'wins' => :wins,
+      'saves' => :saves
+    }.freeze
+
     def initialize(goal)
       @goal = goal
       @user = goal.user
@@ -12,19 +33,43 @@ module Goals
       range = @goal.period_range
       return 0 unless range
 
-      from, to = range
-      case @goal.metric_key
-      when 'practice_days' then practice_days(from, to)
-      when 'total_swing_count' then total_swing_count(from, to)
-      when 'game_count' then game_count(from, to)
-      when 'batting_average' then batting_average(from, to)
-      when 'ops' then ops(from, to)
-      when 'era' then era(from, to)
-      else 0
-      end
+      method = DISPATCH[@goal.metric_key]
+      method ? send(method, *range) : 0
     end
 
     private
+
+    def hits(from, to)
+      total_hits(batting_scope(from, to)).to_i
+    end
+
+    def home_runs(from, to)
+      batting_scope(from, to).sum(:home_run)
+    end
+
+    def runs_batted_in(from, to)
+      batting_scope(from, to).sum(:runs_batted_in)
+    end
+
+    def runs_scored(from, to)
+      batting_scope(from, to).sum(:run)
+    end
+
+    def stolen_bases(from, to)
+      batting_scope(from, to).sum(:stealing_base)
+    end
+
+    def strikeouts(from, to)
+      pitching_scope(from, to).sum(:strikeouts)
+    end
+
+    def wins(from, to)
+      pitching_scope(from, to).sum(:win)
+    end
+
+    def saves(from, to)
+      pitching_scope(from, to).sum(:saves)
+    end
 
     # 大会目標のときは、対象期間内でも対象大会の試合だけに絞る（成績系 metric）。
     def tournament_filter
@@ -75,15 +120,47 @@ module Goals
       (obp + slg).round(3)
     end
 
-    def era(from, to)
+    def on_base_percentage(from, to)
+      scope = batting_scope(from, to)
+      at_bats = scope.sum(:at_bats)
+      bb = scope.sum(:base_on_balls)
+      hbp = scope.sum(:hit_by_pitch)
+      denom = at_bats + bb + hbp + scope.sum(:sacrifice_fly)
+      return 0 if denom.zero?
+
+      ((total_hits(scope) + bb + hbp).to_f / denom).round(3)
+    end
+
+    def slugging_percentage(from, to)
+      scope = batting_scope(from, to)
+      at_bats = scope.sum(:at_bats)
+      return 0 if at_bats.zero?
+
+      (scope.sum(:total_bases).to_f / at_bats).round(3)
+    end
+
+    def pitching_scope(from, to)
       scope = PitchingResult.joins(game_result: :match_result)
                             .where(game_results: { user_id: @user.id })
                             .where(match_results: { date_and_time: from..to })
       scope = scope.where(match_results: { tournament_id: tournament_filter }) if tournament_filter
+      scope
+    end
+
+    def era(from, to)
+      scope = pitching_scope(from, to)
       innings = scope.sum(:innings_pitched)
       return 0 if innings.zero?
 
       (scope.sum(:earned_run) * 9.0 / innings).round(2)
+    end
+
+    def whip(from, to)
+      scope = pitching_scope(from, to)
+      innings = scope.sum(:innings_pitched)
+      return 0 if innings.zero?
+
+      ((scope.sum(:base_on_balls) + scope.sum(:hits_allowed)).to_f / innings).round(2)
     end
 
     def total_hits(scope)
