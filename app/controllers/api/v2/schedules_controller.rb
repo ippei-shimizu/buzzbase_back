@@ -1,6 +1,6 @@
 module Api
   module V2
-    # 自主練スケジュール。無料は3つまで（PlanLimits）。
+    # 練習プランの割り当て（繰り返し / 単発）。無料は3つまで（PlanLimits）。
     # 通知のリマインド自体は端末側のローカル通知で行う（サーバーは設定の保管のみ）。
     class SchedulesController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
@@ -8,7 +8,7 @@ module Api
 
       def index
         schedules = current_api_v1_user.schedules.active
-                                       .includes(schedule_menus: :practice_menu)
+                                       .includes(:game_result, { menu_set: { menu_set_items: :practice_menu } }, { schedule_menus: :practice_menu })
                                        .order(:scheduled_time)
         render json: schedules, each_serializer: ::V2::ScheduleSerializer, status: :ok
       end
@@ -47,11 +47,16 @@ module Api
       end
 
       # カスタム通知文は Pro 限定。無料ユーザーの指定は無視する。
+      # menu_set_id は所有セットのみ許可する（IDOR 防止）。
       def schedule_params
         permitted = params.require(:schedule).permit(
-          :title, :days_of_week, :scheduled_time, :note, :notification_enabled, :active, :notification_message
+          :title, :days_of_week, :planned_on, :scheduled_time, :event_type, :menu_set_id,
+          :note, :notification_enabled, :active, :notification_message
         )
         permitted.delete(:notification_message) unless current_api_v1_user.has_entitlement?('custom_notification_messages')
+        if permitted[:menu_set_id].present? && !current_api_v1_user.menu_sets.exists?(id: permitted[:menu_set_id])
+          permitted.delete(:menu_set_id)
+        end
         permitted
       end
 

@@ -42,5 +42,17 @@ RSpec.describe Goals::MetricCalculator do
 
       expect(described_class.new(goal).current_value).to eq(1.0)
     end
+
+    it 'メニュー継続日数(menu_practice_days)は対象メニューの実施日数（同日複数回は1日）を数える' do
+      menu = create(:practice_menu, user:)
+      month = Time.find_zone('Asia/Tokyo').today.beginning_of_month
+      create(:practice_log, user:, practice_menu: menu, logged_on: month + 5)
+      create(:practice_log, user:, practice_menu: menu, logged_on: month + 5) # 同日2回目 → 1日扱い
+      create(:practice_log, user:, practice_menu: menu, logged_on: month + 6)
+      create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: month + 5) # 別メニュー
+      goal = create(:goal, user:, metric_key: 'menu_practice_days', practice_menu: menu, target_value: 20)
+
+      expect(described_class.new(goal).current_value).to eq(2)
+    end
   end
 end

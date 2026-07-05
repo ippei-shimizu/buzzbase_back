@@ -2,13 +2,14 @@ class Goal < ApplicationRecord
   belongs_to :user
   belongs_to :season, optional: true
   belongs_to :tournament, optional: true
+  belongs_to :practice_menu, optional: true
   has_many :goal_badges, dependent: :destroy
 
   PERIOD_TYPES = %w[season monthly tournament].freeze
   COMPARISON_TYPES = %w[greater_than less_than].freeze
   KINDS = %w[numeric qualitative].freeze
   METRIC_KEYS = %w[
-    practice_days total_swing_count game_count
+    practice_days total_swing_count game_count menu_practice_days
     batting_average on_base_percentage slugging_percentage ops
     hits home_runs runs_batted_in runs_scored stolen_bases
     era whip strikeouts wins saves
@@ -21,6 +22,8 @@ class Goal < ApplicationRecord
   # 数値目標のみ指標・目標値を必須にする（定性目標は達成/未達で管理）。
   validates :metric_key, inclusion: { in: METRIC_KEYS }, if: :numeric?
   validates :target_value, presence: true, if: :numeric?
+  # 継続目標（メニュー継続日数）は対象メニュー必須。
+  validates :practice_menu_id, presence: true, if: -> { metric_key == 'menu_practice_days' }
   validates :deadline, presence: true
   validates :tournament_id, presence: true, if: -> { period_type == 'tournament' }
 

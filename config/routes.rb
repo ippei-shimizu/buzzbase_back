@@ -281,6 +281,9 @@ Rails.application.routes.draw do
         collection { get :streak }
       end
       resources :schedules, only: %i[index create update destroy]
+      resources :menu_sets, only: %i[index show create update destroy]
+      get 'plans/by_date', to: 'plans#by_date'
+      get 'plans/calendar', to: 'plans#calendar'
       resources :goals, only: %i[index create update destroy] do
         collection { get :history }
         resource :achievement, only: %i[create destroy], controller: 'goals/achievements'

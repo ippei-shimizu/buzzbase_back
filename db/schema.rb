@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_05_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -292,6 +292,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_010001) do
     t.datetime "updated_at", null: false
     t.bigint "tournament_id"
     t.string "kind", default: "numeric", null: false
+    t.bigint "practice_menu_id"
+    t.index ["practice_menu_id"], name: "index_goals_on_practice_menu_id"
     t.index ["season_id"], name: "index_goals_on_season_id"
     t.index ["user_id", "period_type", "is_finalized"], name: "index_goals_on_user_id_and_period_type_and_is_finalized"
     t.index ["user_id"], name: "index_goals_on_user_id"
@@ -999,6 +1001,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_010001) do
   add_foreign_key "game_results", "users"
   add_foreign_key "goal_badges", "goals"
   add_foreign_key "goal_badges", "users"
+  add_foreign_key "goals", "practice_menus"
   add_foreign_key "goals", "seasons", on_delete: :nullify
   add_foreign_key "goals", "tournaments", on_delete: :nullify
   add_foreign_key "goals", "users"

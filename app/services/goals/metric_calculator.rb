@@ -7,6 +7,7 @@ module Goals
       'practice_days' => :practice_days,
       'total_swing_count' => :total_swing_count,
       'game_count' => :game_count,
+      'menu_practice_days' => :menu_practice_days,
       'batting_average' => :batting_average,
       'on_base_percentage' => :on_base_percentage,
       'slugging_percentage' => :slugging_percentage,
@@ -83,6 +84,15 @@ module Goals
 
     def total_swing_count(from, to)
       @user.practice_logs.where(source: 'shadow_swing', logged_on: from.to_date..to.to_date).sum(:amount).to_i
+    end
+
+    # 継続目標: 対象メニューを期間内で実施した「日数」（同日複数回は1日）。
+    def menu_practice_days(from, to)
+      return 0 if @goal.practice_menu_id.nil?
+
+      @user.practice_logs
+           .where(practice_menu_id: @goal.practice_menu_id, logged_on: from.to_date..to.to_date)
+           .distinct.count(:logged_on)
     end
 
     def game_count(from, to)
