@@ -64,7 +64,7 @@ module Api
       end
 
       def goal_params
-        params.require(:goal).permit(:title, :period_type, :season_id, :tournament_id, :month_start, :deadline,
+        params.require(:goal).permit(:title, :kind, :period_type, :season_id, :tournament_id, :month_start, :deadline,
                                      :metric_key, :target_value, :comparison_type)
       end
 

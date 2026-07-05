@@ -17,5 +17,12 @@ FactoryBot.define do
       target_value { 0.3 }
       deadline { Time.find_zone('Asia/Tokyo').today + 7.days }
     end
+
+    trait :qualitative do
+      kind { 'qualitative' }
+      title { 'この大会で優勝する' }
+      metric_key { nil }
+      target_value { nil }
+    end
   end
 end

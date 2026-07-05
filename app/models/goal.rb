@@ -6,6 +6,7 @@ class Goal < ApplicationRecord
 
   PERIOD_TYPES = %w[season monthly tournament].freeze
   COMPARISON_TYPES = %w[greater_than less_than].freeze
+  KINDS = %w[numeric qualitative].freeze
   METRIC_KEYS = %w[
     practice_days total_swing_count game_count
     batting_average on_base_percentage slugging_percentage ops
@@ -15,9 +16,11 @@ class Goal < ApplicationRecord
 
   validates :title, presence: true, length: { maximum: 60 }
   validates :period_type, inclusion: { in: PERIOD_TYPES }
+  validates :kind, inclusion: { in: KINDS }
   validates :comparison_type, inclusion: { in: COMPARISON_TYPES }
-  validates :metric_key, inclusion: { in: METRIC_KEYS }
-  validates :target_value, presence: true
+  # 数値目標のみ指標・目標値を必須にする（定性目標は達成/未達で管理）。
+  validates :metric_key, inclusion: { in: METRIC_KEYS }, if: :numeric?
+  validates :target_value, presence: true, if: :numeric?
   validates :deadline, presence: true
   validates :tournament_id, presence: true, if: -> { period_type == 'tournament' }
 
@@ -25,6 +28,14 @@ class Goal < ApplicationRecord
   scope :monthly, -> { where(period_type: 'monthly') }
 
   JST = 'Asia/Tokyo'.freeze
+
+  def numeric?
+    kind == 'numeric'
+  end
+
+  def qualitative?
+    kind == 'qualitative'
+  end
 
   # 集計対象の期間（[from, to] の Time 範囲）。
   # 月次は当月、シーズン/大会はその対象に紐づく試合の最小〜最大日時。

@@ -7,10 +7,15 @@ module Goals
     end
 
     def current_value
+      return 0 if @goal.qualitative?
+
       @current_value ||= MetricCalculator.new(@goal).current_value
     end
 
     def progress_percent
+      # 定性目標は達成/未達の2値。達成なら 100、未達なら 0。
+      return @goal.is_achieved ? 100.0 : 0.0 if @goal.qualitative?
+
       target = @goal.target_value.to_f
       return 0 if target.zero?
 
@@ -24,6 +29,9 @@ module Goals
     end
 
     def achieved?
+      # 定性目標はユーザーが手動で立てた達成フラグをそのまま使う。
+      return @goal.is_achieved if @goal.qualitative?
+
       if @goal.comparison_type == 'less_than'
         current_value.to_f.positive? && current_value <= @goal.target_value
       else

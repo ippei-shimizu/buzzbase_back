@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_04_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_05_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -281,8 +281,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_04_010001) do
     t.bigint "season_id"
     t.date "month_start"
     t.date "deadline", null: false
-    t.string "metric_key", null: false
-    t.float "target_value", null: false
+    t.string "metric_key"
+    t.float "target_value"
     t.string "comparison_type", default: "greater_than", null: false
     t.float "achieved_value"
     t.datetime "achieved_at"
@@ -291,6 +291,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_04_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "tournament_id"
+    t.string "kind", default: "numeric", null: false
     t.index ["season_id"], name: "index_goals_on_season_id"
     t.index ["user_id", "period_type", "is_finalized"], name: "index_goals_on_user_id_and_period_type_and_is_finalized"
     t.index ["user_id"], name: "index_goals_on_user_id"

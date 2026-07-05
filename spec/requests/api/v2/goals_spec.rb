@@ -107,6 +107,51 @@ RSpec.describe 'Api::V2::Goals', type: :request do
     end
   end
 
+  describe '定性目標（qualitative）' do
+    it '指標・目標値なしで定性目標を作成できる' do
+      params = { goal: { title: 'この大会で優勝', kind: 'qualitative', period_type: 'tournament',
+                         tournament_id: create(:tournament).id, deadline: today + 7.days } }
+      make_pro(user)
+      post '/api/v2/goals', params:, headers: auth_headers_for(user)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:created)
+        body = response.parsed_body
+        expect(body['kind']).to eq('qualitative')
+        expect(body['metric_key']).to be_nil
+        expect(body['progress_percent']).to eq(0.0)
+      end
+    end
+
+    it 'POST achievement で達成にし progress_percent が100になる' do
+      goal = create(:goal, :qualitative, user:)
+      post "/api/v2/goals/#{goal.id}/achievement", headers: auth_headers_for(user)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['is_achieved']).to be true
+        expect(response.parsed_body['progress_percent']).to eq(100.0)
+        expect(goal.reload.is_achieved).to be true
+      end
+    end
+
+    it 'DELETE achievement で達成を取り消す' do
+      goal = create(:goal, :qualitative, user:, is_achieved: true)
+      delete "/api/v2/goals/#{goal.id}/achievement", headers: auth_headers_for(user)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:ok)
+        expect(goal.reload.is_achieved).to be false
+      end
+    end
+
+    it '数値目標は手動達成できない（422）' do
+      goal = create(:goal, user:)
+      post "/api/v2/goals/#{goal.id}/achievement", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
   describe 'FinalizeGoalsJob' do
     it '期限切れ目標を確定し達成ならバッジ付与' do
       goal = create(:goal, user:, deadline: today - 1, target_value: 1, metric_key: 'practice_days',
