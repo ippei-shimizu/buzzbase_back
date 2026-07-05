@@ -8,7 +8,9 @@ module Api
 
       def index
         schedules = current_api_v1_user.schedules.active
-                                       .includes(:game_result, { menu_set: { menu_set_items: :practice_menu } }, { schedule_menus: :practice_menu })
+                                       .includes(:game_result,
+                                                 { menu_set: { menu_set_items: :practice_menu } },
+                                                 { schedule_menus: :practice_menu })
                                        .order(:scheduled_time)
         render json: schedules, each_serializer: ::V2::ScheduleSerializer, status: :ok
       end

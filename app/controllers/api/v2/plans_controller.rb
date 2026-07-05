@@ -47,15 +47,16 @@ module Api
       end
 
       # 指定日に該当する予定（繰り返し ∪ 単発）を時刻順（未設定は末尾）で返す。
+      # 時刻の time 型は保存タイムゾーンで比較が揺れるため、表示と同じ "HH:MM" 文字列で並べる。
       def plans_on(date)
         weekday = date.wday.zero? ? 7 : date.wday
         active_schedules
           .select { |schedule| (schedule.recurring? && schedule.day_numbers.include?(weekday)) || schedule.planned_on == date }
-          .sort_by { |schedule| schedule.scheduled_time || Time.zone.local(2000, 1, 1, 23, 59) }
+          .sort_by { |schedule| schedule.scheduled_time&.strftime('%H:%M') || '99:99' }
       end
 
       def done_practice_menu_ids_on(date)
-        current_api_v1_user.practice_logs.where(practiced_on: date).pluck(:practice_menu_id).compact.to_set
+        current_api_v1_user.practice_logs.where(logged_on: date).pluck(:practice_menu_id).compact.to_set
       end
     end
   end

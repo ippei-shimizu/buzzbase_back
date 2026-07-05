@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_05_030003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -407,6 +407,28 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
     t.index ["user_id"], name: "index_match_results_on_user_id"
   end
 
+  create_table "menu_set_items", force: :cascade do |t|
+    t.bigint "menu_set_id", null: false
+    t.bigint "practice_menu_id", null: false
+    t.float "target_value"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["menu_set_id"], name: "index_menu_set_items_on_menu_set_id"
+    t.index ["practice_menu_id"], name: "index_menu_set_items_on_practice_menu_id"
+  end
+
+  create_table "menu_sets", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.text "note"
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "sort_order"], name: "index_menu_sets_on_user_id_and_sort_order"
+    t.index ["user_id"], name: "index_menu_sets_on_user_id"
+  end
+
   create_table "notifications", force: :cascade do |t|
     t.bigint "actor_id", null: false
     t.string "event_type", null: false
@@ -650,16 +672,23 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
 
   create_table "schedules", force: :cascade do |t|
     t.bigint "user_id", null: false
-    t.string "title", null: false
-    t.string "days_of_week", null: false
-    t.time "scheduled_time", null: false
+    t.string "title"
+    t.string "days_of_week"
+    t.time "scheduled_time"
     t.text "note"
     t.boolean "notification_enabled", default: true, null: false
     t.boolean "active", default: true, null: false
     t.string "notification_message"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.date "planned_on"
+    t.string "event_type", default: "self_practice", null: false
+    t.bigint "menu_set_id"
+    t.bigint "game_result_id"
+    t.index ["game_result_id"], name: "index_schedules_on_game_result_id"
+    t.index ["menu_set_id"], name: "index_schedules_on_menu_set_id"
     t.index ["user_id", "active"], name: "index_schedules_on_user_id_and_active"
+    t.index ["user_id", "planned_on"], name: "index_schedules_on_user_id_and_planned_on"
     t.index ["user_id"], name: "index_schedules_on_user_id"
   end
 
@@ -1019,6 +1048,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
+  add_foreign_key "menu_set_items", "menu_sets"
+  add_foreign_key "menu_set_items", "practice_menus"
+  add_foreign_key "menu_sets", "users"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "periodic_reviews", "users"
   add_foreign_key "pitchers", "arm_angles"
@@ -1043,6 +1075,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_05_020001) do
   add_foreign_key "reflection_templates", "users"
   add_foreign_key "schedule_menus", "practice_menus"
   add_foreign_key "schedule_menus", "schedules"
+  add_foreign_key "schedules", "game_results"
+  add_foreign_key "schedules", "menu_sets"
   add_foreign_key "schedules", "users"
   add_foreign_key "seasons", "users"
   add_foreign_key "shadow_swing_sessions", "practice_logs", on_delete: :nullify

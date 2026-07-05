@@ -6,7 +6,7 @@ class GeneralizeSchedulesForPlans < ActiveRecord::Migration[7.1]
     change_column_null :schedules, :scheduled_time, true
     change_column_null :schedules, :title, true
 
-    add_column :schedules, :planned_on, :date
+    add_column :schedules, :planned_on, :date # rubocop:disable Rails/BulkChangeTable
     add_column :schedules, :event_type, :string, null: false, default: 'self_practice'
     add_reference :schedules, :menu_set, foreign_key: true, null: true
     add_reference :schedules, :game_result, foreign_key: true, null: true

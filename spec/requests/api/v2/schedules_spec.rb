@@ -90,4 +90,47 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
       expect(Schedule.exists?(schedule.id)).to be(false)
     end
   end
+
+  describe '単発（planned_on）・event_type の割り当て' do
+    it '日付指定の単発予定を作成する' do
+      params = { schedule: { title: '試合 vs 港南中', planned_on: '2026-07-11', scheduled_time: '09:00', event_type: 'game' } }
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:created)
+      body = response.parsed_body
+      expect(body['planned_on']).to eq('2026-07-11')
+      expect(body['event_type']).to eq('game')
+      expect(body['recurring']).to be(false)
+    end
+
+    it '曜日と日付を同時指定すると422' do
+      params = { schedule: { title: 'x', days_of_week: '1', planned_on: '2026-07-11', scheduled_time: '09:00' } }
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it '曜日も日付も無いと422' do
+      params = { schedule: { title: 'x', scheduled_time: '09:00' } }
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
+    it 'メニューセットを紐付けるとタイトル未指定でもセット名を返す' do
+      menu_set = create(:menu_set, user:, name: 'オフ日ルーティン')
+      params = { schedule: { menu_set_id: menu_set.id, days_of_week: '1', scheduled_time: '06:00' } }
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['title']).to eq('オフ日ルーティン')
+    end
+
+    it '他ユーザーのメニューセットは紐付けられない（IDOR防止）' do
+      other_set = create(:menu_set, user: create(:user))
+      params = { schedule: { title: 'x', menu_set_id: other_set.id, days_of_week: '1', scheduled_time: '06:00' } }
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['menu_set_id']).to be_nil
+    end
+  end
 end

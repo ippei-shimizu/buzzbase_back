@@ -24,6 +24,8 @@ class Goal < ApplicationRecord
   validates :target_value, presence: true, if: :numeric?
   # 継続目標（メニュー継続日数）は対象メニュー必須。
   validates :practice_menu_id, presence: true, if: -> { metric_key == 'menu_practice_days' }
+  # 他ユーザーの練習メニューを指定できないようにする（IDOR / 名称漏洩防止）。
+  validate :practice_menu_owned_by_user, if: -> { practice_menu_id.present? }
   validates :deadline, presence: true
   validates :tournament_id, presence: true, if: -> { period_type == 'tournament' }
 
@@ -63,6 +65,12 @@ class Goal < ApplicationRecord
   end
 
   private
+
+  def practice_menu_owned_by_user
+    return if practice_menu&.user_id == user_id
+
+    errors.add(:practice_menu_id, 'は自分の練習メニューを指定してください')
+  end
 
   def games_range(games)
     min = games.minimum(:date_and_time)

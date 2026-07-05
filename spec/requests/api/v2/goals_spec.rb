@@ -152,6 +152,17 @@ RSpec.describe 'Api::V2::Goals', type: :request do
     end
   end
 
+  describe '継続目標（menu_practice_days）' do
+    it '他ユーザーの練習メニューは指定できない（422）' do
+      others_menu = create(:practice_menu, user: create(:user))
+      params = { goal: { title: '素振り継続', period_type: 'monthly',
+                         month_start: today.beginning_of_month, deadline: today.end_of_month,
+                         metric_key: 'menu_practice_days', target_value: 20, practice_menu_id: others_menu.id } }
+      post '/api/v2/goals', params:, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+  end
+
   describe 'FinalizeGoalsJob' do
     it '期限切れ目標を確定し達成ならバッジ付与' do
       goal = create(:goal, user:, deadline: today - 1, target_value: 1, metric_key: 'practice_days',
