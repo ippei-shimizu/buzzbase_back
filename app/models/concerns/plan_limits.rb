@@ -101,8 +101,9 @@ module PlanLimits
     menu_sets.count
   end
 
+  # 個人の期間目標（月次/週次/年間/カスタム）は無料枠を共有する。
   def active_monthly_goals_count
-    goals.active.monthly.count
+    goals.active.where(period_type: Goal::PERSONAL_PERIOD_TYPES).count
   end
 
   def open_improvement_themes_count

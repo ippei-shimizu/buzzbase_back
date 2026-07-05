@@ -58,7 +58,7 @@ module Api
         message = case goal.period_type
                   when 'season' then 'シーズン目標は Pro プラン限定です'
                   when 'tournament' then '大会目標は Pro プラン限定です'
-                  else 'Pro プランで月次目標を無制限に設定できます'
+                  else 'Pro プランで期間目標を無制限に設定できます'
                   end
         render json: { error: message }, status: :forbidden
       end

@@ -93,6 +93,41 @@ RSpec.describe 'Api::V2::Goals', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
+
+    context '週次・カスタム期間（日付レンジ系）' do
+      it '週次目標を作成できる' do
+        params = { goal: { title: '今週10日', period_type: 'weekly',
+                           month_start: today.beginning_of_week, deadline: today.end_of_week,
+                           metric_key: 'practice_days', target_value: 5 } }
+        post '/api/v2/goals', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+
+      it 'カスタム期間目標を作成できる' do
+        params = { goal: { title: '大会前3週間', period_type: 'custom',
+                           month_start: today, deadline: today + 21,
+                           metric_key: 'total_swing_count', target_value: 2000 } }
+        post '/api/v2/goals', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+
+      it 'カスタムで終了日が開始日より前だと作成できない' do
+        params = { goal: { title: '逆転', period_type: 'custom',
+                           month_start: today, deadline: today - 1,
+                           metric_key: 'practice_days', target_value: 5 } }
+        post '/api/v2/goals', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it '無料枠は月次と共有（月次2件あると週次は403）' do
+        create_list(:goal, 2, user:)
+        params = { goal: { title: '今週', period_type: 'weekly',
+                           month_start: today.beginning_of_week, deadline: today.end_of_week,
+                           metric_key: 'practice_days', target_value: 5 } }
+        post '/api/v2/goals', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
   end
 
   describe 'PATCH /api/v2/goals/:id' do
