@@ -40,5 +40,12 @@ RSpec.describe Insights::CorrelationBuilder, type: :service do
       expect(swings_card[:direction]).to eq('positive')
       expect(swings_card[:sample_weeks]).to eq(4)
     end
+
+    it '登板が無いユーザーには投手のカードを含めない' do
+      record_week(0, swings: 100, at_bats: 4, hits: 1)
+      keys = described_class.new(user:).call.map { |card| card[:key] }
+      expect(keys).to include('swings_vs_ba')
+      expect(keys).not_to include('practice_days_vs_era')
+    end
   end
 end

@@ -10,16 +10,29 @@ module Insights
     MIN_PAIRED_WEEKS = 4
 
     # 分析する (入力量 × 成績) ペアの定義。
-    # metric_kind: :ratio3（打率/OPS などの 3 桁小数）/ :rate（三振率などの割合）
-    PAIRS = [
-      { key: 'swings_vs_ba', input: :total_swings, input_label: '素振りの本数',
+    # input_more: 入力量が「多い/長い/良い/高い」など本文で使う語。
+    # metric_kind: :ratio3（打率/OPS の 3 桁小数）/ :decimal2（防御率/WHIP）/ :per9（与四球率/9）
+    BATTING_PAIRS = [
+      { key: 'swings_vs_ba', input: :total_swings, input_label: '素振りの本数', input_more: '多い',
         metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'practice_days_vs_ops', input: :practice_days, input_label: '練習した日数',
+      { key: 'practice_days_vs_ops', input: :practice_days, input_label: '練習した日数', input_more: '多い',
         metric: :ops, metric_label: 'OPS', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'sleep_vs_k_rate', input: :sleep_hours, input_label: '睡眠時間',
-        metric: :strikeout_rate, metric_label: '三振率', metric_kind: :rate, higher_metric_is_better: false },
-      { key: 'condition_vs_ba', input: :condition_level, input_label: '体調の良さ',
+      { key: 'sleep_vs_ba', input: :sleep_hours, input_label: '睡眠時間', input_more: '長い',
+        metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true },
+      { key: 'physical_vs_ops', input: :physical_level, input_label: '体調の良さ', input_more: '良い',
+        metric: :ops, metric_label: 'OPS', metric_kind: :ratio3, higher_metric_is_better: true },
+      { key: 'energy_vs_ba', input: :energy_level, input_label: '元気さ（疲れの少なさ）', input_more: '高い',
         metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true }
+    ].freeze
+
+    # 投手指標は登板が無い週を除外して集計するため、登板データがある場合のみ対象にする。
+    PITCHING_PAIRS = [
+      { key: 'practice_days_vs_era', input: :practice_days, input_label: '練習した日数', input_more: '多い',
+        metric: :era, metric_label: '防御率', metric_kind: :decimal2, higher_metric_is_better: false },
+      { key: 'sleep_vs_bb9', input: :sleep_hours, input_label: '睡眠時間', input_more: '長い',
+        metric: :bb_per9, metric_label: '与四球率', metric_kind: :per9, higher_metric_is_better: false },
+      { key: 'physical_vs_era', input: :physical_level, input_label: '体調の良さ', input_more: '良い',
+        metric: :era, metric_label: '防御率', metric_kind: :decimal2, higher_metric_is_better: false }
     ].freeze
 
     def initialize(user:)
@@ -29,8 +42,11 @@ module Insights
     # @return [Array<Hash>] インサイトカードの配列
     def call
       inputs = weekly_inputs
-      metrics = weekly_metrics
-      PAIRS.map { |pair| build_card(pair, inputs, metrics) }
+      batting = weekly_batting_metrics
+      cards = BATTING_PAIRS.map { |pair| build_card(pair, inputs, batting) }
+      pitching = weekly_pitching_metrics
+      cards += PITCHING_PAIRS.map { |pair| build_card(pair, inputs, pitching) } if pitching.any?
+      cards
     end
 
     private
@@ -63,15 +79,16 @@ module Insights
     end
 
     def card(pair, sample_weeks, diff)
-      direction = diff.positive? ? 'positive' : 'negative'
+      # 成績が良くなった向きかは metric の良し悪しに依存する（防御率は下がるほど良い）。
+      is_good = diff.positive? == pair[:higher_metric_is_better]
       {
         key: pair[:key],
         title: "#{pair[:input_label]}と#{pair[:metric_label]}",
-        body: body_text(pair, diff),
+        body: body_text(pair, diff, is_good),
         metric: pair[:metric].to_s,
         dimension: pair[:input].to_s,
-        direction:,
-        strength: strength_label(diff),
+        direction: is_good ? 'positive' : 'negative',
+        strength: strength_label(pair, diff),
         sample_weeks:,
         sufficient: true
       }
@@ -91,24 +108,25 @@ module Insights
       }
     end
 
-    def body_text(pair, diff)
-      more_high = "#{pair[:input_label]}が多い週"
+    def body_text(pair, diff, is_good)
       formatted = format_diff(pair[:metric_kind], diff)
       verb = diff.positive? ? '高い' : '低い'
-      "#{more_high}は、#{pair[:metric_label]}が#{formatted}#{verb}傾向があります。"
+      takeaway = is_good ? 'いまの取り組みが効いていそう。この調子で続けよう。' : '少し見直すと変わるかもしれません。'
+      "#{pair[:input_label]}が#{pair[:input_more]}週ほど、#{pair[:metric_label]}が#{formatted}#{verb}傾向。#{takeaway}"
     end
 
-    STRENGTH_THRESHOLD = 0.05
+    # 差の大きさをラベル化（因果の強さではなくあくまで傾向の目安）。metric の桁で閾値が異なる。
+    STRENGTH_THRESHOLDS = { ratio3: 0.05, decimal2: 0.5, per9: 0.5 }.freeze
 
-    # 差の大きさをラベル化（因果の強さではなくあくまで傾向の目安）。
-    def strength_label(diff)
-      diff.abs >= STRENGTH_THRESHOLD ? 'strong' : 'weak'
+    def strength_label(pair, diff)
+      diff.abs >= STRENGTH_THRESHOLDS.fetch(pair[:metric_kind], 0.05) ? 'strong' : 'weak'
     end
 
     def format_diff(kind, diff)
       case kind
       when :ratio3 then format_ratio3(diff.abs)
-      when :rate then "#{(diff.abs * 100).round(1)}ポイント"
+      when :decimal2 then format('%.2f', diff.abs)
+      when :per9 then format('%.1f', diff.abs)
       end
     end
 
@@ -130,7 +148,7 @@ module Insights
       week_starts.last
     end
 
-    # 週開始日 => { total_swings:, practice_days:, sleep_hours:, condition_level: }
+    # 週開始日 => { total_swings:, practice_days:, sleep_hours:, physical_level:, energy_level: }
     def weekly_inputs
       inputs = Hash.new { |hash, key| hash[key] = {} }
       accumulate_activity_inputs(inputs)
@@ -146,19 +164,28 @@ module Insights
       end
     end
 
+    # physical_level は好調度、fatigue_level は元気度（どちらも高いほど良い、1〜4）。
     def accumulate_condition_inputs(inputs)
       logs = @user.condition_logs.where(logged_on: window_start..)
       logs.group_by { |log| log.logged_on.beginning_of_week }.each do |week_start, week_logs|
-        sleeps = week_logs.filter_map(&:sleep_hours)
-        levels = week_logs.filter_map(&:fatigue_level)
-        inputs[week_start][:sleep_hours] = mean(sleeps) if sleeps.any?
-        inputs[week_start][:condition_level] = mean(levels) if levels.any?
+        put_mean(inputs[week_start], :sleep_hours, week_logs.filter_map(&:sleep_hours))
+        put_mean(inputs[week_start], :physical_level, week_logs.filter_map(&:physical_level))
+        put_mean(inputs[week_start], :energy_level, week_logs.filter_map(&:fatigue_level))
       end
     end
 
+    def put_mean(bucket, key, values)
+      bucket[key] = mean(values) if values.any?
+    end
+
     # 週開始日 => { batting_average:, ops:, strikeout_rate: }
-    def weekly_metrics
-      WeeklyBattingAggregator.new(user: @user, since: window_start).call
+    def weekly_batting_metrics
+      @weekly_batting_metrics ||= WeeklyBattingAggregator.new(user: @user, since: window_start).call
+    end
+
+    # 週開始日 => { era:, whip:, bb_per9: }（登板が無い週は含まれない）
+    def weekly_pitching_metrics
+      @weekly_pitching_metrics ||= WeeklyPitchingAggregator.new(user: @user, since: window_start).call
     end
 
     def mean(values)
