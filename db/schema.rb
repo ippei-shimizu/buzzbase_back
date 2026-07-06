@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_06_010003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_06_020001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -371,6 +371,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_06_010003) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "status"], name: "index_improvement_themes_on_user_id_and_status"
     t.index ["user_id"], name: "index_improvement_themes_on_user_id"
+  end
+
+  create_table "insight_combinations", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "input_type", null: false
+    t.bigint "practice_menu_id"
+    t.string "metric", null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["practice_menu_id"], name: "index_insight_combinations_on_practice_menu_id"
+    t.index ["user_id", "input_type", "practice_menu_id", "metric"], name: "index_insight_combinations_uniqueness", unique: true
+    t.index ["user_id"], name: "index_insight_combinations_on_user_id"
   end
 
   create_table "management_notices", force: :cascade do |t|
@@ -1067,6 +1080,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_06_010003) do
   add_foreign_key "group_users", "groups"
   add_foreign_key "group_users", "users"
   add_foreign_key "improvement_themes", "users"
+  add_foreign_key "insight_combinations", "practice_menus"
+  add_foreign_key "insight_combinations", "users"
   add_foreign_key "management_notices", "admin_users", column: "created_by_id"
   add_foreign_key "match_results", "stadiums"
   add_foreign_key "match_results", "teams", column: "my_team_id"

@@ -9,62 +9,49 @@ module Insights
     WINDOW_WEEKS = 16
     MIN_PAIRED_WEEKS = 4
 
-    # 分析する (入力量 × 成績) ペアの定義。
-    # input_more: 入力量が「多い/長い/良い/高い」など本文で使う語。
-    # metric_kind: :ratio3（打率/OPS の 3 桁小数）/ :decimal2（防御率/WHIP）/ :per9（与四球率/9）
-    BATTING_PAIRS = [
-      { key: 'swings_vs_ba', input: :total_swings, input_label: '素振りの本数', input_more: '多い',
-        metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'practice_days_vs_ops', input: :practice_days, input_label: '練習した日数', input_more: '多い',
-        metric: :ops, metric_label: 'OPS', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'sleep_vs_ba', input: :sleep_hours, input_label: '睡眠時間', input_more: '長い',
-        metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'physical_vs_ops', input: :physical_level, input_label: '体調の良さ', input_more: '良い',
-        metric: :ops, metric_label: 'OPS', metric_kind: :ratio3, higher_metric_is_better: true },
-      { key: 'energy_vs_ba', input: :energy_level, input_label: '元気さ（疲れの少なさ）', input_more: '高い',
-        metric: :batting_average, metric_label: '打率', metric_kind: :ratio3, higher_metric_is_better: true }
-    ].freeze
-
-    # 投手指標は登板が無い週を除外して集計するため、登板データがある場合のみ対象にする。
-    PITCHING_PAIRS = [
-      { key: 'practice_days_vs_era', input: :practice_days, input_label: '練習した日数', input_more: '多い',
-        metric: :era, metric_label: '防御率', metric_kind: :decimal2, higher_metric_is_better: false },
-      { key: 'sleep_vs_bb9', input: :sleep_hours, input_label: '睡眠時間', input_more: '長い',
-        metric: :bb_per9, metric_label: '与四球率', metric_kind: :per9, higher_metric_is_better: false },
-      { key: 'physical_vs_era', input: :physical_level, input_label: '体調の良さ', input_more: '良い',
-        metric: :era, metric_label: '防御率', metric_kind: :decimal2, higher_metric_is_better: false }
-    ].freeze
-
     def initialize(user:)
       @user = user
     end
 
-    # @return [Array<Hash>] インサイトカードの配列
-    def call
-      inputs = weekly_inputs
-      batting = weekly_batting_metrics
-      cards = BATTING_PAIRS.map { |pair| build_card(pair, inputs, batting) }
-      pitching = weekly_pitching_metrics
-      cards += PITCHING_PAIRS.map { |pair| build_card(pair, inputs, pitching) } if pitching.any?
-      cards
+    # @param combinations [Array<InsightCombination>] ユーザー定義の組み合わせ
+    # @return [Array<Hash>] インサイトカードの配列（プリセット + 自作）
+    def call(combinations: [])
+      cards = preset_cards
+      cards + combinations.map { |combination| custom_card(combination) }
     end
 
     private
 
-    def build_card(pair, inputs, metrics)
-      paired = paired_weeks(pair, inputs, metrics)
-      return insufficient_card(pair, paired.size) if paired.size < MIN_PAIRED_WEEKS
+    # おすすめ（固定）カード。投手は登板がある時のみ。
+    def preset_cards
+      cards = Catalog::BATTING_PAIRS.map { |pair| build_card(preset_spec(pair)) }
+      cards += Catalog::PITCHING_PAIRS.map { |pair| build_card(preset_spec(pair)) } if weekly_pitching_metrics.any?
+      cards
+    end
+
+    def preset_spec(pair)
+      pair.merge(id: nil, input_series: fixed_input_series(pair[:input]),
+                 metric_series: metric_series_for(pair[:metric]))
+    end
+
+    def custom_card(combination)
+      build_card(combo_spec(combination))
+    end
+
+    def build_card(spec)
+      paired = paired_weeks(spec[:input_series], spec[:metric_series])
+      return insufficient_card(spec, paired.size) if paired.size < MIN_PAIRED_WEEKS
 
       low, high = split_by_input_median(paired)
       diff = mean(high.pluck(:metric)) - mean(low.pluck(:metric))
-      card(pair, paired.size, diff)
+      card(spec, paired.size, diff)
     end
 
     # 入力量・成績の両方が記録された週だけを対象にする。
-    def paired_weeks(pair, inputs, metrics)
+    def paired_weeks(input_series, metric_series)
       week_starts.filter_map do |week_start|
-        input = inputs.dig(week_start, pair[:input])
-        metric = metrics.dig(week_start, pair[:metric])
+        input = input_series[week_start]
+        metric = metric_series[week_start]
         next if input.nil? || metric.nil?
 
         { input:, metric: }
@@ -78,29 +65,31 @@ module Insights
       [sorted.first(half), sorted.last(sorted.size - half)]
     end
 
-    def card(pair, sample_weeks, diff)
+    def card(spec, sample_weeks, diff)
       # 成績が良くなった向きかは metric の良し悪しに依存する（防御率は下がるほど良い）。
-      is_good = diff.positive? == pair[:higher_metric_is_better]
+      is_good = diff.positive? == spec[:higher_metric_is_better]
       {
-        key: pair[:key],
-        title: "#{pair[:input_label]}と#{pair[:metric_label]}",
-        body: body_text(pair, diff, is_good),
-        metric: pair[:metric].to_s,
-        dimension: pair[:input].to_s,
+        key: spec[:key],
+        id: spec[:id],
+        title: "#{spec[:input_label]}と#{spec[:metric_label]}",
+        body: CardText.body(spec, diff, is_good),
+        metric: spec[:metric].to_s,
+        dimension: spec[:input].to_s,
         direction: is_good ? 'positive' : 'negative',
-        strength: strength_label(pair, diff),
+        strength: CardText.strength(spec, diff),
         sample_weeks:,
         sufficient: true
       }
     end
 
-    def insufficient_card(pair, sample_weeks)
+    def insufficient_card(spec, sample_weeks)
       {
-        key: pair[:key],
-        title: "#{pair[:input_label]}と#{pair[:metric_label]}",
-        body: "#{pair[:input_label]}と#{pair[:metric_label]}の関係は、もう少しデータが集まると分かります。",
-        metric: pair[:metric].to_s,
-        dimension: pair[:input].to_s,
+        key: spec[:key],
+        id: spec[:id],
+        title: "#{spec[:input_label]}と#{spec[:metric_label]}",
+        body: "#{spec[:input_label]}と#{spec[:metric_label]}の関係は、もう少しデータが集まると分かります。",
+        metric: spec[:metric].to_s,
+        dimension: spec[:input].to_s,
         direction: 'unknown',
         strength: 'insufficient',
         sample_weeks:,
@@ -108,31 +97,43 @@ module Insights
       }
     end
 
-    def body_text(pair, diff, is_good)
-      formatted = format_diff(pair[:metric_kind], diff)
-      verb = diff.positive? ? '高い' : '低い'
-      takeaway = is_good ? 'いまの取り組みが効いていそう。この調子で続けよう。' : '少し見直すと変わるかもしれません。'
-      "#{pair[:input_label]}が#{pair[:input_more]}週ほど、#{pair[:metric_label]}が#{formatted}#{verb}傾向。#{takeaway}"
+    # ---- 系列（週 => 数値）の解決 ----
+
+    def fixed_input_series(input_key)
+      weekly_inputs.transform_values { |by_key| by_key[input_key] }
     end
 
-    # 差の大きさをラベル化（因果の強さではなくあくまで傾向の目安）。metric の桁で閾値が異なる。
-    STRENGTH_THRESHOLDS = { ratio3: 0.05, decimal2: 0.5, per9: 0.5 }.freeze
-
-    def strength_label(pair, diff)
-      diff.abs >= STRENGTH_THRESHOLDS.fetch(pair[:metric_kind], 0.05) ? 'strong' : 'weak'
+    def metric_series_for(metric)
+      side = Catalog::METRICS.fetch(metric.to_s)[:side]
+      source = side == :batting ? weekly_batting_metrics : weekly_pitching_metrics
+      source.transform_values { |by_metric| by_metric[metric] }
     end
 
-    def format_diff(kind, diff)
-      case kind
-      when :ratio3 then format_ratio3(diff.abs)
-      when :decimal2 then format('%.2f', diff.abs)
-      when :per9 then format('%.1f', diff.abs)
-      end
+    def combo_spec(combination)
+      metric = combination.metric.to_sym
+      meta = Catalog::METRICS.fetch(combination.metric)
+      input_label, input_more = combo_input_labels(combination)
+      {
+        key: "custom_#{combination.id}", id: combination.id,
+        input: combination.input_type, input_label:, input_more:,
+        metric:, metric_label: meta[:label], metric_kind: meta[:kind],
+        higher_metric_is_better: meta[:higher_is_better],
+        input_series: combo_input_series(combination), metric_series: metric_series_for(metric)
+      }
     end
 
-    # .045 のように先頭の 0 を省いた 3 桁小数にする。
-    def format_ratio3(value)
-      format('.%03d', (value * 1000).round)
+    def combo_input_labels(combination)
+      return ["#{combination.practice_menu&.name}の量", '多い'] if combination.input_type == 'practice_menu'
+
+      meta = Catalog::INPUTS.fetch(combination.input_type)
+      [meta[:label], meta[:more]]
+    end
+
+    def combo_input_series(combination)
+      return fixed_input_series(combination.input_type.to_sym) unless combination.input_type == 'practice_menu'
+      return {} unless combination.practice_menu
+
+      WeeklyMenuVolumeAggregator.new(user: @user, menu: combination.practice_menu, since: window_start).call
     end
 
     # ---- 週次集計 ----

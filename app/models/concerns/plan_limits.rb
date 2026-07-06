@@ -12,6 +12,8 @@ module PlanLimits
   MONTHLY_GOAL_FREE_LIMIT = 2
   IMPROVEMENT_THEME_FREE_LIMIT = 1
   REFLECTION_TEMPLATE_FREE_LIMIT = 1
+  # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
+  INSIGHT_COMBINATION_LIMIT = 20
 
   # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
   # @return [Boolean]
@@ -80,6 +82,12 @@ module PlanLimits
     return true if has_entitlement?('unlimited_reflection_templates')
 
     custom_reflection_templates_count < REFLECTION_TEMPLATE_FREE_LIMIT
+  end
+
+  # 「練習と成績のつながり」の自作カードを追加できるか（Pro 前提の件数上限）。
+  # @return [Boolean]
+  def can_create_insight_combination?
+    insight_combinations.count < INSIGHT_COMBINATION_LIMIT
   end
 
   private

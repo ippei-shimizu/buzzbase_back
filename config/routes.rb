@@ -294,6 +294,7 @@ Rails.application.routes.draw do
       resources :note_tags, only: %i[index create]
       resources :periodic_reviews, only: %i[index update]
       resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
+      resources :insight_combinations, only: %i[create destroy]
     end
   end
 

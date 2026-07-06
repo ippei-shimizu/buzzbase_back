@@ -47,5 +47,14 @@ RSpec.describe Insights::CorrelationBuilder, type: :service do
       expect(keys).to include('swings_vs_ba')
       expect(keys).not_to include('practice_days_vs_era')
     end
+
+    it 'ユーザー定義の組み合わせを自作カードとして返す' do
+      record_week(0, swings: 100, at_bats: 4, hits: 1)
+      combo = create(:insight_combination, user:, input_type: 'sleep_hours', metric: 'ops')
+      cards = described_class.new(user:).call(combinations: [combo])
+      custom = cards.find { |card| card[:id] == combo.id }
+      expect(custom[:key]).to eq("custom_#{combo.id}")
+      expect(custom[:title]).to eq('睡眠時間とOPS')
+    end
   end
 end

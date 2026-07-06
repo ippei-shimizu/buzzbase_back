@@ -9,7 +9,8 @@ module Api
           return render json: { error: '「練習と成績のつながり」は Pro プラン限定です' }, status: :forbidden
         end
 
-        insights = Insights::CorrelationBuilder.new(user: current_api_v1_user).call
+        combinations = current_api_v1_user.insight_combinations.includes(:practice_menu).ordered
+        insights = Insights::CorrelationBuilder.new(user: current_api_v1_user).call(combinations:)
         render json: { insights: }, status: :ok
       end
     end

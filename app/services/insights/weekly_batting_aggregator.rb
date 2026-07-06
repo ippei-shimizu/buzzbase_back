@@ -30,6 +30,8 @@ module Insights
       slg = Stats::BattingFormulas.slugging_percentage(total_bases:, at_bats: totals[:at_bats])
       {
         batting_average: Stats::BattingFormulas.batting_average(total_hits:, at_bats: totals[:at_bats]),
+        on_base_percentage: obp,
+        slugging_percentage: slg,
         ops: Stats::BattingFormulas.ops(obp:, slg:),
         strikeout_rate: Stats::BattingFormulas.safe_divide(totals[:strike_outs], totals[:plate_appearances])
       }

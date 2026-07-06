@@ -54,6 +54,7 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   has_many :improvement_themes, dependent: :destroy
   has_many :reflection_templates, dependent: :destroy
   has_many :note_tags, dependent: :destroy
+  has_many :insight_combinations, dependent: :destroy
   has_many :periodic_reviews, dependent: :destroy
 
   devise :database_authenticatable, :registerable,
