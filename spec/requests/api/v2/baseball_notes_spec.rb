@@ -81,6 +81,40 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
     end
   end
 
+  describe 'POST /api/v2/baseball_notes（タグ）' do
+    it 'プリセット・自作タグを付与して作成し tags を返す' do
+      preset = create(:note_tag, :preset, name: '打撃')
+      mine = create(:note_tag, user:, name: '自主練')
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [preset.id, mine.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      names = response.parsed_body['tags'].pluck('name')
+      expect(names).to contain_exactly('打撃', '自主練')
+    end
+
+    it '他ユーザーのタグは付与できない（IDOR防止）' do
+      others = create(:note_tag, user: create(:user), name: '他人')
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [others.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'PATCH /api/v2/baseball_notes/:id（タグ）' do
+    it 'タグを差し替えられる' do
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      old_tag = create(:note_tag, user:, name: '旧')
+      note.note_tag_ids = [old_tag.id]
+      new_tag = create(:note_tag, user:, name: '新')
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { tag_ids: [new_tag.id] } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['tags'].pluck('name')).to eq(['新'])
+    end
+  end
+
   describe 'GET /api/v2/baseball_notes（練習記録で絞り込み）' do
     it 'practice_session_id で絞り込める' do
       session = create(:practice_session, user:)

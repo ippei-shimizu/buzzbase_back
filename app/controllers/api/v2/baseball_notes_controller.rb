@@ -9,7 +9,7 @@ module Api
       FILTERABLE_COLUMNS = %i[date game_result_id practice_log_id practice_session_id improvement_theme_id].freeze
 
       def index
-        notes = current_api_v1_user.baseball_notes.order(date: :desc, created_at: :desc)
+        notes = current_api_v1_user.baseball_notes.includes(:note_tags).order(date: :desc, created_at: :desc)
         FILTERABLE_COLUMNS.each do |column|
           notes = notes.where(column => params[column]) if params[column].present?
         end
@@ -22,9 +22,10 @@ module Api
 
       def create
         note = current_api_v1_user.baseball_notes.build(note_params)
-        return unless valid_links?(note)
+        return unless valid_links?(note) && valid_note_tags?(tag_id_params)
 
         if note.save
+          note.note_tag_ids = tag_id_params
           render json: note, serializer: ::V2::BaseballNoteSerializer, status: :created
         else
           render json: { errors: note.errors.full_messages }, status: :unprocessable_entity
@@ -33,9 +34,10 @@ module Api
 
       def update
         @note.assign_attributes(note_params)
-        return unless valid_links?(@note)
+        return unless valid_links?(@note) && valid_note_tags?(tag_id_params)
 
         if @note.save
+          @note.note_tag_ids = tag_id_params
           render json: @note, serializer: ::V2::BaseballNoteSerializer, status: :ok
         else
           render json: { errors: @note.errors.full_messages }, status: :unprocessable_entity
@@ -57,6 +59,12 @@ module Api
         params.require(:baseball_note).permit(:title, :date, :memo, :game_result_id, :practice_log_id,
                                               :practice_session_id, :improvement_theme_id, :reflection_template_id,
                                               reflection_answers: %i[question answer])
+      end
+
+      # タグは has_many through の即時保存を避けるため mass-assign せず、
+      # 所有検証後に別途 note_tag_ids= で反映する。
+      def tag_id_params
+        params.require(:baseball_note).fetch(:tag_ids, []).map(&:to_i)
       end
 
       # 紐付け先カラム => { association:, error: } の対応。所有検証（IDOR 防止）に使う。
@@ -85,6 +93,15 @@ module Api
         return true if ReflectionTemplate.available_for(current_api_v1_user).exists?(note.reflection_template_id)
 
         render json: { error: '不正なテンプレの指定です' }, status: :forbidden
+        false
+      end
+
+      # タグはプリセット or 自作のみ付与可（他ユーザーの自作は不可）。
+      def valid_note_tags?(tag_ids)
+        return true if tag_ids.blank?
+        return true if ::NoteTag.available_for(current_api_v1_user).where(id: tag_ids).count == tag_ids.uniq.size
+
+        render json: { error: '不正なタグの指定です' }, status: :forbidden
         false
       end
     end

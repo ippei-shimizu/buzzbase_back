@@ -291,6 +291,7 @@ Rails.application.routes.draw do
       resources :baseball_notes, only: %i[index show create update destroy]
       resources :improvement_themes, only: %i[index create update destroy]
       resources :reflection_templates, only: %i[index create update destroy]
+      resources :note_tags, only: %i[index create]
       resources :periodic_reviews, only: %i[index update]
       resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
     end
