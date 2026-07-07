@@ -73,12 +73,15 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
+        tournament_id = params[:tournament_id]
         start_month = params[:start_month]
         end_month = params[:end_month]
-        any_filter = year.present? || match_type.present? || season_id.present? || start_month.present? || end_month.present?
+        any_filter = year.present? || match_type.present? || season_id.present? ||
+                     tournament_id.present? || start_month.present? || end_month.present?
         pitching_aggregated_data = if any_filter
-                                     PitchingResult.filtered_pitching_aggregate_for_user(user_id, year:, match_type:, season_id:,
-                                                                                                  start_month:, end_month:)
+                                     PitchingResult.filtered_pitching_aggregate_for_user(
+                                       user_id, year:, match_type:, season_id:, tournament_id:, start_month:, end_month:
+                                     )
                                    else
                                      PitchingResult.pitching_aggregate_for_user(user_id)
                                    end
@@ -92,7 +95,7 @@ module Api
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
         pitching_stats = PitchingResult.pitching_stats_for_user(
-          user_id, year:, match_type:, season_id:,
+          user_id, year:, match_type:, season_id:, tournament_id: params[:tournament_id],
                    start_month: params[:start_month], end_month: params[:end_month]
         )
         if pitching_stats.present?
