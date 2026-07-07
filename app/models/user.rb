@@ -34,6 +34,8 @@ class User < ActiveRecord::Base
   has_many :pitching_results, dependent: :destroy
   has_many :plate_appearances, dependent: :destroy
   has_many :created_pitchers, class_name: 'Pitcher', foreign_key: 'created_by_user_id', dependent: :destroy, inverse_of: :created_by_user
+  # 球場は match_results から共有参照される共有リソースのため、作成者削除時は破棄せず created_by_user_id を NULL にする
+  has_many :created_stadiums, class_name: 'Stadium', foreign_key: 'created_by_user_id', dependent: :nullify, inverse_of: :created_by_user
 
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable
