@@ -126,6 +126,20 @@ RSpec.describe 'Api::V1::Users', type: :request do
       end
     end
 
+    # 作成した球場は共有リソースのため、作成者削除時に破棄せず created_by_user_id を NULL 化する回帰テスト
+    context 'when user has created a stadium' do
+      it 'destroys the user and keeps the stadium with a null creator' do
+        stadium = create(:stadium, created_by_user: user)
+
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(User.exists?(user.id)).to be(false)
+        expect(Stadium.exists?(stadium.id)).to be(true)
+        expect(stadium.reload.created_by_user_id).to be_nil
+      end
+    end
+
     context 'when destroy! raises an unexpected error' do
       it 'returns 500 with a localized message instead of leaking the exception' do
         # Devise が返す current_api_v1_user を直接掴めないため any_instance を許可
