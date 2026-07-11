@@ -6,6 +6,8 @@ class Schedule < ApplicationRecord
   belongs_to :game_result, optional: true
   has_many :schedule_menus, -> { order(:sort_order) }, dependent: :destroy, inverse_of: :schedule
   has_many :practice_menus, through: :schedule_menus
+  # チェック（済トグル）で作られた練習ログは実績のため、予定を消しても残して紐付けだけ外す。
+  has_many :practice_logs, dependent: :nullify
 
   validates :title, length: { maximum: 50 }, allow_blank: true
   validates :title, presence: true, if: -> { menu_set_id.blank? }

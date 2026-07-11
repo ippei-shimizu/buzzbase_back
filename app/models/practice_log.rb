@@ -2,6 +2,7 @@ class PracticeLog < ApplicationRecord
   belongs_to :user
   belongs_to :practice_menu, optional: true
   belongs_to :practice_session, optional: true
+  belongs_to :schedule, optional: true
 
   SOURCES = %w[manual shadow_swing].freeze
 
