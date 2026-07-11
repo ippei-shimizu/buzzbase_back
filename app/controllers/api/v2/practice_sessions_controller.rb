@@ -13,7 +13,8 @@ module Api
         sessions = sessions.where(logged_on: params[:from]..) if params[:from].present?
         sessions = sessions.where(logged_on: ..params[:to]) if params[:to].present?
         sessions = sessions.where(improvement_theme_id: params[:improvement_theme_id]) if params[:improvement_theme_id].present?
-        render json: sessions, each_serializer: ::V2::PracticeSessionSerializer, status: :ok
+        render json: sessions, each_serializer: ::V2::PracticeSessionSerializer, status: :ok,
+               condition_logs_by_date: condition_logs_by_date(sessions.map(&:logged_on))
       end
 
       def show
@@ -54,6 +55,12 @@ module Api
       end
 
       private
+
+      # セッション一覧のシリアライズで condition_log を都度 find_by しないよう、
+      # 対象日付分の condition_logs を logged_on をキーに一括取得する（N+1 防止）。
+      def condition_logs_by_date(dates)
+        current_api_v1_user.condition_logs.where(logged_on: dates).index_by(&:logged_on)
+      end
 
       def session_params
         params.require(:practice_session).permit(

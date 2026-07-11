@@ -136,6 +136,26 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
       expect(ids).not_to include(session_old.id)
     end
 
+    it 'セッションごとの condition_log を N+1 なく含めて返す' do
+      make_pro(user)
+      create(:condition_log, user:, logged_on: today, sleep_hours: 7)
+      create(:practice_session, user:, logged_on: today - 1)
+      create(:practice_session, user:, logged_on: today - 2)
+
+      condition_log_queries = 0
+      subscriber = ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        condition_log_queries += 1 if payload[:sql].include?('condition_logs')
+      end
+      get '/api/v2/practice_sessions', headers: auth_headers_for(user)
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+
+      body = response.parsed_body.find { |row| row['id'] == session_today.id }
+      aggregate_failures do
+        expect(condition_log_queries).to eq(1)
+        expect(body['condition']['sleep_hours']).to eq('7.0')
+      end
+    end
+
     it 'improvement_theme_id で課題に紐づくものだけ返す' do
       theme = create(:improvement_theme, user:)
       linked = create(:practice_session, user:, logged_on: today - 1, improvement_theme: theme)
