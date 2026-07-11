@@ -12,7 +12,10 @@ module Api
       end
 
       def update
-        review = current_api_v1_user.periodic_reviews.find(params[:id])
+        # index と同様、無料ユーザーは月次レビューへアクセスできない（レスポンス経由の露出防止）。
+        reviews = current_api_v1_user.periodic_reviews
+        reviews = reviews.weekly unless pro?
+        review = reviews.find(params[:id])
         review.update!(read: true)
         render json: review, serializer: ::V2::PeriodicReviewSerializer, pro: pro?, status: :ok
       end

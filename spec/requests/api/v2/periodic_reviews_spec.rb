@@ -56,5 +56,23 @@ RSpec.describe 'Api::V2::PeriodicReviews', type: :request do
       expect(response).to have_http_status(:ok)
       expect(review.reload.read).to be true
     end
+
+    context '無料ユーザーが月次レビューを指定' do
+      it 'index と同様にアクセスできない（404）' do
+        monthly = create(:periodic_review, :monthly, user:, read: false)
+        patch "/api/v2/periodic_reviews/#{monthly.id}", headers: auth_headers_for(user)
+        aggregate_failures do
+          expect(response).to have_http_status(:not_found)
+          expect(monthly.reload.read).to be false
+        end
+      end
+
+      it 'Pro なら月次も既読にできる' do
+        make_pro(user)
+        monthly = create(:periodic_review, :monthly, user:, read: false)
+        patch "/api/v2/periodic_reviews/#{monthly.id}", headers: auth_headers_for(user)
+        expect(monthly.reload.read).to be true
+      end
+    end
   end
 end
