@@ -43,5 +43,15 @@ RSpec.describe PeriodicReviews::Generator, type: :service do
       expect(review.period_type).to eq('monthly')
       expect(review.period_end).to eq(month_start.end_of_month)
     end
+
+    it '成績の前期間比較は固定日数ではなく前月の暦月（1日を含む）で行う' do
+      # 4月（30日）の固定日数方式だと 3/2〜3/31 になり 3/1 の試合が漏れる。
+      game_result = create(:game_result, user:)
+      game_result.match_result.update!(date_and_time: Time.find_zone('Asia/Tokyo').local(2026, 3, 1, 13, 0))
+      create(:batting_average, user:, game_result:, hit: 1, at_bats: 3)
+
+      review = described_class.new(user:, period_type: 'monthly', period_start: Date.new(2026, 4, 1)).call
+      expect(review.summary['batting']['previous_batting_average']).to eq(0.333)
+    end
   end
 end

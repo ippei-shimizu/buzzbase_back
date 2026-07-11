@@ -27,9 +27,15 @@ module PeriodicReviews
       @period_end ||= @period_type == 'monthly' ? @period_start.end_of_month : @period_start + 6
     end
 
+    # 月次は月ごとに日数が異なるため、固定日数ではなく前月の暦月で比較する。
     def previous_range
-      length = (period_end - @period_start).to_i + 1
-      (@period_start - length)..(@period_start - 1)
+      if @period_type == 'monthly'
+        previous_month_start = (@period_start - 1.month).beginning_of_month
+        previous_month_start..previous_month_start.end_of_month
+      else
+        length = (period_end - @period_start).to_i + 1
+        (@period_start - length)..(@period_start - 1)
+      end
     end
 
     def build_summary
