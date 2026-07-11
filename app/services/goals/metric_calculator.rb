@@ -29,16 +29,23 @@ module Goals
       @user = goal.user
     end
 
-    # @return [Numeric] 期間内の現在値。期間が無ければ 0。
+    # @return [Numeric, nil] 期間内の現在値。
+    #   era / whip は「登板なし」を nil で返し、真の 0.00（完全投球）と区別する。
     def current_value
       range = @goal.period_range
-      return 0 unless range
+      return no_data_value unless range
 
       method = DISPATCH[@goal.metric_key]
       method ? send(method, *range) : 0
     end
 
     private
+
+    # 期間が確定しない（例: 試合が1つもないシーズン目標）ときの値。
+    # era / whip はデータなしを nil で表し、それ以外の加算系指標は 0 とする。
+    def no_data_value
+      %w[era whip].include?(@goal.metric_key) ? nil : 0
+    end
 
     def hits(from, to)
       total_hits(batting_scope(from, to)).to_i
@@ -160,7 +167,7 @@ module Goals
     def era(from, to)
       scope = pitching_scope(from, to)
       innings = scope.sum(:innings_pitched)
-      return 0 if innings.zero?
+      return nil if innings.zero?
 
       (scope.sum(:earned_run) * 9.0 / innings).round(2)
     end
@@ -168,7 +175,7 @@ module Goals
     def whip(from, to)
       scope = pitching_scope(from, to)
       innings = scope.sum(:innings_pitched)
-      return 0 if innings.zero?
+      return nil if innings.zero?
 
       ((scope.sum(:base_on_balls) + scope.sum(:hits_allowed)).to_f / innings).round(2)
     end

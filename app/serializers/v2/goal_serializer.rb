@@ -6,9 +6,13 @@ module V2
                :is_achieved, :is_finalized, :achieved_value,
                :current_value, :progress_percent, :days_remaining
 
-    delegate :current_value, to: :progress
-
     delegate :progress_percent, to: :progress
+
+    # era / whip の「登板なし」は内部的に nil だが、クライアント互換のため 0 で返す
+    # （達成判定・進捗率は計算側で nil を考慮済み）。
+    def current_value
+      progress.current_value.to_f
+    end
 
     def practice_menu_name
       object.practice_menu&.name
