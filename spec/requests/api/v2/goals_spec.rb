@@ -64,6 +64,24 @@ RSpec.describe 'Api::V2::Goals', type: :request do
         post '/api/v2/goals', params: season_params, headers: auth_headers_for(user)
         expect(response).to have_http_status(:created)
       end
+
+      it '自分のシーズンは指定できる' do
+        make_pro(user)
+        season = create(:season, user:)
+        post '/api/v2/goals',
+             params: { goal: season_params[:goal].merge(season_id: season.id) },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+
+      it '他ユーザーのシーズンは指定できない' do
+        make_pro(user)
+        other_season = create(:season)
+        post '/api/v2/goals',
+             params: { goal: season_params[:goal].merge(season_id: other_season.id) },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
     end
 
     context '大会目標' do

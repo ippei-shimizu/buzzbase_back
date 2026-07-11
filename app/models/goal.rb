@@ -33,6 +33,8 @@ class Goal < ApplicationRecord
   validates :practice_menu_id, presence: true, if: -> { metric_key == 'menu_practice_days' }
   # 他ユーザーの練習メニューを指定できないようにする（IDOR / 名称漏洩防止）。
   validate :practice_menu_owned_by_user, if: -> { practice_menu_id.present? }
+  # 他ユーザーのシーズンを指定できないようにする（IDOR / 集計混入防止）。
+  validate :season_owned_by_user, if: -> { season_id.present? }
   validates :deadline, presence: true
   validates :tournament_id, presence: true, if: -> { period_type == 'tournament' }
   # 週次/年間/カスタムは開始日（month_start）必須。開始日 ≤ 期限であること。
@@ -67,7 +69,7 @@ class Goal < ApplicationRecord
     when 'season'
       return nil unless season_id
 
-      games_range(MatchResult.joins(:game_result).where(game_results: { season_id: }))
+      games_range(MatchResult.joins(:game_result).where(game_results: { season_id:, user_id: }))
     when 'tournament'
       return nil unless tournament_id
 
@@ -105,6 +107,12 @@ class Goal < ApplicationRecord
     return if practice_menu&.user_id == user_id
 
     errors.add(:practice_menu_id, 'は自分の練習メニューを指定してください')
+  end
+
+  def season_owned_by_user
+    return if season&.user_id == user_id
+
+    errors.add(:season_id, 'は自分のシーズンを指定してください')
   end
 
   def games_range(games)
