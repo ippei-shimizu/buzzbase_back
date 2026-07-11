@@ -1,0 +1,63 @@
+module Api
+  module V2
+    # 予定（schedules）を日付軸で展開して返す読み取り専用エンドポイント。
+    # by_date は「今日のやること」、calendar はカレンダー俯瞰に対応する。
+    # 繰り返し（曜日）と単発（planned_on）を同じ日付に集約するのが責務。
+    class PlansController < Api::V2::ApplicationController
+      before_action :authenticate_api_v1_user!
+
+      def by_date
+        date = parse_date(params[:date])
+        return render json: { error: 'date が不正です' }, status: :unprocessable_entity if date.nil?
+
+        render json: plans_on(date),
+               each_serializer: ::V2::PlanSerializer,
+               done_menu_ids: done_practice_menu_ids_on(date),
+               status: :ok
+      end
+
+      def calendar
+        from = parse_date(params[:from])
+        to = parse_date(params[:to])
+        return render json: { error: 'from / to が不正です' }, status: :unprocessable_entity if from.nil? || to.nil? || to < from
+
+        entries = (from..to).flat_map do |date|
+          plans_on(date).map do |schedule|
+            { date: date.iso8601, event_type: schedule.event_type, title: schedule.display_title, schedule_id: schedule.id }
+          end
+        end
+        render json: { entries: }, status: :ok
+      end
+
+      private
+
+      def parse_date(value)
+        Date.iso8601(value.to_s)
+      rescue ArgumentError
+        nil
+      end
+
+      # ユーザーの active な予定を一度だけ読み込み、日付ごとの展開で再利用する。
+      def active_schedules
+        @active_schedules ||= current_api_v1_user.schedules.active.includes(
+          :game_result,
+          { menu_set: { menu_set_items: :practice_menu } },
+          { schedule_menus: :practice_menu }
+        ).to_a
+      end
+
+      # 指定日に該当する予定（繰り返し ∪ 単発）を時刻順（未設定は末尾）で返す。
+      # 時刻の time 型は保存タイムゾーンで比較が揺れるため、表示と同じ "HH:MM" 文字列で並べる。
+      def plans_on(date)
+        weekday = date.wday.zero? ? 7 : date.wday
+        active_schedules
+          .select { |schedule| (schedule.recurring? && schedule.day_numbers.include?(weekday)) || schedule.planned_on == date }
+          .sort_by { |schedule| schedule.scheduled_time&.strftime('%H:%M') || '99:99' }
+      end
+
+      def done_practice_menu_ids_on(date)
+        current_api_v1_user.practice_logs.where(logged_on: date).pluck(:practice_menu_id).compact.to_set
+      end
+    end
+  end
+end

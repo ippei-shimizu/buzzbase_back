@@ -94,4 +94,25 @@ RSpec.describe MatchResult, type: :model do
       expect(described_class::APPEARANCE_TYPES.size).to eq(5)
     end
   end
+
+  describe '#recalculate_activity' do
+    let(:user) { create(:user) }
+
+    it '試合日を変更すると旧日付・新日付の両方の活動集計を再計算する' do
+      game_result = create(:game_result, user:)
+      match_result = game_result.match_result
+      old_date = Time.zone.local(2026, 7, 1, 10, 0)
+      new_date = Time.zone.local(2026, 7, 5, 10, 0)
+      match_result.update!(date_and_time: old_date)
+
+      expect(user.activity_logs.find_by(activity_date: old_date.to_date)).to be_present
+
+      match_result.update!(date_and_time: new_date)
+
+      aggregate_failures do
+        expect(user.activity_logs.find_by(activity_date: old_date.to_date)).to be_nil
+        expect(user.activity_logs.find_by(activity_date: new_date.to_date)).to be_present
+      end
+    end
+  end
 end
