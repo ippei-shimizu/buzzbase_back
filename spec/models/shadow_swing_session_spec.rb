@@ -14,6 +14,14 @@ RSpec.describe ShadowSwingSession, type: :model do
       expect(session.reload.swing_count).to eq(120)
     end
 
+    it '完了済みセッションへの再実行では加算しない（リトライの冪等性）' do
+      session = create(:shadow_swing_session, user:)
+      session.complete!(swing_count: 100)
+
+      expect { session.complete!(swing_count: 100) }
+        .not_to(change { user.practice_logs.where(source: 'shadow_swing').sum(:amount) })
+    end
+
     it '同じ日に複数回完了すると1レコードに加算される' do
       today = Time.find_zone('Asia/Tokyo').today
       create(:shadow_swing_session, user:, logged_on: today).complete!(swing_count: 100)

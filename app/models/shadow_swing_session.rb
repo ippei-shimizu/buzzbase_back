@@ -16,6 +16,9 @@ class ShadowSwingSession < ApplicationRecord
   # @param swing_count [Integer] 実際に振った本数
   # @return [self]
   def complete!(swing_count:)
+    # リトライ等の二重リクエストで swing_count が二重加算されないよう冪等にする。
+    return self if completed_at.present?
+
     transaction do
       log = user.practice_logs.find_by(logged_on:, source: 'shadow_swing')
       if log
