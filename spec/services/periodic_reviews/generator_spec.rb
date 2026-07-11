@@ -34,6 +34,19 @@ RSpec.describe PeriodicReviews::Generator, type: :service do
       breakdown = review.summary['theme_breakdown']
       expect(breakdown.first).to include('title' => theme.title, 'practice_count' => 1)
     end
+
+    it '防御率は試合ごとの inning_format（7回制）で加重し、9固定より低く算出する' do
+      game_result = create(:game_result, user:)
+      game_result.match_result.update!(date_and_time: period_start.in_time_zone('Asia/Tokyo').noon, inning_format: 7)
+      create(:pitching_result, user:, game_result:, innings_pitched: 7.0, earned_run: 7, base_on_balls: 0,
+                               hits_allowed: 0, strikeouts: 7)
+
+      review = described_class.new(user:, period_type: 'weekly', period_start:).call
+
+      # 9固定なら (7*9/7)=9.00 になるところ、7回制加重で (7*7/7)=7.00 になる。
+      expect(review.summary['pitching']['era']).to eq(7.0)
+      expect(review.summary['pitching']['k_per_9']).to eq(7.0)
+    end
   end
 
   describe '#call（月次）' do

@@ -112,23 +112,25 @@ module PeriodicReviews
     end
 
     # 投手成績（防御率 / WHIP / K/9）。登板が無ければ各値 nil。
+    # ERA / K9 は Stats::EraTrendService 等と同じく、試合ごとの inning_format（7 or 9）で
+    # earned_run / strikeouts を加重してから投球回で割る（7回制混在時のズレを防ぐ）。
     def pitching_summary
       date_sql = Stats::JstDateSql::DATE_AND_TIME_JST_SQL
       row = @user.game_results.joins(:match_result, :pitching_result)
                  .where("DATE(#{date_sql}) BETWEEN ? AND ?", range.first, range.last)
                  .pick(
                    Arel.sql('SUM(COALESCE(pitching_results.innings_pitched, 0))'),
-                   Arel.sql('SUM(COALESCE(pitching_results.earned_run, 0))'),
+                   Arel.sql('SUM(COALESCE(pitching_results.earned_run, 0) * match_results.inning_format)'),
                    Arel.sql('SUM(COALESCE(pitching_results.hits_allowed, 0))'),
                    Arel.sql('SUM(COALESCE(pitching_results.base_on_balls, 0))'),
-                   Arel.sql('SUM(COALESCE(pitching_results.strikeouts, 0))')
+                   Arel.sql('SUM(COALESCE(pitching_results.strikeouts, 0) * match_results.inning_format)')
                  )
-      innings, earned, hits, walks, strikeouts = row.map(&:to_f)
+      innings, weighted_earned, hits, walks, weighted_strikeouts = row.map(&:to_f)
       {
         'innings_pitched' => innings.round(1),
-        'era' => innings.zero? ? nil : (earned * 9 / innings).round(2),
+        'era' => innings.zero? ? nil : (weighted_earned / innings).round(2),
         'whip' => innings.zero? ? nil : ((walks + hits) / innings).round(2),
-        'k_per_9' => innings.zero? ? nil : (strikeouts * 9 / innings).round(1)
+        'k_per_9' => innings.zero? ? nil : (weighted_strikeouts / innings).round(1)
       }
     end
 
