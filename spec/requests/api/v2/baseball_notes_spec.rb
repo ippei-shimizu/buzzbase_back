@@ -100,6 +100,15 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
            headers: auth_headers_for(user)
       expect(response).to have_http_status(:forbidden)
     end
+
+    it '同じタグIDが重複しても500にならず1件だけ付与される' do
+      mine = create(:note_tag, user:, name: '自主練')
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [mine.id, mine.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['tags'].pluck('name')).to eq(['自主練'])
+    end
   end
 
   describe 'PATCH /api/v2/baseball_notes/:id（タグ）' do

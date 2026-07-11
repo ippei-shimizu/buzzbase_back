@@ -24,8 +24,13 @@ module Api
         note = current_api_v1_user.baseball_notes.build(note_params)
         return unless valid_links?(note) && valid_note_tags?(tag_id_params)
 
-        if note.save
+        saved = ActiveRecord::Base.transaction do
+          next false unless note.save
+
           note.note_tag_ids = tag_id_params
+          true
+        end
+        if saved
           render json: note, serializer: ::V2::BaseballNoteSerializer, status: :created
         else
           render json: { errors: note.errors.full_messages }, status: :unprocessable_entity
@@ -36,8 +41,13 @@ module Api
         @note.assign_attributes(note_params)
         return unless valid_links?(@note) && valid_note_tags?(tag_id_params)
 
-        if @note.save
+        saved = ActiveRecord::Base.transaction do
+          next false unless @note.save
+
           @note.note_tag_ids = tag_id_params
+          true
+        end
+        if saved
           render json: @note, serializer: ::V2::BaseballNoteSerializer, status: :ok
         else
           render json: { errors: @note.errors.full_messages }, status: :unprocessable_entity
@@ -63,8 +73,9 @@ module Api
 
       # タグは has_many through の即時保存を避けるため mass-assign せず、
       # 所有検証後に別途 note_tag_ids= で反映する。
+      # 重複IDのまま渡すと ids_writer が同一レコードを二重 add しようとしうるため uniq する。
       def tag_id_params
-        params.require(:baseball_note).fetch(:tag_ids, []).map(&:to_i)
+        params.require(:baseball_note).fetch(:tag_ids, []).map(&:to_i).uniq
       end
 
       # 紐付け先カラム => { association:, error: } の対応。所有検証（IDOR 防止）に使う。
