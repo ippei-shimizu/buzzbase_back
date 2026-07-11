@@ -154,5 +154,17 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
       expect(response).to have_http_status(:ok)
       expect(user.practice_sessions.exists?(session.id)).to be false
     end
+
+    it '配下の練習ログも削除し、当日の活動集計（草・Streak）へ反映する' do
+      log = create(:practice_log, user:, logged_on: today, practice_session: session)
+      expect(user.activity_logs.exists?(activity_date: today)).to be true
+
+      delete "/api/v2/practice_sessions/#{session.id}", headers: auth_headers_for(user)
+
+      aggregate_failures do
+        expect(PracticeLog.exists?(log.id)).to be false
+        expect(user.activity_logs.exists?(activity_date: today)).to be false
+      end
+    end
   end
 end

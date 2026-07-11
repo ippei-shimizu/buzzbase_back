@@ -1,7 +1,9 @@
 class PracticeSession < ApplicationRecord
   belongs_to :user
   belongs_to :improvement_theme, optional: true
-  has_many :practice_logs, dependent: :nullify
+  # nullify だと after_commit（草・Streak 再計算）が発火せず集計が古いまま残るため destroy にする。
+  has_many :practice_logs, dependent: :destroy
+  # ノートは独立した記録なので、セッションを消しても紐付けだけ外して残す。
   has_many :baseball_notes, dependent: :nullify
 
   validates :logged_on, presence: true
