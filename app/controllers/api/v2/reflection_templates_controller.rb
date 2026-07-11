@@ -28,8 +28,15 @@ module Api
 
       # 編集は原本を更新せず新バージョンを作る。プリセットも対象にするため
       # available_for（プリセット＋自作）から source を引く。
+      # プリセットの初編集は自作テンプレの新規作成に等しいため、無料枠を確認する
+      # （自分の自作テンプレの再編集は旧版アーカイブ＋新版作成で差し引き0なので対象外）。
       def update
         source = ReflectionTemplate.available_for(current_api_v1_user).find(params[:id])
+        if source.user_id.nil? && !current_api_v1_user.can_create_reflection_template?
+          return render json: { error: '自作テンプレは無料プランで1つまでです。Pro で無制限に作成できます' },
+                        status: :forbidden
+        end
+
         new_version = source.create_edited_version(user: current_api_v1_user, params: template_params)
         if new_version.persisted?
           render json: new_version, serializer: ::V2::ReflectionTemplateSerializer, status: :ok

@@ -94,6 +94,24 @@ RSpec.describe 'Api::V2::ReflectionTemplates', type: :request do
         expect(other_ids).not_to include(copy_id)
       end
     end
+
+    it '無料ユーザーは既に自作1つを持つ状態で別のプリセットを編集できない（無料枠バイパス防止）' do
+      create(:reflection_template, user:, title: '既存の自作')
+      other_preset = create(:reflection_template, :preset, title: 'プリセットB')
+
+      patch "/api/v2/reflection_templates/#{other_preset.id}", params:, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:forbidden)
+      expect(other_preset.reload.archived_at).to be_nil
+    end
+
+    it '自分の自作テンプレの再編集は無料枠チェックの対象外（差し引き0のため）' do
+      mine = create(:reflection_template, user:, title: '既存の自作')
+
+      patch "/api/v2/reflection_templates/#{mine.id}", params:, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+    end
   end
 
   describe 'DELETE /api/v2/reflection_templates/:id' do
