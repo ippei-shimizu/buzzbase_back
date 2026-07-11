@@ -19,6 +19,10 @@ class PracticeSession < ApplicationRecord
   # @return [PracticeSession]
   def self.for(user, date)
     user.practice_sessions.find_or_create_by!(logged_on: date)
+  rescue ActiveRecord::RecordNotUnique
+    # 同時リクエストで find と create の間に他方が作成した場合は、
+    # (user_id, logged_on) のユニークインデックスに任せて拾い直す。
+    user.practice_sessions.find_by!(logged_on: date)
   end
 
   # その日のコンディションログ（1日1件・日付で一意）。
