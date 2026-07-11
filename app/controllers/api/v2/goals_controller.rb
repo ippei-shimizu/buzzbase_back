@@ -6,12 +6,12 @@ module Api
       before_action :load_goal, only: %i[update destroy]
 
       def index
-        goals = current_api_v1_user.goals.active.order(deadline: :asc)
+        goals = current_api_v1_user.goals.active.includes(:practice_menu).order(deadline: :asc)
         render json: goals, each_serializer: ::V2::GoalSerializer, status: :ok
       end
 
       def history
-        goals = current_api_v1_user.goals.where(is_finalized: true).order(deadline: :desc)
+        goals = current_api_v1_user.goals.where(is_finalized: true).includes(:practice_menu).order(deadline: :desc)
         render json: goals, each_serializer: ::V2::GoalSerializer, status: :ok
       end
 
