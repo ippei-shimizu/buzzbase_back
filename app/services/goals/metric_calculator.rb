@@ -84,6 +84,12 @@ module Goals
       @goal.period_type == 'tournament' ? @goal.tournament_id : nil
     end
 
+    # シーズン目標のときは、period_range（対象シーズンの試合の最小〜最大日時）だけでは
+    # 同期間の他シーズン/無所属の試合まで拾ってしまうため、season_id でも絞り込む。
+    def season_filter
+      @goal.period_type == 'season' ? @goal.season_id : nil
+    end
+
     def practice_days(from, to)
       @user.activity_logs.where(activity_date: from.to_date..to.to_date)
            .where('intensity_level >= 1').count
@@ -106,6 +112,7 @@ module Goals
       scope = MatchResult.joins(:game_result)
                          .where(game_results: { user_id: @user.id }, date_and_time: from..to)
       scope = scope.where(tournament_id: tournament_filter) if tournament_filter
+      scope = scope.where(game_results: { season_id: season_filter }) if season_filter
       scope.count
     end
 
@@ -114,6 +121,7 @@ module Goals
                             .where(game_results: { user_id: @user.id })
                             .where(match_results: { date_and_time: from..to })
       scope = scope.where(match_results: { tournament_id: tournament_filter }) if tournament_filter
+      scope = scope.where(game_results: { season_id: season_filter }) if season_filter
       scope
     end
 
@@ -161,6 +169,7 @@ module Goals
                             .where(game_results: { user_id: @user.id })
                             .where(match_results: { date_and_time: from..to })
       scope = scope.where(match_results: { tournament_id: tournament_filter }) if tournament_filter
+      scope = scope.where(game_results: { season_id: season_filter }) if season_filter
       scope
     end
 

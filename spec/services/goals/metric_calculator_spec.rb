@@ -4,8 +4,8 @@ RSpec.describe Goals::MetricCalculator do
   let(:user) { create(:user) }
 
   # 打撃/投手レコードは当月の試合（game_result → match_result）に紐づけて作る。
-  def batting(attrs)
-    create(:batting_average, user:, game_result: create(:game_result, user:), **attrs)
+  def batting(game_result: nil, **attrs)
+    create(:batting_average, user:, game_result: game_result || create(:game_result, user:), **attrs)
   end
 
   def pitching(attrs)
@@ -53,6 +53,31 @@ RSpec.describe Goals::MetricCalculator do
       goal = create(:goal, user:, metric_key: 'menu_practice_days', practice_menu: menu, target_value: 20)
 
       expect(described_class.new(goal).current_value).to eq(2)
+    end
+  end
+
+  describe 'シーズン目標の集計' do
+    it '同期間の他シーズン・無所属の試合を混入させない' do
+      target_season = create(:season, user:)
+      other_season = create(:season, user:)
+      game_date = Time.current
+
+      target_game = create(:game_result, user:, season: target_season)
+      target_game.match_result.update!(date_and_time: game_date)
+      batting(hit: 1, at_bats: 2, game_result: target_game)
+
+      other_season_game = create(:game_result, user:, season: other_season)
+      other_season_game.match_result.update!(date_and_time: game_date)
+      batting(hit: 10, at_bats: 10, game_result: other_season_game)
+
+      unowned_game = create(:game_result, user:, season: nil)
+      unowned_game.match_result.update!(date_and_time: game_date)
+      batting(hit: 10, at_bats: 10, game_result: unowned_game)
+
+      goal = create(:goal, user:, season: target_season, period_type: 'season',
+                           metric_key: 'batting_average', target_value: 0.3, deadline: Time.zone.today + 30)
+
+      expect(described_class.new(goal).current_value).to eq(0.5)
     end
   end
 end
