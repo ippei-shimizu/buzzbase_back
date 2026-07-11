@@ -173,12 +173,15 @@ module Goals
       scope
     end
 
+    # inning_format（7 or 9）で earned_run を加重してから投球回で割る。
+    # Stats::EraTrendService / PeriodicReviews::Generator と同じ計算方式に揃える。
     def era(from, to)
       scope = pitching_scope(from, to)
       innings = scope.sum(:innings_pitched)
       return nil if innings.zero?
 
-      (scope.sum(:earned_run) * 9.0 / innings).round(2)
+      weighted_earned = scope.sum(Arel.sql('earned_run * match_results.inning_format'))
+      (weighted_earned / innings).round(2)
     end
 
     def whip(from, to)

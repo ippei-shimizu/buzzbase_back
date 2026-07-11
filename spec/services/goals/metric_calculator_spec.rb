@@ -43,6 +43,16 @@ RSpec.describe Goals::MetricCalculator do
       expect(described_class.new(goal).current_value).to eq(1.0)
     end
 
+    it 'ERA(era)は試合ごとの inning_format（7回制）で加重し、9固定より低く算出する' do
+      game_result = create(:game_result, user:)
+      game_result.match_result.update!(inning_format: 7)
+      create(:pitching_result, user:, game_result:, innings_pitched: 7.0, earned_run: 7)
+      goal = create(:goal, user:, metric_key: 'era', comparison_type: 'less_than', target_value: 5.0)
+
+      # 9固定なら (7*9/7)=9.00 になるところ、7回制加重で (7*7/7)=7.00 になる。
+      expect(described_class.new(goal).current_value).to eq(7.0)
+    end
+
     it 'メニュー継続日数(menu_practice_days)は対象メニューの実施日数（同日複数回は1日）を数える' do
       menu = create(:practice_menu, user:)
       month = Time.find_zone('Asia/Tokyo').today.beginning_of_month
