@@ -5,15 +5,20 @@ class FinalizeGoalsJob < ApplicationJob
   def perform
     today = Time.find_zone('Asia/Tokyo').today
     Goal.active.where(deadline: ...today).find_each do |goal|
-      calculator = ::Goals::ProgressCalculator.new(goal)
-      achieved = calculator.achieved?
-      goal.update!(
-        achieved_value: calculator.current_value,
-        is_achieved: achieved,
-        achieved_at: achieved ? Time.current : nil,
-        is_finalized: true
-      )
-      award_badge(goal) if achieved
+      # ジョブの重複実行で二重確定・バッジ二重付与しないよう、行ロック後に確定済みを除外する。
+      goal.with_lock do
+        next if goal.is_finalized
+
+        calculator = ::Goals::ProgressCalculator.new(goal)
+        achieved = calculator.achieved?
+        goal.update!(
+          achieved_value: calculator.current_value,
+          is_achieved: achieved,
+          achieved_at: achieved ? Time.current : nil,
+          is_finalized: true
+        )
+        award_badge(goal) if achieved
+      end
     end
   end
 
