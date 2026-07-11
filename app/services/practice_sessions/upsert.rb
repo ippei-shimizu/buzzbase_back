@@ -55,7 +55,8 @@ module PracticeSessions
 
       @items.each do |item|
         menu = menus[item[:practice_menu_id].to_i]
-        next if menu.nil?
+        # 同一メニューが複数アイテムに含まれる場合は先勝ちで1件に保つ（重複ログ防止）。
+        next if menu.nil? || kept_menu_ids.include?(menu.id)
 
         kept_menu_ids << menu.id
         upsert_item(session, existing[menu.id], item, menu)
