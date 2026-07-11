@@ -21,3 +21,6 @@ production:
     class: GeneratePeriodicReviewJob
     args: [ "monthly" ]
     schedule: every month on the 1st at 5am
+  finalize_goals:
+    class: FinalizeGoalsJob
+    schedule: every day at 12:10am
