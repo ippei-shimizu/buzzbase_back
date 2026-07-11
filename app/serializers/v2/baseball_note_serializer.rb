@@ -8,7 +8,9 @@ module V2
     end
 
     def tags
-      object.note_tags.ordered.map { |tag| { id: tag.id, name: tag.name, is_preset: tag.is_preset } }
+      # スコープをチェーンすると includes(:note_tags) の preload が無効化され N+1 になるため、メモリ上で並べる。
+      object.note_tags.sort_by { |tag| [tag.sort_order, tag.id] }
+            .map { |tag| { id: tag.id, name: tag.name, is_preset: tag.is_preset } }
     end
   end
 end
