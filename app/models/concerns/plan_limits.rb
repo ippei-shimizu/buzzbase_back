@@ -48,7 +48,7 @@ module PlanLimits
     menu_sets_count < MENU_SET_FREE_LIMIT
   end
 
-  # 月次目標を新規作成できるか。無料は active なものが1つまで。
+  # 個人の期間目標（月次/週次/年間/カスタム）を新規作成できるか。無料は active なものが合算2つまで。
   # @return [Boolean]
   def can_create_monthly_goal?
     return true if has_entitlement?('unlimited_monthly_goals')
