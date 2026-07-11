@@ -37,10 +37,17 @@ class MatchResult < ApplicationRecord
 
   private
 
+  # 更新後の日付に加え、date_and_time を変更した場合は変更前の日付も再計算する。
+  # 旧日付の activity_log（試合ありの強度）が古いまま残るのを防ぐ。
   def recalculate_activity
-    activity_date = date_and_time&.in_time_zone('Asia/Tokyo')&.to_date
-    return unless activity_date
+    [date_and_time, previous_date_and_time].compact.uniq.each do |time|
+      Activities::DailyActivityRecalculator.new(user_id:, date: time.in_time_zone('Asia/Tokyo').to_date).call
+    end
+  end
 
-    Activities::DailyActivityRecalculator.new(user_id:, date: activity_date).call
+  def previous_date_and_time
+    return nil unless date_and_time_previously_changed?
+
+    date_and_time_previously_was
   end
 end
