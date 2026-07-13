@@ -12,7 +12,7 @@ module Api
 
         render json: plans_on(date),
                each_serializer: ::V2::PlanSerializer,
-               done_menu_ids: done_practice_menu_ids_on(date),
+               done_menu_ids: done_menu_ids_by_schedule_on(date),
                status: :ok
       end
 
@@ -55,8 +55,19 @@ module Api
           .sort_by { |schedule| schedule.scheduled_time&.strftime('%H:%M') || '99:99' }
       end
 
-      def done_practice_menu_ids_on(date)
-        current_api_v1_user.practice_logs.where(logged_on: date).pluck(:practice_menu_id).compact.to_set
+      # 予定（schedule）単位で「済」を判定するため、当日ログを schedule_id ごとの
+      # practice_menu_id 集合に畳み込む。schedule_id を持たないログ（フル記録・素振り等）は
+      # どの予定にも紐づかないため除外する。
+      # @return [Hash{Integer => Set<Integer>}]
+      def done_menu_ids_by_schedule_on(date)
+        current_api_v1_user.practice_logs
+                           .where(logged_on: date)
+                           .where.not(schedule_id: nil)
+                           .where.not(practice_menu_id: nil)
+                           .pluck(:schedule_id, :practice_menu_id)
+                           .each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |(schedule_id, practice_menu_id), acc|
+          acc[schedule_id] << practice_menu_id
+        end
       end
     end
   end

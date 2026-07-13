@@ -89,6 +89,17 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
       expect(response).to have_http_status(:ok)
       expect(Schedule.exists?(schedule.id)).to be(false)
     end
+
+    it '紐づく練習ログがあっても削除でき、ログは schedule_id が外れて残る' do
+      menu = create(:practice_menu, user:)
+      log = create(:practice_log, user:, practice_menu: menu, schedule:, logged_on: '2026-07-09')
+
+      delete "/api/v2/schedules/#{schedule.id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(Schedule.exists?(schedule.id)).to be(false)
+      expect(log.reload.schedule_id).to be_nil
+    end
   end
 
   describe '単発（planned_on）・event_type の割り当て' do

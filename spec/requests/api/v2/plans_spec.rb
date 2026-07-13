@@ -40,12 +40,12 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       expect(response.parsed_body.pluck('title')).to eq(%w[朝 午後 終日])
     end
 
-    it 'メニューセット由来のメニューを展開し、当日ログ済みは done を立てる' do
+    it 'メニューセット由来のメニューを展開し、その予定に紐づく当日ログ済みは done を立てる' do
       menu = create(:practice_menu, user:, name: '素振り')
       menu_set = create(:menu_set, user:, name: 'オフ日ルーティン')
       create(:menu_set_item, menu_set:, practice_menu: menu, target_value: 200)
-      create(:schedule, user:, title: nil, menu_set:, days_of_week: '1', scheduled_time: '06:00')
-      create(:practice_log, user:, practice_menu: menu, logged_on: '2026-07-06', amount: 200)
+      schedule = create(:schedule, user:, title: nil, menu_set:, days_of_week: '1', scheduled_time: '06:00')
+      create(:practice_log, user:, practice_menu: menu, schedule:, logged_on: '2026-07-06', amount: 200)
 
       get '/api/v2/plans/by_date', params: { date: '2026-07-06' }, headers: auth_headers_for(user)
 
@@ -54,6 +54,23 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       expect(plan['menus'].first['name']).to eq('素振り')
       expect(plan['menus'].first['done']).to be(true)
       expect(plan['done']).to be(true)
+    end
+
+    it '同じメニューを含む別の予定のログでは done を立てない（予定単位で独立）' do
+      menu = create(:practice_menu, user:, name: '素振り')
+      done_set = create(:menu_set, user:, name: '済セット')
+      pending_set = create(:menu_set, user:, name: '未済セット')
+      create(:menu_set_item, menu_set: done_set, practice_menu: menu, target_value: 200)
+      create(:menu_set_item, menu_set: pending_set, practice_menu: menu, target_value: 100)
+      done_schedule = create(:schedule, user:, title: nil, menu_set: done_set, days_of_week: '1', scheduled_time: '06:00')
+      create(:schedule, user:, title: nil, menu_set: pending_set, days_of_week: '1', scheduled_time: '18:00')
+      create(:practice_log, user:, practice_menu: menu, schedule: done_schedule, logged_on: '2026-07-06', amount: 200)
+
+      get '/api/v2/plans/by_date', params: { date: '2026-07-06' }, headers: auth_headers_for(user)
+
+      plans_by_title = response.parsed_body.index_by { |plan| plan['title'] }
+      expect(plans_by_title['済セット']['menus'].first['done']).to be(true)
+      expect(plans_by_title['未済セット']['menus'].first['done']).to be(false)
     end
   end
 

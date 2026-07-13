@@ -15,9 +15,12 @@ module Api
 
       def create
         menu = current_api_v1_user.practice_menus.find(practice_log_params[:practice_menu_id])
+        # schedule_id は「今日のやること」の予定単位で done を判定するために持つ。他人の予定は弾く。
+        schedule = current_api_v1_user.schedules.find(practice_log_params[:schedule_id]) if practice_log_params[:schedule_id].present?
         log = current_api_v1_user.practice_logs.build(
-          practice_log_params.except(:practice_menu_id).merge(
+          practice_log_params.except(:practice_menu_id, :schedule_id).merge(
             practice_menu: menu,
+            schedule:,
             menu_name: menu.name,
             unit_label: menu.unit_label
           )
@@ -38,7 +41,7 @@ module Api
       private
 
       def practice_log_params
-        params.require(:practice_log).permit(:practice_menu_id, :logged_on, :amount, :weight, :memo)
+        params.require(:practice_log).permit(:practice_menu_id, :schedule_id, :logged_on, :amount, :weight, :memo)
       end
     end
   end

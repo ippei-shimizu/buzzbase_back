@@ -29,6 +29,23 @@ RSpec.describe 'Api::V2::PracticeLogs', type: :request do
         post '/api/v2/practice_logs', params:, headers: auth_headers_for(user)
       end.to change { user.activity_logs.where(activity_date: today).count }.from(0).to(1)
     end
+
+    it 'schedule_id を渡すと予定に紐づけて作成する' do
+      schedule = create(:schedule, user:, title: '朝練', days_of_week: '1')
+      post '/api/v2/practice_logs',
+           params: { practice_log: { practice_menu_id: menu.id, schedule_id: schedule.id, logged_on: today } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['schedule_id']).to eq(schedule.id)
+    end
+
+    it '他人の予定の schedule_id は 404' do
+      other_schedule = create(:schedule, user: create(:user), title: '他人の予定', days_of_week: '1')
+      post '/api/v2/practice_logs',
+           params: { practice_log: { practice_menu_id: menu.id, schedule_id: other_schedule.id, logged_on: today } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:not_found)
+    end
   end
 
   describe 'GET /api/v2/practice_logs' do
