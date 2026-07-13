@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_09_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -145,13 +145,11 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_010001) do
     t.bigint "user_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "game_result_id"
     t.bigint "practice_log_id"
     t.bigint "practice_session_id"
     t.bigint "improvement_theme_id"
     t.jsonb "reflection_answers", default: [], null: false
     t.bigint "reflection_template_id"
-    t.index ["game_result_id"], name: "index_baseball_notes_on_game_result_id"
     t.index ["improvement_theme_id"], name: "index_baseball_notes_on_improvement_theme_id"
     t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
@@ -443,6 +441,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_010001) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "sort_order"], name: "index_menu_sets_on_user_id_and_sort_order"
     t.index ["user_id"], name: "index_menu_sets_on_user_id"
+  end
+
+  create_table "note_game_links", force: :cascade do |t|
+    t.bigint "baseball_note_id", null: false
+    t.bigint "game_result_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["baseball_note_id", "game_result_id"], name: "index_note_game_links_on_baseball_note_id_and_game_result_id", unique: true
+    t.index ["baseball_note_id"], name: "index_note_game_links_on_baseball_note_id"
+    t.index ["game_result_id"], name: "index_note_game_links_on_game_result_id"
   end
 
   create_table "note_taggings", force: :cascade do |t|
@@ -1051,7 +1059,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_010001) do
 
   add_foreign_key "activity_logs", "users"
   add_foreign_key "admin_refresh_tokens", "admin_users"
-  add_foreign_key "baseball_notes", "game_results", on_delete: :nullify
   add_foreign_key "baseball_notes", "improvement_themes"
   add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
   add_foreign_key "baseball_notes", "practice_sessions"
@@ -1092,6 +1099,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_09_010001) do
   add_foreign_key "menu_set_items", "menu_sets"
   add_foreign_key "menu_set_items", "practice_menus"
   add_foreign_key "menu_sets", "users"
+  add_foreign_key "note_game_links", "baseball_notes"
+  add_foreign_key "note_game_links", "game_results"
   add_foreign_key "note_taggings", "baseball_notes"
   add_foreign_key "note_taggings", "note_tags"
   add_foreign_key "note_tags", "users"

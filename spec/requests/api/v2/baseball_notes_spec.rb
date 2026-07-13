@@ -4,6 +4,10 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
   let(:user) { create(:user) }
   let(:memo) { [{ 'children' => [{ 'text' => '外角が体の開きで詰まる' }] }].to_json }
 
+  def make_pro(target)
+    target.subscription.update!(status: 'active', expires_at: 1.month.from_now)
+  end
+
   describe 'GET /api/v2/baseball_notes' do
     context '未認証' do
       it '401' do
@@ -82,7 +86,16 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
   end
 
   describe 'POST /api/v2/baseball_notes（タグ）' do
-    it 'プリセット・自作タグを付与して作成し tags を返す' do
+    it '無料ユーザーはタグ付与できない（403）' do
+      mine = create(:note_tag, user:, name: '自主練')
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [mine.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーはプリセット・自作タグを付与して作成し tags を返す' do
+      make_pro(user)
       preset = create(:note_tag, :preset, name: '打撃')
       mine = create(:note_tag, user:, name: '自主練')
       post '/api/v2/baseball_notes',
@@ -93,7 +106,8 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       expect(names).to contain_exactly('打撃', '自主練')
     end
 
-    it '他ユーザーのタグは付与できない（IDOR防止）' do
+    it 'Proユーザーでも他ユーザーのタグは付与できない（IDOR防止）' do
+      make_pro(user)
       others = create(:note_tag, user: create(:user), name: '他人')
       post '/api/v2/baseball_notes',
            params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [others.id] } },
@@ -101,7 +115,8 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       expect(response).to have_http_status(:forbidden)
     end
 
-    it '同じタグIDが重複しても500にならず1件だけ付与される' do
+    it 'Proユーザーは同じタグIDが重複しても500にならず1件だけ付与される' do
+      make_pro(user)
       mine = create(:note_tag, user:, name: '自主練')
       post '/api/v2/baseball_notes',
            params: { baseball_note: { title: 'x', date: Date.current, memo:, tag_ids: [mine.id, mine.id] } },
@@ -112,7 +127,8 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
   end
 
   describe 'PATCH /api/v2/baseball_notes/:id（タグ）' do
-    it 'タグを差し替えられる' do
+    it 'Proユーザーはタグを差し替えられる' do
+      make_pro(user)
       note = create(:baseball_note, user:, memo:, date: Date.current)
       old_tag = create(:note_tag, user:, name: '旧')
       note.note_tag_ids = [old_tag.id]
@@ -121,6 +137,70 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
             params: { baseball_note: { tag_ids: [new_tag.id] } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['tags'].pluck('name')).to eq(['新'])
+    end
+
+    it 'tag_ids キー省略時は既存タグを維持する（無料ユーザーのタグUI非表示による意図しない全消去を防止）' do
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      tag = create(:note_tag, :preset, name: '打撃')
+      note.note_tag_ids = [tag.id]
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { title: '更新後タイトル' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['tags'].pluck('name')).to eq(['打撃'])
+    end
+  end
+
+  describe 'POST /api/v2/baseball_notes（試合記録の紐付け）' do
+    it '1件だけなら無料ユーザーでも紐付けられる' do
+      game_result = create(:game_result, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, game_result_ids: [game_result.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['game_result_ids']).to eq([game_result.id])
+    end
+
+    it '無料ユーザーが2件以上紐付けようとすると403' do
+      game_results = create_list(:game_result, 2, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      game_result_ids: game_results.map(&:id) } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーは複数の試合記録を紐付けられる' do
+      make_pro(user)
+      game_results = create_list(:game_result, 2, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      game_result_ids: game_results.map(&:id) } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['game_result_ids']).to match_array(game_results.map(&:id))
+    end
+
+    it '他ユーザーの試合には紐付けられない（IDOR防止）' do
+      other_game_result = create(:game_result, user: create(:user))
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      game_result_ids: [other_game_result.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'PATCH /api/v2/baseball_notes/:id（試合記録の紐付け）' do
+    it 'Proユーザーは紐付けを差し替えられる' do
+      make_pro(user)
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      old_game_result = create(:game_result, user:)
+      note.game_result_ids = [old_game_result.id]
+      new_game_result = create(:game_result, user:)
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { game_result_ids: [new_game_result.id] } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['game_result_ids']).to eq([new_game_result.id])
     end
   end
 
