@@ -10,6 +10,8 @@ module Api
       end
 
       def create
+        return render json: { error: 'タグ機能は Pro プラン限定です' }, status: :forbidden unless current_api_v1_user.has_entitlement?('note_tags')
+
         tag = current_api_v1_user.note_tags.new(name: tag_params[:name])
         if tag.save
           render json: tag, serializer: ::V2::NoteTagSerializer, status: :created
