@@ -1,6 +1,6 @@
 module Api
   module V2
-    # 練習プランの割り当て（繰り返し / 単発）。無料は3つまで（PlanLimits）。
+    # 練習プランの割り当て（繰り返し / 単発）。件数上限なし。
     # 通知のリマインド自体は端末側のローカル通知で行う（サーバーは設定の保管のみ）。
     class SchedulesController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
@@ -8,7 +8,7 @@ module Api
 
       def index
         schedules = current_api_v1_user.schedules.active
-                                       .includes(:game_result,
+                                       .includes(:game_result, :practice_logs,
                                                  { menu_set: { menu_set_items: :practice_menu } },
                                                  { schedule_menus: :practice_menu })
                                        .order(:scheduled_time)
@@ -16,8 +16,6 @@ module Api
       end
 
       def create
-        return render json: { error: 'Pro プランでスケジュールを無制限に登録できます' }, status: :forbidden unless current_api_v1_user.can_create_schedule?
-
         schedule = current_api_v1_user.schedules.build(schedule_params)
         assign_menus(schedule)
         if schedule.save
@@ -28,13 +26,16 @@ module Api
       end
 
       def update
-        @schedule.assign_attributes(schedule_params)
-        assign_menus(@schedule) if params[:schedule].key?(:menus)
-        if @schedule.save
-          render json: @schedule, serializer: ::V2::ScheduleSerializer, status: :ok
-        else
-          render json: { errors: @schedule.errors.full_messages }, status: :unprocessable_entity
+        # assign_menus の destroy_all は即時実行されるため、save失敗時に schedule_menus だけ
+        # 消えて残らないよう、属性更新・メニュー再構築・保存を1トランザクションに包む。
+        ActiveRecord::Base.transaction do
+          @schedule.assign_attributes(schedule_params)
+          assign_menus(@schedule) if params[:schedule].key?(:menus)
+          @schedule.save!
         end
+        render json: @schedule, serializer: ::V2::ScheduleSerializer, status: :ok
+      rescue ActiveRecord::RecordInvalid
+        render json: { errors: @schedule.errors.full_messages }, status: :unprocessable_entity
       end
 
       def destroy

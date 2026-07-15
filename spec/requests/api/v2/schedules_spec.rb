@@ -54,13 +54,10 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
       expect(response.parsed_body['menus']).to be_empty
     end
 
-    context '無料ユーザーが上限(3)を超える' do
-      before { create_list(:schedule, 3, user:) }
-
-      it '403' do
-        post '/api/v2/schedules', params:, headers: auth_headers_for(user)
-        expect(response).to have_http_status(:forbidden)
-      end
+    it '無料ユーザーでも件数上限なく作成できる' do
+      create_list(:schedule, 3, user:)
+      post '/api/v2/schedules', params:, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
     end
 
     context 'カスタム通知文' do
@@ -78,6 +75,54 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
         post '/api/v2/schedules', params: custom_params, headers: auth_headers_for(user)
         expect(response.parsed_body['notification_message']).to eq('頑張れ')
       end
+    end
+  end
+
+  describe 'PATCH /api/v2/schedules/:id' do
+    let(:menu) { create(:practice_menu, user:) }
+    let!(:schedule) do
+      create(:schedule, user:, title: '朝練', days_of_week: '1', scheduled_time: '06:00')
+    end
+
+    before do
+      patch "/api/v2/schedules/#{schedule.id}",
+            params: { schedule: { menus: [{ practice_menu_id: menu.id, target_value: 100 }] } },
+            headers: auth_headers_for(user)
+    end
+
+    it 'メニューを更新できる' do
+      patch "/api/v2/schedules/#{schedule.id}",
+            params: { schedule: { title: '朝練2' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['title']).to eq('朝練2')
+    end
+
+    it 'バリデーション失敗時は schedule_menus を巻き戻し、保存前の状態を維持する（トランザクションバグの回帰防止）' do
+      expect(schedule.reload.schedule_menus.count).to eq(1)
+
+      # menus を含めて assign_menus（destroy_all → 再build）を発火させつつ、
+      # title/days_of_week/planned_on を不正にして save! を失敗させる。
+      patch "/api/v2/schedules/#{schedule.id}",
+            params: { schedule: { title: '', days_of_week: '', planned_on: '',
+                                  menus: [{ practice_menu_id: menu.id, target_value: 999 }] } },
+            headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(schedule.reload.schedule_menus.count).to eq(1)
+      expect(schedule.schedule_menus.first.target_value.to_i).to eq(100)
+    end
+  end
+
+  describe 'GET /api/v2/schedules（logged_practice_menu_ids）' do
+    it '練習ログが記録済みのpractice_menu_idを返す' do
+      schedule = create(:schedule, user:, title: '朝練', days_of_week: '1', scheduled_time: '06:00')
+      menu = create(:practice_menu, user:)
+      create(:practice_log, user:, practice_menu: menu, schedule:, logged_on: '2026-07-09')
+
+      get '/api/v2/schedules', headers: auth_headers_for(user)
+
+      body = response.parsed_body.find { |item| item['id'] == schedule.id }
+      expect(body['logged_practice_menu_ids']).to eq([menu.id])
     end
   end
 
