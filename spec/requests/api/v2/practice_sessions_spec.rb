@@ -87,6 +87,44 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
         expect(user.condition_logs.find_by(logged_on: today)).to be_present
       end
     end
+
+    context '課題の紐付け' do
+      it '1件だけなら無料ユーザーでも紐付けられる' do
+        theme = create(:improvement_theme, user:)
+        post '/api/v2/practice_sessions',
+             params: { practice_session: { logged_on: today, items:, improvement_theme_ids: [theme.id] } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['improvement_theme_ids']).to eq([theme.id])
+      end
+
+      it '無料ユーザーが2件以上紐付けようとすると403' do
+        themes = create_list(:improvement_theme, 2, user:)
+        post '/api/v2/practice_sessions',
+             params: { practice_session: { logged_on: today, items:, improvement_theme_ids: themes.map(&:id) } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'Proユーザーは複数の課題を紐付けられる' do
+        make_pro(user)
+        themes = create_list(:improvement_theme, 2, user:)
+        post '/api/v2/practice_sessions',
+             params: { practice_session: { logged_on: today, items:, improvement_theme_ids: themes.map(&:id) } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['improvement_theme_ids']).to match_array(themes.map(&:id))
+      end
+
+      it '他ユーザーの課題は無視される' do
+        other_theme = create(:improvement_theme, user: create(:user))
+        post '/api/v2/practice_sessions',
+             params: { practice_session: { logged_on: today, items:, improvement_theme_ids: [other_theme.id] } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['improvement_theme_ids']).to eq([])
+      end
+    end
   end
 
   describe 'GET /api/v2/practice_sessions/:id' do

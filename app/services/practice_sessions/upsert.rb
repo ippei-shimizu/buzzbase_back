@@ -10,17 +10,20 @@ module PracticeSessions
     # コンディション記録は Pro 限定のため、未加入時に投げる。
     class NotEntitled < StandardError; end
 
+    # 複数課題への紐付けは Pro 限定のため、無料ユーザーが2件以上指定したときに投げる。
+    class ThemeLimitExceeded < StandardError; end
+
     # @param user [User]
     # @param logged_on [Date, String]
     # @param memo [String, nil] その日の振り返りメモ
-    # @param improvement_theme_id [Integer, String, nil] 紐付ける課題テーマ（空文字は紐付け解除）
+    # @param improvement_theme_ids [Array<Integer, String>, nil] 紐付ける課題テーマ群（nilならテーマ紐付けを更新しない）
     # @param items [Array<Hash>] [{ practice_menu_id:, amount:, memo: }]
     # @param condition [Hash, nil] コンディション入力（nil なら更新しない）
-    def initialize(user:, logged_on:, memo: nil, improvement_theme_id: nil, items: [], condition: nil) # rubocop:disable Metrics/ParameterLists
+    def initialize(user:, logged_on:, memo: nil, improvement_theme_ids: nil, items: [], condition: nil) # rubocop:disable Metrics/ParameterLists
       @user = user
       @logged_on = logged_on
       @memo = memo
-      @improvement_theme_id = improvement_theme_id
+      @improvement_theme_ids = improvement_theme_ids
       @items = items || []
       @condition = condition
     end
@@ -31,7 +34,7 @@ module PracticeSessions
       ActiveRecord::Base.transaction do
         session = PracticeSession.for(@user, @logged_on)
         session.update!(memo: @memo) unless @memo.nil?
-        assign_theme(session) unless @improvement_theme_id.nil?
+        assign_themes(session) unless @improvement_theme_ids.nil?
         sync_items(session)
         upsert_condition if @condition.present?
       end
@@ -40,11 +43,12 @@ module PracticeSessions
 
     private
 
-    # 自分の課題テーマのみ紐付ける（他ユーザーの課題は無視）。空文字なら紐付け解除。
-    def assign_theme(session)
-      theme_id = @improvement_theme_id.presence
-      owned = theme_id && @user.improvement_themes.exists?(theme_id)
-      session.update!(improvement_theme_id: owned ? theme_id : nil)
+    # 自分の課題テーマのみ紐付ける（他ユーザーの課題は無視）。無料は1件まで、Proは複数件可。
+    def assign_themes(session)
+      owned_ids = @user.improvement_themes.where(id: @improvement_theme_ids).pluck(:id)
+      raise ThemeLimitExceeded if owned_ids.size > 1 && !@user.has_entitlement?('multi_improvement_theme_links')
+
+      session.improvement_theme_ids = owned_ids
     end
 
     # メニュー量ログを practice_menu_id ベースで差分同期する。

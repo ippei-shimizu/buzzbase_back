@@ -6,16 +6,20 @@ module Api
       before_action :authenticate_api_v1_user!
       before_action :load_note, only: %i[show update destroy]
 
-      FILTERABLE_COLUMNS = %i[date practice_log_id practice_session_id improvement_theme_id].freeze
+      FILTERABLE_COLUMNS = %i[date practice_log_id practice_session_id].freeze
 
       def index
-        notes = current_api_v1_user.baseball_notes.includes(:note_tags, :game_results)
+        notes = current_api_v1_user.baseball_notes.includes(:note_tags, :game_results, :improvement_themes)
                                    .order(date: :desc, created_at: :desc)
         FILTERABLE_COLUMNS.each do |column|
           notes = notes.where(column => params[column]) if params[column].present?
         end
         if params[:game_result_id].present?
           notes = notes.joins(:note_game_links).where(note_game_links: { game_result_id: params[:game_result_id] })
+        end
+        if params[:improvement_theme_id].present?
+          notes = notes.joins(:note_theme_links)
+                       .where(note_theme_links: { improvement_theme_id: params[:improvement_theme_id] })
         end
         render json: notes, each_serializer: ::V2::BaseballNoteSerializer, status: :ok
       end
@@ -28,13 +32,16 @@ module Api
         note = current_api_v1_user.baseball_notes.build(note_params)
         tag_ids = tag_id_params
         game_result_ids = game_result_id_params
-        return unless valid_links?(note) && valid_note_tags?(tag_ids) && valid_game_results?(game_result_ids)
+        theme_ids = improvement_theme_id_params
+        return unless valid_links?(note) && valid_note_tags?(tag_ids) &&
+                      valid_game_results?(game_result_ids) && valid_improvement_themes?(theme_ids)
 
         saved = ActiveRecord::Base.transaction do
           next false unless note.save
 
           note.note_tag_ids = tag_ids
           note.game_result_ids = game_result_ids
+          note.improvement_theme_ids = theme_ids
           true
         end
         if saved
@@ -48,13 +55,16 @@ module Api
         @note.assign_attributes(note_params)
         tag_ids = tag_id_params
         game_result_ids = game_result_id_params
-        return unless valid_links?(@note) && valid_note_tags?(tag_ids) && valid_game_results?(game_result_ids)
+        theme_ids = improvement_theme_id_params
+        return unless valid_links?(@note) && valid_note_tags?(tag_ids) &&
+                      valid_game_results?(game_result_ids) && valid_improvement_themes?(theme_ids)
 
         saved = ActiveRecord::Base.transaction do
           next false unless @note.save
 
           @note.note_tag_ids = tag_ids unless tag_ids.nil?
           @note.game_result_ids = game_result_ids
+          @note.improvement_theme_ids = theme_ids
           true
         end
         if saved
@@ -77,7 +87,7 @@ module Api
 
       def note_params
         params.require(:baseball_note).permit(:title, :date, :memo, :practice_log_id,
-                                              :practice_session_id, :improvement_theme_id, :reflection_template_id,
+                                              :practice_session_id, :reflection_template_id,
                                               reflection_answers: %i[question answer])
       end
 
@@ -85,6 +95,12 @@ module Api
       # 所有・Pro 制限検証後に別途 game_result_ids= で反映する。
       def game_result_id_params
         params.require(:baseball_note).fetch(:game_result_ids, []).map(&:to_i).uniq
+      end
+
+      # 課題は has_many through の即時保存を避けるため mass-assign せず、
+      # 所有・Pro 制限検証後に別途 improvement_theme_ids= で反映する。
+      def improvement_theme_id_params
+        params.require(:baseball_note).fetch(:improvement_theme_ids, []).map(&:to_i).uniq
       end
 
       # タグは has_many through の即時保存を避けるため mass-assign せず、
@@ -102,8 +118,7 @@ module Api
       # 紐付け先カラム => { association:, error: } の対応。所有検証（IDOR 防止）に使う。
       LINK_OWNERSHIPS = {
         practice_log_id: { association: :practice_logs, error: '不正な練習の指定です' },
-        practice_session_id: { association: :practice_sessions, error: '不正な練習記録の指定です' },
-        improvement_theme_id: { association: :improvement_themes, error: '不正な課題の指定です' }
+        practice_session_id: { association: :practice_sessions, error: '不正な練習記録の指定です' }
       }.freeze
 
       # 他ユーザーの試合 / 練習 / 課題に紐付けられないよう所有を検証する（IDOR 防止）。
@@ -152,6 +167,20 @@ module Api
         return true if current_api_v1_user.game_results.where(id: game_result_ids).count == game_result_ids.uniq.size
 
         render json: { error: '不正な試合の指定です' }, status: :forbidden
+        false
+      end
+
+      # 他ユーザーの課題には紐付けられない（IDOR 防止）。無料は1件、Pro は複数件紐付け可。
+      def valid_improvement_themes?(theme_ids)
+        return true if theme_ids.blank?
+
+        if theme_ids.size > 1 && !current_api_v1_user.has_entitlement?('multi_improvement_theme_links')
+          render json: { error: '複数の課題への紐付けは Pro プラン限定です' }, status: :forbidden
+          return false
+        end
+        return true if current_api_v1_user.improvement_themes.where(id: theme_ids).count == theme_ids.uniq.size
+
+        render json: { error: '不正な課題の指定です' }, status: :forbidden
         false
       end
     end

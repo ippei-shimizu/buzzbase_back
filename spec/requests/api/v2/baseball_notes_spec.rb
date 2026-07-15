@@ -214,4 +214,58 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       expect(response.parsed_body.size).to eq(1)
     end
   end
+
+  describe 'POST /api/v2/baseball_notes（課題の紐付け）' do
+    it '1件だけなら無料ユーザーでも紐付けられる' do
+      theme = create(:improvement_theme, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:, improvement_theme_ids: [theme.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['improvement_theme_ids']).to eq([theme.id])
+    end
+
+    it '無料ユーザーが2件以上紐付けようとすると403' do
+      themes = create_list(:improvement_theme, 2, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      improvement_theme_ids: themes.map(&:id) } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーは複数の課題を紐付けられる' do
+      make_pro(user)
+      themes = create_list(:improvement_theme, 2, user:)
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      improvement_theme_ids: themes.map(&:id) } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body['improvement_theme_ids']).to match_array(themes.map(&:id))
+    end
+
+    it '他ユーザーの課題には紐付けられない（IDOR防止）' do
+      other_theme = create(:improvement_theme, user: create(:user))
+      post '/api/v2/baseball_notes',
+           params: { baseball_note: { title: 'x', date: Date.current, memo:,
+                                      improvement_theme_ids: [other_theme.id] } },
+           headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+  end
+
+  describe 'PATCH /api/v2/baseball_notes/:id（課題の紐付け）' do
+    it 'Proユーザーは紐付けを差し替えられる' do
+      make_pro(user)
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      old_theme = create(:improvement_theme, user:)
+      note.improvement_theme_ids = [old_theme.id]
+      new_theme = create(:improvement_theme, user:)
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { improvement_theme_ids: [new_theme.id] } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['improvement_theme_ids']).to eq([new_theme.id])
+    end
+  end
 end
