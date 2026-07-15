@@ -281,6 +281,7 @@ Rails.application.routes.draw do
         collection { get :streak }
       end
       resources :schedules, only: %i[index create update destroy]
+      post 'schedules/week_copy', to: 'schedules/week_copies#create'
       resources :menu_sets, only: %i[index show create update destroy]
       get 'plans/by_date', to: 'plans#by_date'
       get 'plans/calendar', to: 'plans#calendar'

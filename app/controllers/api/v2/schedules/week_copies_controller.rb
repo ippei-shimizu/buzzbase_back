@@ -1,0 +1,61 @@
+module Api
+  module V2
+    module Schedules
+      # 週の練習プラン（単発予定のみ）を翌週へ一括コピーする。Pro限定機能。
+      class WeekCopiesController < Api::V2::ApplicationController
+        before_action :authenticate_api_v1_user!
+
+        # POST /api/v2/schedules/week_copy
+        # @param week_start [String] コピー元の週の開始日（YYYY-MM-DD）
+        def create
+          unless current_api_v1_user.has_entitlement?('schedule_copy_next_week')
+            return render json: { error: '来週にコピーは Pro プラン限定です' }, status: :forbidden
+          end
+
+          week_start = parse_date(params[:week_start])
+          return render json: { error: 'week_start が不正です' }, status: :unprocessable_entity if week_start.nil?
+
+          copied = ActiveRecord::Base.transaction do
+            source_schedules(week_start).map { |schedule| copy_to_next_week(schedule) }
+          end
+          render json: copied, each_serializer: ::V2::ScheduleSerializer, status: :created
+        end
+
+        private
+
+        def parse_date(value)
+          Date.parse(value.to_s)
+        rescue ArgumentError, TypeError
+          nil
+        end
+
+        def source_schedules(week_start)
+          current_api_v1_user.schedules.active.single
+                             .where(planned_on: week_start..(week_start + 6.days))
+        end
+
+        def copy_to_next_week(schedule)
+          new_schedule = current_api_v1_user.schedules.create!(
+            title: schedule.title,
+            event_type: schedule.event_type,
+            scheduled_time: schedule.scheduled_time,
+            planned_on: schedule.planned_on + 7.days,
+            notification_enabled: schedule.notification_enabled,
+            notification_message: schedule.notification_message,
+            menu_set_id: schedule.menu_set_id
+          )
+          return new_schedule if schedule.menu_set_id
+
+          schedule.schedule_menus.each do |menu|
+            new_schedule.schedule_menus.create!(
+              practice_menu_id: menu.practice_menu_id,
+              target_value: menu.target_value,
+              sort_order: menu.sort_order
+            )
+          end
+          new_schedule
+        end
+      end
+    end
+  end
+end
