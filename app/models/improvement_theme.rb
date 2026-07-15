@@ -1,7 +1,9 @@
 class ImprovementTheme < ApplicationRecord
   belongs_to :user
-  has_many :practice_sessions, dependent: :nullify
-  has_many :baseball_notes, dependent: :nullify
+  has_many :practice_session_theme_links, dependent: :destroy
+  has_many :practice_sessions, through: :practice_session_theme_links
+  has_many :note_theme_links, dependent: :destroy
+  has_many :baseball_notes, through: :note_theme_links
 
   # open: 取組中 / achieved: 克服(達成) / archived: 取りやめ
   enum status: { open: 'open', achieved: 'achieved', archived: 'archived' }, _default: 'open'

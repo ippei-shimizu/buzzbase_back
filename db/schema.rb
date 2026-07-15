@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_14_010006) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -147,10 +147,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
     t.datetime "updated_at", null: false
     t.bigint "practice_log_id"
     t.bigint "practice_session_id"
-    t.bigint "improvement_theme_id"
     t.jsonb "reflection_answers", default: [], null: false
     t.bigint "reflection_template_id"
-    t.index ["improvement_theme_id"], name: "index_baseball_notes_on_improvement_theme_id"
     t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
     t.index ["reflection_template_id"], name: "index_baseball_notes_on_reflection_template_id"
@@ -474,6 +472,16 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
     t.index ["user_id"], name: "index_note_tags_on_user_id"
   end
 
+  create_table "note_theme_links", force: :cascade do |t|
+    t.bigint "baseball_note_id", null: false
+    t.bigint "improvement_theme_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["baseball_note_id", "improvement_theme_id"], name: "index_theme_links_on_note_and_theme", unique: true
+    t.index ["baseball_note_id"], name: "index_note_theme_links_on_baseball_note_id"
+    t.index ["improvement_theme_id"], name: "index_note_theme_links_on_improvement_theme_id"
+  end
+
   create_table "notifications", force: :cascade do |t|
     t.bigint "actor_id", null: false
     t.string "event_type", null: false
@@ -657,14 +665,22 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
     t.index ["user_id"], name: "index_practice_menus_on_user_id"
   end
 
+  create_table "practice_session_theme_links", force: :cascade do |t|
+    t.bigint "practice_session_id", null: false
+    t.bigint "improvement_theme_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["improvement_theme_id"], name: "index_practice_session_theme_links_on_improvement_theme_id"
+    t.index ["practice_session_id", "improvement_theme_id"], name: "index_theme_links_on_session_and_theme", unique: true
+    t.index ["practice_session_id"], name: "index_practice_session_theme_links_on_practice_session_id"
+  end
+
   create_table "practice_sessions", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.date "logged_on", null: false
     t.text "memo"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "improvement_theme_id"
-    t.index ["improvement_theme_id"], name: "index_practice_sessions_on_improvement_theme_id"
     t.index ["user_id", "logged_on"], name: "index_practice_sessions_on_user_id_and_logged_on", unique: true
     t.index ["user_id"], name: "index_practice_sessions_on_user_id"
   end
@@ -1059,7 +1075,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
 
   add_foreign_key "activity_logs", "users"
   add_foreign_key "admin_refresh_tokens", "admin_users"
-  add_foreign_key "baseball_notes", "improvement_themes"
   add_foreign_key "baseball_notes", "practice_logs", on_delete: :nullify
   add_foreign_key "baseball_notes", "practice_sessions"
   add_foreign_key "baseball_notes", "reflection_templates"
@@ -1104,6 +1119,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
   add_foreign_key "note_taggings", "baseball_notes"
   add_foreign_key "note_taggings", "note_tags"
   add_foreign_key "note_tags", "users"
+  add_foreign_key "note_theme_links", "baseball_notes"
+  add_foreign_key "note_theme_links", "improvement_themes"
   add_foreign_key "notifications", "users", column: "actor_id"
   add_foreign_key "periodic_reviews", "users"
   add_foreign_key "pitchers", "arm_angles"
@@ -1124,7 +1141,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_13_010003) do
   add_foreign_key "practice_logs", "schedules"
   add_foreign_key "practice_logs", "users"
   add_foreign_key "practice_menus", "users"
-  add_foreign_key "practice_sessions", "improvement_themes"
+  add_foreign_key "practice_session_theme_links", "improvement_themes"
+  add_foreign_key "practice_session_theme_links", "practice_sessions"
   add_foreign_key "practice_sessions", "users"
   add_foreign_key "reflection_templates", "users"
   add_foreign_key "schedule_menus", "practice_menus"
