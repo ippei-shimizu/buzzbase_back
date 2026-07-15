@@ -14,7 +14,7 @@ module Entitlement
     'practice_log_basic',    # 練習記録(基本): 練習内容のログ
     'grass_recent_30days',   # 草機能: 直近30日分のヒートマップ表示
     'monthly_goal_single',   # 個人の期間目標（月次/週次/年間/カスタム）: 2つまで作成可
-    'schedule_single'        # 自主練スケジュール: 3つまで作成可
+    'schedule_single'        # 自主練スケジュール: 無料でも無制限に作成可
   ].freeze
 
   # Pro 加入時のみ利用可能な機能キー。subscription が pro_active? のとき true。
@@ -25,8 +25,8 @@ module Entitlement
     'unlimited_practice_menus',     # 練習メニュー無制限(無料は5件まで)
     'unlimited_media_uploads',      # 動画・画像アップロード無制限(無料は月3件)
     'media_long_term_storage',      # メディア長期保管(31日以上前も閲覧可)
-    'unlimited_schedules',          # 練習プランの割り当て無制限(無料は3件まで)
-    'unlimited_menu_sets',          # メニューセット無制限(無料は2件まで)
+    'schedule_copy_next_week',      # 週の練習プランを来週へ一括コピー
+    'unlimited_menu_sets',          # メニューセット無制限(無料は3件まで)
     'unlimited_monthly_goals',      # 個人の期間目標無制限(無料は2件まで)
     'season_goals',                 # シーズン目標(無料は利用不可)
     'tournament_goals',             # 大会目標(無料は利用不可)

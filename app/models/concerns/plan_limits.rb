@@ -7,8 +7,7 @@ module PlanLimits
 
   PRACTICE_MENU_FREE_LIMIT = 5
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
-  SCHEDULE_FREE_LIMIT = 3
-  MENU_SET_FREE_LIMIT = 2
+  MENU_SET_FREE_LIMIT = 3
   MONTHLY_GOAL_FREE_LIMIT = 2
   IMPROVEMENT_THEME_FREE_LIMIT = 1
   REFLECTION_TEMPLATE_FREE_LIMIT = 1
@@ -31,16 +30,7 @@ module PlanLimits
     media_attachments_count_this_month < MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH
   end
 
-  # 練習プランの割り当て（schedule）を新規作成できるか。
-  # 無料は active なものが単発・繰り返し合算で3つまで。
-  # @return [Boolean]
-  def can_create_schedule?
-    return true if has_entitlement?('unlimited_schedules')
-
-    active_schedules_count < SCHEDULE_FREE_LIMIT
-  end
-
-  # メニューセットを新規作成できるか。無料は2つまで。
+  # メニューセットを新規作成できるか。無料は3つまで。
   # @return [Boolean]
   def can_create_menu_set?
     return true if has_entitlement?('unlimited_menu_sets')
@@ -99,10 +89,6 @@ module PlanLimits
 
   def media_attachments_count_this_month
     0
-  end
-
-  def active_schedules_count
-    schedules.active.count
   end
 
   def menu_sets_count
