@@ -26,7 +26,7 @@ module Entitlement
     'unlimited_media_uploads',      # 動画・画像アップロード無制限(無料は月3件)
     'media_long_term_storage',      # メディア長期保管(31日以上前も閲覧可)
     'schedule_copy_next_week',      # 週の練習プランを来週へ一括コピー
-    'unlimited_menu_sets',          # メニューセット無制限(無料は3件まで)
+    'unlimited_menu_sets',          # メニューセット無制限(無料は2件まで)
     'unlimited_monthly_goals',      # 個人の期間目標無制限(無料は2件まで)
     'season_goals',                 # シーズン目標(無料は利用不可)
     'tournament_goals',             # 大会目標(無料は利用不可)

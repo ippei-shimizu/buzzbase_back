@@ -52,16 +52,16 @@ RSpec.describe 'Api::V2::MenuSets', type: :request do
       expect(response.parsed_body['items']).to be_empty
     end
 
-    it '無料は3つまで。4つ目は403で拒否する' do
-      create_list(:menu_set, 3, user:)
-      post '/api/v2/menu_sets', params: { menu_set: { name: '4つ目' } }, headers: auth_headers_for(user)
+    it '無料は2つまで。3つ目は403で拒否する' do
+      create_list(:menu_set, 2, user:)
+      post '/api/v2/menu_sets', params: { menu_set: { name: '3つ目' } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:forbidden)
     end
 
-    it 'Pro は4つ目以降も作成できる' do
-      create_list(:menu_set, 3, user:)
+    it 'Pro は3つ目以降も作成できる' do
+      create_list(:menu_set, 2, user:)
       make_pro(user)
-      post '/api/v2/menu_sets', params: { menu_set: { name: '4つ目' } }, headers: auth_headers_for(user)
+      post '/api/v2/menu_sets', params: { menu_set: { name: '3つ目' } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:created)
     end
   end
