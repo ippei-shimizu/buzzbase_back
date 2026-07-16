@@ -39,7 +39,8 @@ module Entitlement
     'advanced_periodic_review', # 週次/月次レポートの詳細(課題別内訳・相関・成績前週比・月次)
     'note_tags', # 野球ノートへのタグ付け(無料は付与不可)
     'multi_game_result_notes', # 野球ノートへの複数試合記録紐付け(無料は1件まで)
-    'multi_improvement_theme_links' # 練習記録・野球ノートへの複数課題紐付け(無料は1件まで)
+    'multi_improvement_theme_links', # 練習記録・野球ノートへの複数課題紐付け(無料は1件まで)
+    'practice_menu_trend_detail' # メニューごとの推移詳細(期間フィルタ・グラフ・数値内訳)
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze
