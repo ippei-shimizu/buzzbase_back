@@ -47,17 +47,25 @@ module Api
       end
 
       def allowed_to_create?(goal)
+        return false if goal.kind == 'manual' && !current_api_v1_user.can_create_manual_metric_goal?
+
         case goal.period_type
         when 'season' then current_api_v1_user.can_create_season_goal?
         when 'tournament' then current_api_v1_user.can_create_tournament_goal?
+        when 'custom' then current_api_v1_user.can_create_custom_period_goal?
         else current_api_v1_user.can_create_monthly_goal?
         end
       end
 
       def render_limit_error(goal)
+        if goal.kind == 'manual' && !current_api_v1_user.can_create_manual_metric_goal?
+          return render json: { error: '自由指標の目標は Pro プラン限定です' }, status: :forbidden
+        end
+
         message = case goal.period_type
                   when 'season' then 'シーズン目標は Pro プラン限定です'
                   when 'tournament' then '大会目標は Pro プラン限定です'
+                  when 'custom' then 'カスタム期間の目標は Pro プラン限定です'
                   else 'Pro プランで期間目標を無制限に設定できます'
                   end
         render json: { error: message }, status: :forbidden

@@ -9,7 +9,7 @@ module PlanLimits
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
   MENU_SET_FREE_LIMIT = 2
   MONTHLY_GOAL_FREE_LIMIT = 2
-  IMPROVEMENT_THEME_FREE_LIMIT = 1
+  IMPROVEMENT_THEME_FREE_LIMIT = 2
   REFLECTION_TEMPLATE_FREE_LIMIT = 1
   # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
   INSIGHT_COMBINATION_LIMIT = 20
@@ -58,12 +58,24 @@ module PlanLimits
     has_entitlement?('tournament_goals')
   end
 
-  # 課題テーマを新規作成できるか。無料は取組中（open）が1つまで。
+  # 課題テーマを新規作成できるか。無料は取組中（open）が2つまで。
   # @return [Boolean]
   def can_create_improvement_theme?
     return true if has_entitlement?('unlimited_improvement_themes')
 
     open_improvement_themes_count < IMPROVEMENT_THEME_FREE_LIMIT
+  end
+
+  # カスタム期間の個人目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_custom_period_goal?
+    has_entitlement?('custom_period_goals')
+  end
+
+  # 自由指標（手動更新）の目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_manual_metric_goal?
+    has_entitlement?('manual_metric_goals')
   end
 
   # 振り返りテンプレを自作できるか。無料は1つまで。プリセット利用は本制限の対象外。
