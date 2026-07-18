@@ -42,7 +42,9 @@ module Entitlement
     'multi_improvement_theme_links', # 練習記録・野球ノートへの複数課題紐付け(無料は1件まで)
     'practice_menu_trend_detail', # メニューごとの推移詳細(期間フィルタ・グラフ・数値内訳)
     'custom_period_goals', # カスタム期間の個人目標(無料は利用不可)
-    'manual_metric_goals' # 自由指標(手動更新)の目標設定(無料は利用不可)
+    'manual_metric_goals', # 自由指標(手動更新)の目標設定(無料は利用不可)
+    'shadow_swing_custom_interval', # 素振りカウンターのインターバル自由設定(無料は5〜10秒のみ)
+    'shadow_swing_vibration' # 素振りカウンターのバイブレーション設定(無料は利用不可)
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze
