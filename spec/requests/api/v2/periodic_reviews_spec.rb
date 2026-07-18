@@ -26,14 +26,10 @@ RSpec.describe 'Api::V2::PeriodicReviews', type: :request do
     end
 
     context '無料ユーザー' do
-      it '週次のみ返し、成績（打撃）は見せるが Pro 詳細部は除外される' do
+      it '振り返りレポート機能自体が Pro 限定のため一件も返さない' do
         get '/api/v2/periodic_reviews', headers: auth_headers_for(user)
         expect(response).to have_http_status(:ok)
-        body = response.parsed_body
-        expect(body.pluck('period_type')).to eq(['weekly'])
-        expect(body.first['summary']).to include('practice_days')
-        expect(body.first['summary']).to have_key('batting')
-        expect(body.first['summary']).not_to have_key('theme_breakdown')
+        expect(response.parsed_body).to eq([])
       end
     end
 
@@ -51,25 +47,25 @@ RSpec.describe 'Api::V2::PeriodicReviews', type: :request do
   describe 'PATCH /api/v2/periodic_reviews/:id' do
     let!(:review) { create(:periodic_review, user:, read: false) }
 
-    it '既読にできる' do
+    it 'Pro ユーザーは既読にできる' do
+      make_pro(user)
       patch "/api/v2/periodic_reviews/#{review.id}", headers: auth_headers_for(user)
       expect(response).to have_http_status(:ok)
       expect(review.reload.read).to be true
     end
 
-    context '無料ユーザーが月次レビューを指定' do
-      it 'index と同様にアクセスできない（404）' do
-        monthly = create(:periodic_review, :monthly, user:, read: false)
-        patch "/api/v2/periodic_reviews/#{monthly.id}", headers: auth_headers_for(user)
+    context '無料ユーザー' do
+      it '振り返りレポート機能自体が Pro 限定のため週次でもアクセスできない（404）' do
+        patch "/api/v2/periodic_reviews/#{review.id}", headers: auth_headers_for(user)
         aggregate_failures do
           expect(response).to have_http_status(:not_found)
-          expect(monthly.reload.read).to be false
+          expect(review.reload.read).to be false
         end
       end
 
       it 'Pro なら月次も既読にできる' do
-        make_pro(user)
         monthly = create(:periodic_review, :monthly, user:, read: false)
+        make_pro(user)
         patch "/api/v2/periodic_reviews/#{monthly.id}", headers: auth_headers_for(user)
         expect(monthly.reload.read).to be true
       end
