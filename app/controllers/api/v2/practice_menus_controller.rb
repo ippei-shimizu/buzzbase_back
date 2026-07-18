@@ -1,7 +1,7 @@
 module Api
   module V2
     # 練習メニュー マスターの CRUD。
-    # 無料プランは archived 以外 5 件まで（PlanLimits#can_create_practice_menu?）。
+    # 無料プランは archived 以外 3 件まで（PlanLimits#can_create_practice_menu?）。
     class PracticeMenusController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
       before_action :load_practice_menu, only: %i[update destroy]

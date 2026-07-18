@@ -42,8 +42,8 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
       expect(response.parsed_body['name']).to eq('ティー')
     end
 
-    context '無料ユーザーが上限(5)を超える' do
-      before { create_list(:practice_menu, 5, user:) }
+    context '無料ユーザーが上限(3)を超える' do
+      before { create_list(:practice_menu, 3, user:) }
 
       it '403 を返す' do
         post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)

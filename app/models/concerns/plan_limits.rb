@@ -5,7 +5,7 @@
 module PlanLimits
   extend ActiveSupport::Concern
 
-  PRACTICE_MENU_FREE_LIMIT = 5
+  PRACTICE_MENU_FREE_LIMIT = 3
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
   MENU_SET_FREE_LIMIT = 2
   MONTHLY_GOAL_FREE_LIMIT = 2
@@ -14,7 +14,7 @@ module PlanLimits
   # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
   INSIGHT_COMBINATION_LIMIT = 20
 
-  # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
+  # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
   # @return [Boolean]
   def can_create_practice_menu?
     return true if has_entitlement?('unlimited_practice_menus')
