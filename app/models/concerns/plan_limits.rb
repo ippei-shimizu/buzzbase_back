@@ -13,6 +13,7 @@ module PlanLimits
   REFLECTION_TEMPLATE_FREE_LIMIT = 1
   # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
   INSIGHT_COMBINATION_LIMIT = 20
+  GROUP_FREE_LIMIT = 1
 
   # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
   # @return [Boolean]
@@ -92,6 +93,16 @@ module PlanLimits
     insight_combinations.count < INSIGHT_COMBINATION_LIMIT
   end
 
+  # グループを新規作成・参加できるか。無料は所属（作成+参加の合算）が1件まで。
+  # 既に上限を超えて所属しているユーザーからグループを剥奪する処理ではないため、
+  # 既存の所属には一切影響しない（新規作成・参加のみをブロックする）。
+  # @return [Boolean]
+  def can_create_or_join_group?
+    return true if has_entitlement?('unlimited_groups')
+
+    accepted_groups_count < GROUP_FREE_LIMIT
+  end
+
   private
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
@@ -119,5 +130,11 @@ module PlanLimits
   def custom_reflection_templates_count
     # 編集で置き換えられた旧版（archived）は上限に数えない。
     reflection_templates.where(archived_at: nil).count
+  end
+
+  # 所属グループ数（作成+参加の合算）。GroupInvitation の accepted が実際の所属を表す
+  # （User#groups は作成したグループのみを返すため使えない）。
+  def accepted_groups_count
+    group_invitations.accepted.count
   end
 end

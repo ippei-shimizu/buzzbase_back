@@ -35,6 +35,8 @@ module Api
           return render json: { error: '既にこのグループのメンバーです' }, status: :unprocessable_entity
         end
 
+        return render json: { error: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden unless user.can_create_or_join_group?
+
         ActiveRecord::Base.transaction do
           group.group_invitations.create!(user:, state: 'accepted', sent_at: Time.current)
           create_mutual_follow(user, invite_link.inviter)

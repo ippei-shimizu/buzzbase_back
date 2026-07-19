@@ -44,7 +44,8 @@ module Entitlement
     'custom_period_goals', # カスタム期間の個人目標(無料は利用不可)
     'manual_metric_goals', # 自由指標(手動更新)の目標設定(無料は利用不可)
     'shadow_swing_custom_interval', # 素振りカウンターのインターバル自由設定(無料は5〜10秒のみ)
-    'shadow_swing_vibration' # 素振りカウンターのバイブレーション設定(無料は利用不可)
+    'shadow_swing_vibration', # 素振りカウンターのバイブレーション設定(無料は利用不可)
+    'unlimited_groups' # グループ作成・参加を無制限に(無料は所属1件まで)
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze

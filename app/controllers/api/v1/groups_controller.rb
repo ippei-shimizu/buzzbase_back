@@ -30,6 +30,8 @@ module Api
       end
 
       def create
+        return render json: { error: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden unless current_api_v1_user.can_create_or_join_group?
+
         group = current_api_v1_user.groups.build(group_params)
         if group.save
           group.users << current_api_v1_user

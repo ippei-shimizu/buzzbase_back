@@ -4,11 +4,11 @@ RSpec.describe Entitlement, type: :model do
   let(:user) { create(:user) }
 
   describe 'feature key constants' do
-    it 'defines exactly 10 free features and 26 pro features' do
+    it 'defines exactly 10 free features and 27 pro features' do
       # %w[] とインラインコメントの混在で feature key が壊れる回帰を防ぐ
       expect(described_class::FREE_FEATURES.size).to eq 10
-      expect(described_class::PRO_FEATURES.size).to eq 26
-      expect(described_class::ALL_FEATURES.size).to eq 36
+      expect(described_class::PRO_FEATURES.size).to eq 27
+      expect(described_class::ALL_FEATURES.size).to eq 37
     end
 
     it 'contains only valid feature key strings (no stray symbols)' do
@@ -82,6 +82,29 @@ RSpec.describe Entitlement, type: :model do
     it 'returns true for a Pro user' do
       user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
       expect(user.can_create_season_goal?).to be true
+    end
+  end
+
+  describe '#can_create_or_join_group?' do
+    it 'returns true for a free user with no groups' do
+      expect(user.can_create_or_join_group?).to be true
+    end
+
+    it 'returns false for a free user already belonging to 1 group' do
+      GroupInvitation.create!(user:, group: create(:group), state: 'accepted', sent_at: Time.current)
+      expect(user.can_create_or_join_group?).to be false
+    end
+
+    it 'returns true for a Pro user regardless of existing groups' do
+      user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      2.times { GroupInvitation.create!(user:, group: create(:group), state: 'accepted', sent_at: Time.current) }
+      expect(user.can_create_or_join_group?).to be true
+    end
+
+    it 'does not modify existing accepted group invitations (grandfathering)' do
+      2.times { GroupInvitation.create!(user:, group: create(:group), state: 'accepted', sent_at: Time.current) }
+      expect { user.can_create_or_join_group? }.not_to(change { user.group_invitations.accepted.count })
+      expect(user.group_invitations.accepted.count).to eq 2
     end
   end
 end
