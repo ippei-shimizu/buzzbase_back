@@ -24,7 +24,6 @@ module Entitlement
     'grass_full_history',           # 草機能: 全期間ヒートマップ表示
     'unlimited_practice_menus',     # 練習メニュー無制限(無料は5件まで)
     'unlimited_media_uploads',      # 動画・画像アップロード無制限(無料は月3件)
-    'media_long_term_storage',      # メディア長期保管(31日以上前も閲覧可)
     'schedule_copy_next_week',      # 週の練習プランを来週へ一括コピー
     'unlimited_menu_sets',          # メニューセット無制限(無料は2件まで)
     'unlimited_monthly_goals',      # 個人の期間目標無制限(無料は2件まで)
