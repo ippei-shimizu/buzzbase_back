@@ -213,6 +213,36 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['game_result_ids']).to eq([game_result.id])
     end
+
+    context 'Pro 解約後の既存複数紐付け（グランドファザリング）' do
+      let(:note) { create(:baseball_note, user:, memo:, date: Date.current) }
+      let(:game_results) { create_list(:game_result, 3, user:) }
+
+      before { note.game_result_ids = game_results.map(&:id) }
+
+      it '無料ユーザーでも既存の3件をそのまま維持して更新できる' do
+        patch "/api/v2/baseball_notes/#{note.id}",
+              params: { baseball_note: { game_result_ids: game_results.map(&:id) } }, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['game_result_ids']).to match_array(game_results.map(&:id))
+      end
+
+      it '無料ユーザーでも既存の3件から減らして更新できる' do
+        patch "/api/v2/baseball_notes/#{note.id}",
+              params: { baseball_note: { game_result_ids: game_results.first(2).map(&:id) } },
+              headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['game_result_ids']).to match_array(game_results.first(2).map(&:id))
+      end
+
+      it '無料ユーザーが既存件数を超えて増やそうとすると403' do
+        added = create(:game_result, user:)
+        patch "/api/v2/baseball_notes/#{note.id}",
+              params: { baseball_note: { game_result_ids: (game_results.map(&:id) + [added.id]) } },
+              headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
   end
 
   describe 'GET /api/v2/baseball_notes（練習記録で絞り込み）' do
@@ -287,6 +317,28 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
             params: { baseball_note: { title: '更新後タイトル' } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['improvement_theme_ids']).to eq([theme.id])
+    end
+
+    context 'Pro 解約後の既存複数紐付け（グランドファザリング）' do
+      let(:note) { create(:baseball_note, user:, memo:, date: Date.current) }
+      let(:themes) { create_list(:improvement_theme, 3, user:) }
+
+      before { note.improvement_theme_ids = themes.map(&:id) }
+
+      it '無料ユーザーでも既存の3件をそのまま維持して更新できる' do
+        patch "/api/v2/baseball_notes/#{note.id}",
+              params: { baseball_note: { improvement_theme_ids: themes.map(&:id) } }, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['improvement_theme_ids']).to match_array(themes.map(&:id))
+      end
+
+      it '無料ユーザーが既存件数を超えて増やそうとすると403' do
+        added = create(:improvement_theme, user:)
+        patch "/api/v2/baseball_notes/#{note.id}",
+              params: { baseball_note: { improvement_theme_ids: (themes.map(&:id) + [added.id]) } },
+              headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
     end
   end
 end

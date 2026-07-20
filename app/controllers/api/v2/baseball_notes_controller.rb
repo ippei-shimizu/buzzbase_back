@@ -55,7 +55,8 @@ module Api
         game_result_ids = game_result_id_params
         theme_ids = improvement_theme_id_params
         return unless valid_links?(@note) && valid_note_tags?(tag_ids) &&
-                      valid_game_results?(game_result_ids) && valid_improvement_themes?(theme_ids)
+                      valid_game_results?(game_result_ids, @note.game_result_ids) &&
+                      valid_improvement_themes?(theme_ids, @note.improvement_theme_ids)
 
         saved = ActiveRecord::Base.transaction do
           next false unless @note.save
@@ -169,10 +170,13 @@ module Api
       end
 
       # 他ユーザーの試合には紐付けられない（IDOR 防止）。無料は1件、Pro は複数件紐付け可。
-      def valid_game_results?(game_result_ids)
+      # existing_ids は更新前の既存紐付け。Pro 解約後も既存の複数紐付けを維持・削減できるよう、
+      # 既存件数を超えて新規に増やす場合のみ Pro 判定する（グランドファザリング）。
+      def valid_game_results?(game_result_ids, existing_ids = [])
         return true if game_result_ids.blank?
 
-        if game_result_ids.size > 1 && !current_api_v1_user.has_entitlement?('multi_game_result_notes')
+        if game_result_ids.size > 1 && game_result_ids.size > existing_ids.size &&
+           !current_api_v1_user.has_entitlement?('multi_game_result_notes')
           render json: { error: '複数の試合記録への紐付けは Pro プラン限定です' }, status: :forbidden
           return false
         end
@@ -183,10 +187,13 @@ module Api
       end
 
       # 他ユーザーの課題には紐付けられない（IDOR 防止）。無料は1件、Pro は複数件紐付け可。
-      def valid_improvement_themes?(theme_ids)
+      # existing_ids は更新前の既存紐付け。Pro 解約後も既存の複数紐付けを維持・削減できるよう、
+      # 既存件数を超えて新規に増やす場合のみ Pro 判定する（グランドファザリング）。
+      def valid_improvement_themes?(theme_ids, existing_ids = [])
         return true if theme_ids.blank?
 
-        if theme_ids.size > 1 && !current_api_v1_user.has_entitlement?('multi_improvement_theme_links')
+        if theme_ids.size > 1 && theme_ids.size > existing_ids.size &&
+           !current_api_v1_user.has_entitlement?('multi_improvement_theme_links')
           render json: { error: '複数の課題への紐付けは Pro プラン限定です' }, status: :forbidden
           return false
         end
