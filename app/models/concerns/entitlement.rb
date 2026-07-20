@@ -13,7 +13,7 @@ module Entitlement
     'shadow_swing_basic',    # 素振りカウンター(基本): スイング回数の記録
     'practice_log_basic',    # 練習記録(基本): 練習内容のログ
     'grass_recent_30days',   # 草機能: 直近30日分のヒートマップ表示
-    'monthly_goal_single',   # 個人の期間目標（月次/週次/年間/カスタム）: 2つまで作成可
+    'monthly_goal_single',   # 個人の期間目標（月次/週次/年間）: 2つまで作成可。カスタム期間は Pro 限定（custom_period_goals）
     'schedule_single'        # 自主練スケジュール: 無料でも無制限に作成可
   ].freeze
 
