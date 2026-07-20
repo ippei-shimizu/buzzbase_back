@@ -41,6 +41,20 @@ RSpec.describe 'Api::V2::Schedules::WeekCopies', type: :request do
       expect(copied['menus'].first['practice_menu_id']).to eq(menu.id)
     end
 
+    it '2回連続で実行しても予定が重複しない（冪等）' do
+      make_pro(user)
+      create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-06', scheduled_time: '06:00')
+
+      post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:created)
+
+      expect do
+        post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)
+      end.not_to(change { user.schedules.count })
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body).to eq([])
+    end
+
     it 'コピー元の週に単発予定が無ければ空配列を返す' do
       make_pro(user)
       post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)

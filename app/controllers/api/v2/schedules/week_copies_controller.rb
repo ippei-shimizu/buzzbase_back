@@ -16,7 +16,7 @@ module Api
           return render json: { error: 'week_start が不正です' }, status: :unprocessable_entity if week_start.nil?
 
           copied = ActiveRecord::Base.transaction do
-            source_schedules(week_start).map { |schedule| copy_to_next_week(schedule) }
+            source_schedules(week_start).filter_map { |schedule| copy_to_next_week(schedule) }
           end
           render json: copied, each_serializer: ::V2::ScheduleSerializer, status: :created
         end
@@ -35,11 +35,15 @@ module Api
         end
 
         def copy_to_next_week(schedule)
+          target_date = schedule.planned_on + 7.days
+          # 連続実行での二重コピーを避け、コピー先に同一内容の予定が既にあればスキップする。
+          return nil if already_copied?(schedule, target_date)
+
           new_schedule = current_api_v1_user.schedules.create!(
             title: schedule.title,
             event_type: schedule.event_type,
             scheduled_time: schedule.scheduled_time,
-            planned_on: schedule.planned_on + 7.days,
+            planned_on: target_date,
             notification_enabled: schedule.notification_enabled,
             notification_message: schedule.notification_message,
             menu_set_id: schedule.menu_set_id
@@ -54,6 +58,16 @@ module Api
             )
           end
           new_schedule
+        end
+
+        def already_copied?(schedule, target_date)
+          current_api_v1_user.schedules.active.single.exists?(
+            planned_on: target_date,
+            title: schedule.title,
+            event_type: schedule.event_type,
+            scheduled_time: schedule.scheduled_time,
+            menu_set_id: schedule.menu_set_id
+          )
         end
       end
     end
