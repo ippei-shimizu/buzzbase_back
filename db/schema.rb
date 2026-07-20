@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_14_010006) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_20_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -1115,7 +1115,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_14_010006) do
   add_foreign_key "menu_set_items", "practice_menus"
   add_foreign_key "menu_sets", "users"
   add_foreign_key "note_game_links", "baseball_notes"
-  add_foreign_key "note_game_links", "game_results"
+  add_foreign_key "note_game_links", "game_results", on_delete: :cascade
   add_foreign_key "note_taggings", "baseball_notes"
   add_foreign_key "note_taggings", "note_tags"
   add_foreign_key "note_tags", "users"

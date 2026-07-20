@@ -7,6 +7,10 @@ class GameResult < ApplicationRecord
   has_many :plate_appearances, dependent: :destroy
   has_one :batting_average, dependent: :destroy
   has_one :pitching_result, dependent: :destroy
+  # 試合削除時にノート紐付け（note_game_links）も消す（ノート本体は独立レコードなので残る）。
+  # match_result 側の ON DELETE CASCADE が game_results 行を先に消すため、
+  # 中間リンクは DB 側の on_delete: :cascade で確実に除去する（本 dependent は直接削除経路の保険）。
+  has_many :note_game_links, dependent: :destroy
 
   def self.all_game_associated_data
     includes(:user, :match_result, :plate_appearances, :pitching_result)
