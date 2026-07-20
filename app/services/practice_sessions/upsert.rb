@@ -19,7 +19,7 @@ module PracticeSessions
     # @param improvement_theme_ids [Array<Integer, String>, nil] 紐付ける課題テーマ群（nilならテーマ紐付けを更新しない）
     # @param items [Array<Hash>] [{ practice_menu_id:, amount:, memo: }]
     # @param condition [Hash, nil] コンディション入力（nil なら更新しない）
-    def initialize(user:, logged_on:, memo: nil, improvement_theme_ids: nil, items: [], condition: nil) # rubocop:disable Metrics/ParameterLists
+    def initialize(user:, logged_on:, memo: nil, improvement_theme_ids: nil, items: [], condition: nil)
       @user = user
       @logged_on = logged_on
       @memo = memo
