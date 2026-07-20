@@ -44,9 +44,16 @@ module PracticeSessions
     private
 
     # 自分の課題テーマのみ紐付ける（他ユーザーの課題は無視）。無料は1件まで、Proは複数件可。
+    # Pro 解約後も既存の複数紐付けを維持・削減できるよう、既存件数を超えて新規に増やす場合のみ
+    # Pro 判定する（グランドファザリング）。session は find_or_create 済みで、
+    # ここでの session.improvement_theme_ids は更新前の既存値を表す。
     def assign_themes(session)
       owned_ids = @user.improvement_themes.where(id: @improvement_theme_ids).pluck(:id)
-      raise ThemeLimitExceeded if owned_ids.size > 1 && !@user.has_entitlement?('multi_improvement_theme_links')
+      existing_ids = session.improvement_theme_ids
+      if owned_ids.size > 1 && owned_ids.size > existing_ids.size &&
+         !@user.has_entitlement?('multi_improvement_theme_links')
+        raise ThemeLimitExceeded
+      end
 
       session.improvement_theme_ids = owned_ids
     end

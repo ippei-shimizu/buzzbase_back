@@ -124,6 +124,42 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
         expect(response).to have_http_status(:created)
         expect(response.parsed_body['improvement_theme_ids']).to eq([])
       end
+
+      context 'Pro 解約後の既存複数紐付け（グランドファザリング）' do
+        let(:themes) { create_list(:improvement_theme, 2, user:) }
+        let!(:session) do
+          session = create(:practice_session, user:, logged_on: today)
+          session.improvement_theme_ids = themes.map(&:id)
+          session
+        end
+
+        it '無料ユーザーでも既存の2件をそのまま維持して更新できる' do
+          post '/api/v2/practice_sessions',
+               params: { practice_session: { logged_on: today, items:, improvement_theme_ids: themes.map(&:id) } },
+               headers: auth_headers_for(user)
+          expect(response).to have_http_status(:created)
+          expect(response.parsed_body['improvement_theme_ids']).to match_array(themes.map(&:id))
+        end
+
+        it '無料ユーザーでも既存の2件から減らして更新できる' do
+          post '/api/v2/practice_sessions',
+               params: { practice_session: { logged_on: today, items:, improvement_theme_ids: [themes.first.id] } },
+               headers: auth_headers_for(user)
+          expect(response).to have_http_status(:created)
+          expect(response.parsed_body['improvement_theme_ids']).to eq([themes.first.id])
+        end
+
+        it '無料ユーザーが既存件数を超えて増やそうとすると403で更新全体がロールバックされる' do
+          added = create(:improvement_theme, user:)
+          post '/api/v2/practice_sessions',
+               params: { practice_session: { logged_on: today, memo: '書き換え', items:,
+                                             improvement_theme_ids: (themes.map(&:id) + [added.id]) } },
+               headers: auth_headers_for(user)
+          expect(response).to have_http_status(:forbidden)
+          expect(session.reload.memo).not_to eq('書き換え')
+          expect(session.improvement_theme_ids).to match_array(themes.map(&:id))
+        end
+      end
     end
   end
 
