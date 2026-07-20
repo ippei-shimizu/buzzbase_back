@@ -202,6 +202,17 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['game_result_ids']).to eq([new_game_result.id])
     end
+
+    it 'game_result_ids キー省略時は既存紐付けを維持する（部分更新での意図しない全消去を防止）' do
+      make_pro(user)
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      game_result = create(:game_result, user:)
+      note.game_result_ids = [game_result.id]
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { title: '更新後タイトル' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['game_result_ids']).to eq([game_result.id])
+    end
   end
 
   describe 'GET /api/v2/baseball_notes（練習記録で絞り込み）' do
@@ -266,6 +277,16 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
             params: { baseball_note: { improvement_theme_ids: [new_theme.id] } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body['improvement_theme_ids']).to eq([new_theme.id])
+    end
+
+    it 'improvement_theme_ids キー省略時は既存紐付けを維持する（部分更新での意図しない全消去を防止）' do
+      note = create(:baseball_note, user:, memo:, date: Date.current)
+      theme = create(:improvement_theme, user:)
+      note.improvement_theme_ids = [theme.id]
+      patch "/api/v2/baseball_notes/#{note.id}",
+            params: { baseball_note: { title: '更新後タイトル' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['improvement_theme_ids']).to eq([theme.id])
     end
   end
 end

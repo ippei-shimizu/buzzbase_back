@@ -39,9 +39,7 @@ module Api
         saved = ActiveRecord::Base.transaction do
           next false unless note.save
 
-          note.note_tag_ids = tag_ids
-          note.game_result_ids = game_result_ids
-          note.improvement_theme_ids = theme_ids
+          apply_links(note, tag_ids, game_result_ids, theme_ids)
           true
         end
         if saved
@@ -62,9 +60,7 @@ module Api
         saved = ActiveRecord::Base.transaction do
           next false unless @note.save
 
-          @note.note_tag_ids = tag_ids unless tag_ids.nil?
-          @note.game_result_ids = game_result_ids
-          @note.improvement_theme_ids = theme_ids
+          apply_links(@note, tag_ids, game_result_ids, theme_ids)
           true
         end
         if saved
@@ -81,6 +77,14 @@ module Api
 
       private
 
+      # 検証済みの ID 群を紐付けへ反映する。nil はキー未送信を表すため反映をスキップし、
+      # 既存紐付けを維持する（[] は明示的な全解除）。create では常に配列が渡る。
+      def apply_links(note, tag_ids, game_result_ids, theme_ids)
+        note.note_tag_ids = tag_ids unless tag_ids.nil?
+        note.game_result_ids = game_result_ids unless game_result_ids.nil?
+        note.improvement_theme_ids = theme_ids unless theme_ids.nil?
+      end
+
       def load_note
         @note = current_api_v1_user.baseball_notes.find(params[:id])
       end
@@ -93,14 +97,22 @@ module Api
 
       # 試合記録は has_many through の即時保存を避けるため mass-assign せず、
       # 所有・Pro 制限検証後に別途 game_result_ids= で反映する。
+      # update 時にキー自体が未送信なら nil を返し反映をスキップする（部分更新で既存紐付けを消さない）。
       def game_result_id_params
-        params.require(:baseball_note).fetch(:game_result_ids, []).map(&:to_i).uniq
+        baseball_note_params = params.require(:baseball_note)
+        return nil if action_name == 'update' && !baseball_note_params.key?(:game_result_ids)
+
+        baseball_note_params.fetch(:game_result_ids, []).map(&:to_i).uniq
       end
 
       # 課題は has_many through の即時保存を避けるため mass-assign せず、
       # 所有・Pro 制限検証後に別途 improvement_theme_ids= で反映する。
+      # update 時にキー自体が未送信なら nil を返し反映をスキップする（部分更新で既存紐付けを消さない）。
       def improvement_theme_id_params
-        params.require(:baseball_note).fetch(:improvement_theme_ids, []).map(&:to_i).uniq
+        baseball_note_params = params.require(:baseball_note)
+        return nil if action_name == 'update' && !baseball_note_params.key?(:improvement_theme_ids)
+
+        baseball_note_params.fetch(:improvement_theme_ids, []).map(&:to_i).uniq
       end
 
       # タグは has_many through の即時保存を避けるため mass-assign せず、
