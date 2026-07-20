@@ -15,12 +15,14 @@ module Stats
       'その他' => [5, 6, 11, 12, 17, 18, 19]
     }.freeze
 
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @year = year
       @match_type = match_type
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     def call
@@ -46,7 +48,8 @@ module Stats
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
+      scope = apply_tournament_filter(scope)
+      apply_date_range_filter(scope)
     end
   end
 end

@@ -20,6 +20,12 @@ module Stats
                     range_start, range_end)
       end
 
+      # 年月レンジ（@start_month / @end_month, "YYYY-MM"）で絞り込む。
+      # year フィルタと排他運用（フロント側で片方をクリア）だが、両方来ても AND 合成で破綻しない。
+      def apply_date_range_filter(scope)
+        PeriodRange.apply(scope, @start_month, @end_month)
+      end
+
       def apply_match_type_filter(scope)
         return scope if @match_type.blank? || @match_type == '全て'
 

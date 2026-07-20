@@ -94,7 +94,9 @@ module Api
           year: params[:year],
           match_type: convert_match_type(params[:match_type]),
           season_id: params[:season_id],
-          tournament_id: params[:tournament_id]
+          tournament_id: params[:tournament_id],
+          start_month: params[:start_month],
+          end_month: params[:end_month]
         }
       end
 

@@ -35,6 +35,17 @@ class MatchResult < ApplicationRecord
       .reverse
   end
 
+  # 試合データに紐づく年月を "YYYY-MM" で新しい順に返す（期間フィルタの候補用）。
+  # date_and_time は UTC 保存のため JST に揃えて抽出し、早朝の試合が前月に流れないようにする。
+  # @param user_ids [Array<Integer>, Integer] 単一ユーザーまたはグループメンバーの user_id 群
+  # @return [Array<String>] 例: ["2026-06", "2026-05", ...]
+  def self.available_months_for(user_ids)
+    where(user_id: user_ids)
+      .pluck(Arel.sql("DISTINCT TO_CHAR(#{Stats::JstDateSql::DATE_AND_TIME_JST_SQL}, 'YYYY-MM')"))
+      .sort
+      .reverse
+  end
+
   private
 
   # 更新後の日付に加え、date_and_time を変更した場合は変更前の日付も再計算する。

@@ -48,12 +48,13 @@ class GameResult < ApplicationRecord
     end
   end
 
-  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
+  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil, start_month: nil, end_month: nil)
     game_results = base_query(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
     game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
+    game_results = filter_by_date_range(game_results, start_month, end_month)
 
     map_game_results(game_results)
   end
@@ -87,6 +88,15 @@ class GameResult < ApplicationRecord
 
   def self.filter_by_tournament(game_results, tournament_id)
     game_results.where(match_results: { tournament_id: })
+  end
+
+  # 期間（年月レンジ "YYYY-MM"）で試合を絞る。start/end いずれか一方のみでも可（開放端）。
+  # filter_by_year と同じ hash 条件方式で match_results を auto-reference する。
+  def self.filter_by_date_range(game_results, start_month, end_month)
+    range = PeriodRange.range(start_month, end_month)
+    return game_results unless range
+
+    game_results.where(match_results: { date_and_time: range })
   end
 
   def self.map_game_results(game_results)
@@ -146,14 +156,17 @@ class GameResult < ApplicationRecord
   # @param user [User, Integer] Userオブジェクトまたはuser_id
   # @param year [String, nil] フィルタ対象の年度（"通算"の場合はフィルタなし）
   # @param match_type [String, nil] フィルタ対象の試合種別（"全て"の場合はフィルタなし）
+  # @param start_month [String, nil] 期間フィルタの開始年月 "YYYY-MM"（開放端可）
+  # @param end_month [String, nil] 期間フィルタの終了年月 "YYYY-MM"（開放端可）
   # @return [ActiveRecord::Relation<GameResult>] フィルタ済みの試合結果リレーション
-  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
+  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil,
+                                                 start_month: nil, end_month: nil)
     game_results = v2_game_associated_data_user(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
     game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
-    game_results
+    filter_by_date_range(game_results, start_month, end_month)
   end
 
   # 全ユーザーの試合一覧を関連データ付きで取得する（タイムライン表示向け）

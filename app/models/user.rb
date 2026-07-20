@@ -56,6 +56,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   has_many :note_tags, dependent: :destroy
   has_many :insight_combinations, dependent: :destroy
   has_many :periodic_reviews, dependent: :destroy
+  # 球場は match_results から共有参照される共有リソースのため、作成者削除時は破棄せず created_by_user_id を NULL にする
+  has_many :created_stadiums, class_name: 'Stadium', foreign_key: 'created_by_user_id', dependent: :nullify, inverse_of: :created_by_user
 
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable, :confirmable
