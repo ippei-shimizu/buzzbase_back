@@ -6,11 +6,13 @@ module Api
       def accept_invitation
         group_id = params[:id]
         invitation = GroupInvitation.find_by(group_id:, user_id: current_api_v1_user.id)
-        if invitation
+        if invitation.nil?
+          render json: { error: '招待状況が見つかりません' }, status: :not_found
+        elsif !current_api_v1_user.can_create_or_join_group?
+          render json: { error: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
+        else
           invitation.accepted!
           render json: { success: true }
-        else
-          render json: { error: '招待状況が見つかりません' }, status: :not_found
         end
       end
 

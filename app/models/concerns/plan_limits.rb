@@ -5,17 +5,17 @@
 module PlanLimits
   extend ActiveSupport::Concern
 
-  PRACTICE_MENU_FREE_LIMIT = 5
+  PRACTICE_MENU_FREE_LIMIT = 3
   MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH = 3
-  SCHEDULE_FREE_LIMIT = 3
   MENU_SET_FREE_LIMIT = 2
   MONTHLY_GOAL_FREE_LIMIT = 2
-  IMPROVEMENT_THEME_FREE_LIMIT = 1
+  IMPROVEMENT_THEME_FREE_LIMIT = 2
   REFLECTION_TEMPLATE_FREE_LIMIT = 1
   # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
   INSIGHT_COMBINATION_LIMIT = 20
+  GROUP_FREE_LIMIT = 1
 
-  # 練習メニューを新規作成できるか。無料は archived 以外5つまで。
+  # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
   # @return [Boolean]
   def can_create_practice_menu?
     return true if has_entitlement?('unlimited_practice_menus')
@@ -29,15 +29,6 @@ module PlanLimits
     return true if has_entitlement?('unlimited_media_uploads')
 
     media_attachments_count_this_month < MEDIA_UPLOAD_FREE_LIMIT_PER_MONTH
-  end
-
-  # 練習プランの割り当て（schedule）を新規作成できるか。
-  # 無料は active なものが単発・繰り返し合算で3つまで。
-  # @return [Boolean]
-  def can_create_schedule?
-    return true if has_entitlement?('unlimited_schedules')
-
-    active_schedules_count < SCHEDULE_FREE_LIMIT
   end
 
   # メニューセットを新規作成できるか。無料は2つまで。
@@ -68,12 +59,24 @@ module PlanLimits
     has_entitlement?('tournament_goals')
   end
 
-  # 課題テーマを新規作成できるか。無料は取組中（open）が1つまで。
+  # 課題テーマを新規作成できるか。無料は取組中（open）が2つまで。
   # @return [Boolean]
   def can_create_improvement_theme?
     return true if has_entitlement?('unlimited_improvement_themes')
 
     open_improvement_themes_count < IMPROVEMENT_THEME_FREE_LIMIT
+  end
+
+  # カスタム期間の個人目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_custom_period_goal?
+    has_entitlement?('custom_period_goals')
+  end
+
+  # 自由指標（手動更新）の目標を新規作成できるか。Pro 限定機能。
+  # @return [Boolean]
+  def can_create_manual_metric_goal?
+    has_entitlement?('manual_metric_goals')
   end
 
   # 振り返りテンプレを自作できるか。無料は1つまで。プリセット利用は本制限の対象外。
@@ -90,6 +93,16 @@ module PlanLimits
     insight_combinations.count < INSIGHT_COMBINATION_LIMIT
   end
 
+  # グループを新規作成・参加できるか。無料は所属（作成+参加の合算）が1件まで。
+  # 既に上限を超えて所属しているユーザーからグループを剥奪する処理ではないため、
+  # 既存の所属には一切影響しない（新規作成・参加のみをブロックする）。
+  # @return [Boolean]
+  def can_create_or_join_group?
+    return true if has_entitlement?('unlimited_groups')
+
+    accepted_groups_count < GROUP_FREE_LIMIT
+  end
+
   private
 
   # 各 Pro 機能 issue で実関連に差し替える。関連未実装のため現状は 0 を返す。
@@ -99,10 +112,6 @@ module PlanLimits
 
   def media_attachments_count_this_month
     0
-  end
-
-  def active_schedules_count
-    schedules.active.count
   end
 
   def menu_sets_count
@@ -121,5 +130,11 @@ module PlanLimits
   def custom_reflection_templates_count
     # 編集で置き換えられた旧版（archived）は上限に数えない。
     reflection_templates.where(archived_at: nil).count
+  end
+
+  # 所属グループ数（作成+参加の合算）。GroupInvitation の accepted が実際の所属を表す
+  # （User#groups は作成したグループのみを返すため使えない）。
+  def accepted_groups_count
+    group_invitations.accepted.count
   end
 end

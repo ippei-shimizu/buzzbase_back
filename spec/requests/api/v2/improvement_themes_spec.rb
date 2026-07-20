@@ -40,17 +40,17 @@ RSpec.describe 'Api::V2::ImprovementThemes', type: :request do
       expect(response.parsed_body['status']).to eq('open')
     end
 
-    it '無料は取組中2つ目が 403' do
-      create(:improvement_theme, user:, status: 'open')
-      post '/api/v2/improvement_themes', params: { improvement_theme: { title: '2つ目' } },
+    it '無料は取組中3つ目が 403' do
+      create_list(:improvement_theme, 2, user:, status: 'open')
+      post '/api/v2/improvement_themes', params: { improvement_theme: { title: '3つ目' } },
                                          headers: auth_headers_for(user)
       expect(response).to have_http_status(:forbidden)
     end
 
     it 'Pro は取組中を複数作成できる' do
       make_pro(user)
-      create(:improvement_theme, user:, status: 'open')
-      post '/api/v2/improvement_themes', params: { improvement_theme: { title: '2つ目' } },
+      create_list(:improvement_theme, 2, user:, status: 'open')
+      post '/api/v2/improvement_themes', params: { improvement_theme: { title: '3つ目' } },
                                          headers: auth_headers_for(user)
       expect(response).to have_http_status(:created)
     end

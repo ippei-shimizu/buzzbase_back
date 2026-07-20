@@ -1,10 +1,12 @@
 class PracticeSession < ApplicationRecord
   belongs_to :user
-  belongs_to :improvement_theme, optional: true
   # nullify だと after_commit（草・Streak 再計算）が発火せず集計が古いまま残るため destroy にする。
   has_many :practice_logs, dependent: :destroy
   # ノートは独立した記録なので、セッションを消しても紐付けだけ外して残す。
   has_many :baseball_notes, dependent: :nullify
+  # 課題は複数紐付け可（無料は1件・Proは複数、controller/service側で制限）。
+  has_many :practice_session_theme_links, dependent: :destroy
+  has_many :improvement_themes, through: :practice_session_theme_links
 
   validates :logged_on, presence: true
   validates :user_id, uniqueness: { scope: :logged_on }

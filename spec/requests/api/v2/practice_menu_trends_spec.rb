@@ -4,8 +4,19 @@ RSpec.describe 'Api::V2::PracticeMenuTrends', type: :request do
   let(:user) { create(:user) }
   let(:today) { Time.find_zone('Asia/Tokyo').today }
 
+  def make_pro(target)
+    target.subscription.update!(status: 'active', expires_at: 1.month.from_now)
+  end
+
   describe 'GET /api/v2/practice_menu_trends/:id' do
-    it 'メニューの年別・月別・日別の集計を返す' do
+    it '無料ユーザーは403（推移詳細は Pro 限定）' do
+      menu = create(:practice_menu, user:)
+      get "/api/v2/practice_menu_trends/#{menu.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーはメニューの年別・月別・日別の集計を返す' do
+      make_pro(user)
       menu = create(:practice_menu, user:, name: 'ベンチプレス', unit: 'weight_reps', category: 'strength')
       create(:practice_log, user:, practice_menu: menu, logged_on: today, amount: 10, weight: 60)
       create(:practice_log, user:, practice_menu: menu, logged_on: today, amount: 8, weight: 70)
@@ -21,6 +32,7 @@ RSpec.describe 'Api::V2::PracticeMenuTrends', type: :request do
     end
 
     it '他ユーザーのメニューは 404' do
+      make_pro(user)
       other = create(:practice_menu, user: create(:user))
       get "/api/v2/practice_menu_trends/#{other.id}", headers: auth_headers_for(user)
       expect(response).to have_http_status(:not_found)

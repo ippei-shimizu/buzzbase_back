@@ -1,10 +1,20 @@
 module V2
   class BaseballNoteSerializer < ActiveModel::Serializer
-    attributes :id, :title, :date, :memo, :memo_preview, :game_result_id, :practice_log_id, :practice_session_id,
-               :improvement_theme_id, :reflection_template_id, :reflection_answers, :tags
+    attributes :id, :title, :date, :memo, :memo_preview, :game_result_ids, :practice_log_id, :practice_session_id,
+               :improvement_theme_ids, :reflection_template_id, :reflection_answers, :tags
 
     def memo_preview
       object.extract_and_truncate_memo
+    end
+
+    def game_result_ids
+      # includes(:game_results) 済みの前提で N+1 を避ける。
+      object.game_results.map(&:id)
+    end
+
+    def improvement_theme_ids
+      # includes(:improvement_themes) 済みの前提で N+1 を避ける。
+      object.improvement_themes.map(&:id)
     end
 
     def tags

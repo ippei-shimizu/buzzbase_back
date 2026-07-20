@@ -3,6 +3,10 @@ require 'rails_helper'
 RSpec.describe 'Api::V2::NoteTags', type: :request do
   let(:user) { create(:user) }
 
+  def make_pro(target)
+    target.subscription.update!(status: 'active', expires_at: 1.month.from_now)
+  end
+
   describe 'GET /api/v2/note_tags' do
     before do
       create(:note_tag, :preset, name: '打撃')
@@ -25,13 +29,20 @@ RSpec.describe 'Api::V2::NoteTags', type: :request do
   end
 
   describe 'POST /api/v2/note_tags' do
-    it '自作タグを作成する' do
+    it '無料ユーザーは403' do
+      post '/api/v2/note_tags', params: { note_tag: { name: 'メンタル' } }, headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーは自作タグを作成する' do
+      make_pro(user)
       post '/api/v2/note_tags', params: { note_tag: { name: 'メンタル' } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:created)
       expect(response.parsed_body['name']).to eq('メンタル')
     end
 
-    it '同名は422' do
+    it 'Proユーザーでも同名は422' do
+      make_pro(user)
       create(:note_tag, user:, name: 'メンタル')
       post '/api/v2/note_tags', params: { note_tag: { name: 'メンタル' } }, headers: auth_headers_for(user)
       expect(response).to have_http_status(:unprocessable_entity)
