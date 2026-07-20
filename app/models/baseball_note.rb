@@ -11,6 +11,7 @@ class BaseballNote < ApplicationRecord
   has_many :game_results, through: :note_game_links
   has_many :note_theme_links, dependent: :destroy
   has_many :improvement_themes, through: :note_theme_links
+  has_many :media_attachments, -> { ordered }, dependent: :destroy, inverse_of: :baseball_note
 
   def extract_and_truncate_memo
     return '' if memo.blank?

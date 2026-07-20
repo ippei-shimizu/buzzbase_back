@@ -110,8 +110,9 @@ module PlanLimits
     practice_menus.where(archived: false).count
   end
 
+  # アップロード失敗分は無料枠を消費させないため除外する。
   def media_attachments_count_this_month
-    0
+    media_attachments.where(created_at: Time.current.all_month).where.not(status: 'failed').count
   end
 
   def menu_sets_count
