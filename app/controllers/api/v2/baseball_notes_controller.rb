@@ -1,7 +1,7 @@
 module Api
   module V2
     # 野球ノート（v2）。試合 / 練習への紐付けに対応（モデルA）。
-    # メディア（画像・動画）は別 PR。本コントローラはテキスト＋紐付けのみ。
+    # メディア（画像・動画）の作成・完了通知・削除は Api::V2::MediaAttachments 配下の別コントローラで扱う。
     class BaseballNotesController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
       before_action :load_note, only: %i[show update destroy]
@@ -9,7 +9,8 @@ module Api
       FILTERABLE_COLUMNS = %i[date practice_log_id practice_session_id].freeze
 
       def index
-        notes = current_api_v1_user.baseball_notes.includes(:note_tags, :game_results, :improvement_themes)
+        notes = current_api_v1_user.baseball_notes
+                                   .includes(:note_tags, :game_results, :improvement_themes, :media_attachments)
                                    .order(date: :desc, created_at: :desc)
         FILTERABLE_COLUMNS.each do |column|
           notes = notes.where(column => params[column]) if params[column].present?

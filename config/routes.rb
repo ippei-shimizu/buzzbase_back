@@ -297,6 +297,8 @@ Rails.application.routes.draw do
       resources :periodic_reviews, only: %i[index update]
       resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
       resources :insight_combinations, only: %i[create destroy]
+      resources :media_attachments, only: %i[update destroy]
+      post 'media_attachments/presign', to: 'media_attachments/presigns#create'
     end
   end
 
