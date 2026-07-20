@@ -30,7 +30,7 @@ module Api
         end
 
         def source_schedules(week_start)
-          current_api_v1_user.schedules.active.single
+          current_api_v1_user.schedules.active.single.includes(:schedule_menus)
                              .where(planned_on: week_start..(week_start + 6.days))
         end
 
