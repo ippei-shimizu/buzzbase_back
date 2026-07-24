@@ -276,7 +276,10 @@ Rails.application.routes.draw do
       resource :practice_overview, only: %i[show], controller: 'practice_overview'
       resources :shadow_swing_sessions, only: %i[create] do
         member { post :complete }
-        collection { get :stats }
+        collection do
+          get :stats
+          get :trend
+        end
       end
       resources :activity_logs, only: %i[index] do
         collection { get :streak }

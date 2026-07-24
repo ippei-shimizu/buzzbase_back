@@ -72,4 +72,29 @@ RSpec.describe 'Api::V2::ShadowSwingSessions', type: :request do
       expect(body['total_count']).to eq(150)
     end
   end
+
+  describe 'GET /api/v2/shadow_swing_sessions/trend' do
+    def make_pro(target)
+      target.subscription.update!(status: 'active', expires_at: 1.month.from_now)
+    end
+
+    it '無料ユーザーは403（推移詳細は Pro 限定）' do
+      get '/api/v2/shadow_swing_sessions/trend', headers: auth_headers_for(user)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'Proユーザーは素振りの年別・月別・日別の集計を返す' do
+      make_pro(user)
+      create(:practice_log, :shadow_swing, user:, logged_on: today, amount: 100)
+      create(:practice_log, :shadow_swing, user:, logged_on: today - 40, amount: 50)
+
+      get '/api/v2/shadow_swing_sessions/trend', headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      body = response.parsed_body
+      expect(body['menu']['name']).to eq('素振り')
+      expect(body['menu']['is_weight_reps']).to be(false)
+      expect(body['by_year'].first['period']).to eq(today.year.to_s)
+      expect(body['by_month'].first['total_amount'].to_f).to eq(100)
+    end
+  end
 end

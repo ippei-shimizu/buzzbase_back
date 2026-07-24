@@ -4,6 +4,7 @@ module Api
     # 開始時に作成し、完了時に練習ログを自動生成する。
     class ShadowSwingSessionsController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
+      before_action :require_trend_detail_entitlement, only: :trend
 
       # POST /api/v2/shadow_swing_sessions
       def create
@@ -38,7 +39,19 @@ module Api
         }, status: :ok
       end
 
+      # GET /api/v2/shadow_swing_sessions/trend
+      # 素振りの推移詳細は Pro 限定（メニュー推移詳細と同じ entitlement）。
+      def trend
+        render json: ::Practices::ShadowSwingTrend.new(current_api_v1_user).call, status: :ok
+      end
+
       private
+
+      def require_trend_detail_entitlement
+        return if current_api_v1_user.has_entitlement?('practice_menu_trend_detail')
+
+        render json: { error: 'メニュー推移の詳細表示は Pro プラン限定です' }, status: :forbidden
+      end
 
       def complete_params
         params.require(:shadow_swing_session).permit(:swing_count)
