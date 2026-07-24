@@ -37,7 +37,7 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
 
     it 'allows Pro users up to the pro video duration' do
       make_pro(user)
-      complete(attachment, { duration_seconds: 60, width: 1080, height: 1080, file_size_bytes: 8_000_000 })
+      complete(attachment, { duration_seconds: 180, width: 1080, height: 1080, file_size_bytes: 8_000_000 })
 
       expect(response).to have_http_status(:ok)
       expect(attachment.reload.status).to eq 'ready'

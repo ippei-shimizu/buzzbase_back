@@ -3,7 +3,7 @@ module MediaAttachments
   # 無料/Pro上限（動画長さ・解像度、画像サイズ）を再検証する。
   class LimitValidator
     FREE_VIDEO_MAX_DURATION = 30
-    PRO_VIDEO_MAX_DURATION = 60
+    PRO_VIDEO_MAX_DURATION = 180
     FREE_VIDEO_MAX_HEIGHT = 480
     PRO_VIDEO_MAX_HEIGHT = 1080
     FREE_IMAGE_MAX_BYTES = 5.megabytes
