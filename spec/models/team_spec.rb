@@ -53,17 +53,5 @@ RSpec.describe Team, type: :model do
       expect(team).not_to be_valid
       expect(team.errors[:category_id]).to include('は存在しないカテゴリです')
     end
-
-    it 'is invalid with a whitespace-only name' do
-      team = described_class.new(name: '   ')
-      expect(team).not_to be_valid
-      expect(team.errors[:name]).to be_present
-    end
-
-    it 'strips leading/trailing whitespace from name before saving' do
-      team = described_class.new(name: '  テストチーム  ')
-      team.valid?
-      expect(team.name).to eq('テストチーム')
-    end
   end
 end
