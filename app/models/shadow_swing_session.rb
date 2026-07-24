@@ -24,17 +24,33 @@ class ShadowSwingSession < ApplicationRecord
       if log
         log.update!(amount: log.amount.to_i + swing_count)
       else
+        menu = linked_menu
         log = user.practice_logs.create!(
-          practice_menu: nil,
+          practice_menu: menu,
           logged_on:,
           amount: swing_count,
           menu_name: MENU_NAME,
-          unit_label: UNIT_LABEL,
+          unit_label: menu&.unit_label || UNIT_LABEL,
           source: 'shadow_swing'
         )
       end
       update!(swing_count:, completed_at: Time.current, practice_log: log)
     end
     self
+  end
+
+  private
+
+  # 「素振り」という名前の練習メニューが既にあれば紐付け、積み上げ・推移を一本化する。
+  # 単位が「回数」以外の既存メニューは統合すると数値の意味が壊れるため紐付けない
+  # （その場合は practice_menu: nil のまま、従来通り別集計になる）。
+  # 該当メニューが無ければ「回数」単位で新規作成する。
+  # @return [PracticeMenu, nil]
+  def linked_menu
+    existing = user.practice_menus.find_by(name: MENU_NAME)
+    return existing if existing&.unit == 'count'
+    return nil if existing
+
+    user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
   end
 end
