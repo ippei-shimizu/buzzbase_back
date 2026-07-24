@@ -3,6 +3,8 @@ class Team < ApplicationRecord
   belongs_to :prefecture, optional: true
   has_one :user, foreign_key: 'user_id', primary_key: 'id', dependent: :destroy, inverse_of: :team
 
+  before_validation :strip_name
+
   validates :name, presence: true
   validates :category_id, numericality: { only_integer: true, greater_than: 0, allow_nil: true }
   validates :prefecture_id, numericality: { only_integer: true, greater_than: 0, allow_nil: true }
@@ -10,6 +12,12 @@ class Team < ApplicationRecord
   validate :category_must_exist
 
   private
+
+  # クライアント側のバリデーションが truthy チェックのみで空白のみの文字列を許容してしまうため、
+  # presence バリデーションの前提を満たすようサーバー側で trim する。
+  def strip_name
+    self.name = name.strip if name.is_a?(String)
+  end
 
   # prefecture_id がマスターに存在することを保証する。
   # numericality バリデーションを通り抜けた正の整数でも、prefectures テーブルに該当行が
