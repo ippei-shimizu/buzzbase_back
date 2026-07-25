@@ -138,12 +138,16 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
 
     context 'with an invalid reset_password_token' do
       it 'does not redirect to an authenticated URL' do
+        # devise_token_auth標準のrender_edit_errorはActionController::RoutingErrorを
+        # raiseするだけで明示的にrescueしていないため500になる（gem標準の挙動）。
+        # ここでは「認証済みURLへリダイレクトされない」ことを実際のステータスコードで
+        # 固定し、将来意図せず200/redirectへ変化した場合に検知できるようにする。
         get '/api/v1/auth/password/edit', params: {
           reset_password_token: 'invalid-token',
           redirect_url: 'http://localhost:8100/reset-password'
         }
 
-        expect(response).not_to have_http_status(:redirect)
+        expect(response).to have_http_status(:internal_server_error)
       end
     end
   end
