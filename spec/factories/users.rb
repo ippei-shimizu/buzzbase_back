@@ -13,5 +13,17 @@ FactoryBot.define do
       confirmation_token { Devise.friendly_token }
       confirmation_sent_at { Time.current }
     end
+
+    trait :google do
+      provider { 'google' }
+      password { nil }
+      password_confirmation { nil }
+    end
+
+    trait :apple do
+      provider { 'apple' }
+      password { nil }
+      password_confirmation { nil }
+    end
   end
 end
