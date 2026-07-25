@@ -39,8 +39,8 @@ module RedirectUrlWhitelistable
     return default_redirect_url if url.blank?
 
     uri = URI.parse(url)
-    params = URI.decode_www_form(uri.query || '') << [key, value]
-    uri.query = URI.encode_www_form(params)
+    query_params = URI.decode_www_form(uri.query || '') << [key, value]
+    uri.query = URI.encode_www_form(query_params)
     uri.to_s
   rescue URI::InvalidURIError => e
     Rails.logger.error("Invalid URL in add_query_param: #{url} - #{e.message}")
