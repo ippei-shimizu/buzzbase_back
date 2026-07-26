@@ -29,6 +29,15 @@ module Api
         return render json: { errors: ['既に完了処理済みです'] }, status: :unprocessable_entity unless @media_attachment.status == 'pending'
 
         @media_attachment.assign_attributes(completion_params)
+
+        actual_size = ::MediaAttachments::ObjectSizeFetcher.new(r2_key: @media_attachment.r2_key).call
+        if actual_size.nil?
+          @media_attachment.update!(status: 'failed')
+          return render json: { errors: ['アップロードが確認できませんでした'] }, status: :unprocessable_entity
+        end
+        # file_size_bytesはクライアントの自己申告値のため、R2上の実サイズで上書きしてから検証する。
+        @media_attachment.file_size_bytes = actual_size
+
         unless ::MediaAttachments::LimitValidator.new(user: current_api_v1_user, attachment: @media_attachment).valid?
           @media_attachment.update!(status: 'failed')
           return render json: { errors: ['アップロード可能な上限を超えています'] }, status: :unprocessable_entity

@@ -11,7 +11,16 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
   describe 'PATCH /api/v2/media_attachments/:id' do
     let(:attachment) { create(:media_attachment, :video, user:, baseball_note: note) }
 
-    def complete(attachment, params, headers: auth_headers_for(user))
+    # 実運用ではfile_size_bytesはR2上の実サイズで上書きされるため、テストでは
+    # head_objectがcontent_length: actual_sizeを返すものとしてスタブする
+    # （既定はparamsのfile_size_bytesと同じ値にし、既存の検証ロジックのテストに影響しない）。
+    def stub_r2_head_object(content_length:)
+      allow(MediaAttachments::PresignedUrlService.client).to receive(:head_object)
+        .and_return(instance_double(Aws::S3::Types::HeadObjectOutput, content_length:))
+    end
+
+    def complete(attachment, params, headers: auth_headers_for(user), actual_size: params[:file_size_bytes])
+      stub_r2_head_object(content_length: actual_size) if actual_size
       patch "/api/v2/media_attachments/#{attachment.id}", params: { media_attachment: params }, headers:
     end
 
@@ -54,6 +63,28 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(attachment.reload.memo).to eq '初回の所感'
+    end
+
+    it 'ignores a spoofed file_size_bytes and validates against the real R2 object size' do
+      image_attachment = create(:media_attachment, user:, baseball_note: note)
+      # 無料の画像上限(5MB)を回避しようと小さい値を自己申告しても、実際のR2オブジェクトサイズで検証される。
+      complete(image_attachment, { file_size_bytes: 100 }, actual_size: 8_000_000)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(image_attachment.reload.status).to eq 'failed'
+      expect(image_attachment.file_size_bytes).to eq 8_000_000
+    end
+
+    it 'marks as failed when the object cannot be found on R2' do
+      allow(MediaAttachments::PresignedUrlService.client).to receive(:head_object)
+        .and_raise(Aws::S3::Errors::NotFound.new(nil, 'not found'))
+
+      patch "/api/v2/media_attachments/#{attachment.id}",
+            params: { media_attachment: { duration_seconds: 10, width: 720, height: 480, file_size_bytes: 1_000 } },
+            headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(attachment.reload.status).to eq 'failed'
     end
   end
 
