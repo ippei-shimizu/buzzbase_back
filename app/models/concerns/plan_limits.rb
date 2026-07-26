@@ -14,6 +14,8 @@ module PlanLimits
   # 「練習と成績のつながり」の自作カード上限（機能自体が Pro 限定のため Pro 内での歯止め）。
   INSIGHT_COMBINATION_LIMIT = 20
   GROUP_FREE_LIMIT = 1
+  # PUT用署名URLの有効期限は10分だが、クライアント側の圧縮・アップロード時間を考慮して余裕を持たせる。
+  MEDIA_UPLOAD_STALE_PENDING_THRESHOLD = 1.hour
 
   # 練習メニューを新規作成できるか。無料は archived 以外3つまで。
   # @return [Boolean]
@@ -110,9 +112,14 @@ module PlanLimits
     practice_menus.where(archived: false).count
   end
 
-  # アップロード失敗分は無料枠を消費させないため除外する。
+  # アップロード失敗分に加え、クラッシュ・中断等で完了しないまま放置されたpendingも
+  # 無料枠を消費させないため除外する。
   def media_attachments_count_this_month
-    media_attachments.where(created_at: Time.current.all_month).where.not(status: 'failed').count
+    media_attachments
+      .where(created_at: Time.current.all_month)
+      .where.not(status: 'failed')
+      .where('status != ? OR created_at > ?', 'pending', MEDIA_UPLOAD_STALE_PENDING_THRESHOLD.ago)
+      .count
   end
 
   def menu_sets_count

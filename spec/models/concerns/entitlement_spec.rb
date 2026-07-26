@@ -136,5 +136,15 @@ RSpec.describe Entitlement, type: :model do
       create_list(:media_attachment, 3, :ready, user:, baseball_note: note)
       expect(user.can_upload_media_this_month?).to be true
     end
+
+    it 'excludes pending attachments older than the stale threshold' do
+      travel_to(2.hours.ago) { create_list(:media_attachment, 3, user:, baseball_note: note) }
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'counts pending attachments still within the stale threshold' do
+      create_list(:media_attachment, 3, user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be false
+    end
   end
 end
