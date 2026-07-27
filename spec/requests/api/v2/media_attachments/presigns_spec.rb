@@ -50,6 +50,13 @@ RSpec.describe 'Api::V2::MediaAttachments::Presigns', type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
+    it 'returns unprocessable_entity when media_type and content_type do not match' do
+      # media_type: 'image'で動画を送ると、complete_upload時にLimitValidatorが
+      # valid_image?（file_size_bytesのみ）に流れ、動画の長さ・解像度チェックを回避できてしまう。
+      presign(media_attachment: { baseball_note_id: note.id, media_type: 'image', content_type: 'video/mp4' })
+      expect(response).to have_http_status(:unprocessable_entity)
+    end
+
     context 'monthly limit' do
       before do
         create_list(:media_attachment, 3, :ready, user:, baseball_note: note)
