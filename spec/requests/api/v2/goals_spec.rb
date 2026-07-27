@@ -168,6 +168,20 @@ RSpec.describe 'Api::V2::Goals', type: :request do
       expect(goal.reload.period_type).to eq('monthly')
       expect(goal.title).to eq('変更')
     end
+
+    it '更新で指標（metric_key / comparison_type / practice_menu_id）は変更できない' do
+      goal = create(:goal, user:, metric_key: 'practice_days', comparison_type: 'greater_than', practice_menu_id: nil)
+      other_menu = create(:practice_menu, user:)
+      patch "/api/v2/goals/#{goal.id}",
+            params: { goal: { metric_key: 'batting_average', comparison_type: 'less_than', practice_menu_id: other_menu.id } },
+            headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      aggregate_failures do
+        expect(goal.reload.metric_key).to eq('practice_days')
+        expect(goal.comparison_type).to eq('greater_than')
+        expect(goal.practice_menu_id).to be_nil
+      end
+    end
   end
 
   describe '定性目標（qualitative）' do

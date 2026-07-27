@@ -77,11 +77,11 @@ module Api
                                      :custom_metric_label, :custom_unit, :manual_current_value)
       end
 
-      # 更新では種類（period_type / season_id）を変更させない。
+      # 更新では種類（period_type / season_id）と指標（metric_key / comparison_type / practice_menu_id）を変更させない。
+      # 指標を差し替えると既存の target_value / manual_current_value が新指標に対して無意味になるため。
       def update_params
         params.require(:goal).permit(:title, :month_start, :deadline,
-                                     :metric_key, :target_value, :comparison_type, :practice_menu_id,
-                                     :custom_metric_label, :custom_unit, :manual_current_value)
+                                     :target_value, :custom_metric_label, :custom_unit, :manual_current_value)
       end
     end
   end
