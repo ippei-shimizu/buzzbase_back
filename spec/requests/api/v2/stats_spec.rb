@@ -6,6 +6,10 @@ RSpec.describe 'Api::V2::Stats', type: :request do
   let(:user) { create(:user) }
   let(:headers) { auth_headers_for(user) }
 
+  def make_pro(target)
+    target.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+  end
+
   before do
     gr = create(:game_result, user:)
     gr.match_result.update!(
@@ -221,7 +225,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/count_situations', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/count_situations', headers:)
 
       expect(response).to have_http_status(:ok)
@@ -256,7 +266,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with rows for all 10 master pitch types + total_target_pa' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_types', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows for all 10 master pitch types + total_target_pa for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/pitch_types', headers:)
 
       expect(response).to have_http_status(:ok)
@@ -276,7 +292,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with rows + total_target_pa + min_plate_appearances' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitcher_faceoffs', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows + total_target_pa + min_plate_appearances for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/pitcher_faceoffs', headers:)
 
       expect(response).to have_http_status(:ok)

@@ -44,7 +44,11 @@ module Entitlement
     'manual_metric_goals', # 自由指標(手動更新)の目標設定(無料は利用不可)
     'shadow_swing_custom_interval', # 素振りカウンターのインターバル自由設定(無料は5〜10秒のみ)
     'shadow_swing_vibration', # 素振りカウンターのバイブレーション設定(無料は利用不可)
-    'unlimited_groups' # グループ作成・参加を無制限に(無料は所属1件まで)
+    'unlimited_groups', # グループ作成・参加を無制限に(無料は所属1件まで)
+    'hit_direction_average', # 方向別の打率(打球方向ごとのヒートマップ)
+    'count_situation_average', # カウント別の打率(初球・有利・追い込み等)
+    'pitch_type_average', # 球種別の打率(ストレート・変化球等)
+    'pitcher_faceoff_average' # 対戦投手別の打撃成績
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze

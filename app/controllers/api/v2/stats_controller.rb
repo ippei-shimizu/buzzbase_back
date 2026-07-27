@@ -4,6 +4,16 @@ module Api
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!
       before_action :authorize_target_user!
+      before_action :require_entitlement!, only: %i[count_situations pitch_types pitcher_faceoffs]
+
+      # 成績内訳の詳細のうちPro限定の3項目（カウント別・球種別・対戦投手別）に必要なentitlement。
+      # hit_directions は無料機能のSprayChart（打球方向散布図）も同じレスポンスを使うため
+      # エンドポイント自体は無料開放のままにし、詳細テーブル表示のみmobile側でPro判定する。
+      ENTITLEMENT_BY_ACTION = {
+        count_situations: 'count_situation_average',
+        pitch_types: 'pitch_type_average',
+        pitcher_faceoffs: 'pitcher_faceoff_average'
+      }.freeze
 
       def hit_directions
         render json: Stats::HitDirectionAggregator.new(**aggregator_params).call
@@ -120,6 +130,15 @@ module Api
       # render 後に Rails が後続 action を自動で止めるため、明示 return は不要。
       def authorize_target_user!
         render_forbidden_if_private!(target_user)
+      end
+
+      # entitlementは閲覧者（current_api_v1_user）のPro加入状況で判定する
+      # （他ユーザーの成績を見る場合も、詳細内訳を見られるかは自分のプラン次第）。
+      def require_entitlement!
+        feature = ENTITLEMENT_BY_ACTION[action_name.to_sym]
+        return if current_api_v1_user.has_entitlement?(feature)
+
+        render json: { error: 'この機能は Pro プラン限定です' }, status: :forbidden
       end
     end
   end
