@@ -6,10 +6,6 @@ RSpec.describe 'Api::V2::Stats', type: :request do
   let(:user) { create(:user) }
   let(:headers) { auth_headers_for(user) }
 
-  def make_pro(target)
-    target.subscription.update!(status: 'active', expires_at: 30.days.from_now)
-  end
-
   before do
     gr = create(:game_result, user:)
     gr.match_result.update!(
