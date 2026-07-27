@@ -33,5 +33,36 @@ RSpec.describe ShadowSwingSession, type: :model do
         expect(logs.first.amount).to eq(150)
       end
     end
+
+    it '「素振り」という回数単位の練習メニューが無ければ自動作成して紐付ける' do
+      session = create(:shadow_swing_session, user:)
+
+      expect { session.complete!(swing_count: 120) }
+        .to change { user.practice_menus.where(name: '素振り', unit: 'count').count }.from(0).to(1)
+      log = user.practice_logs.find_by(source: 'shadow_swing')
+      expect(log.practice_menu).to eq(user.practice_menus.find_by(name: '素振り'))
+    end
+
+    it '既存の「素振り」メニューが回数単位なら紐付けて積み上げを統合する' do
+      menu = create(:practice_menu, user:, name: '素振り', unit: 'count', unit_label: '回')
+      session = create(:shadow_swing_session, user:)
+
+      session.complete!(swing_count: 120)
+
+      log = user.practice_logs.find_by(source: 'shadow_swing')
+      expect(log.practice_menu).to eq(menu)
+      expect(log.unit_label).to eq('回')
+    end
+
+    it '既存の「素振り」メニューが回数以外の単位なら紐付けない（統合しない）' do
+      create(:practice_menu, user:, name: '素振り', unit: 'minutes')
+      session = create(:shadow_swing_session, user:)
+
+      session.complete!(swing_count: 120)
+
+      log = user.practice_logs.find_by(source: 'shadow_swing')
+      expect(log.practice_menu_id).to be_nil
+      expect(log.unit_label).to eq('本')
+    end
   end
 end

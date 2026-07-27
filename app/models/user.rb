@@ -34,6 +34,7 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
                                  dependent: :destroy, inverse_of: :actor
   has_many :device_tokens, dependent: :destroy
   has_many :baseball_notes, dependent: :destroy
+  has_many :media_attachments, dependent: :destroy
   has_many :match_results, dependent: :destroy
   has_many :seasons, dependent: :destroy
   has_many :game_results, dependent: :destroy

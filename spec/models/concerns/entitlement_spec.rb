@@ -4,11 +4,11 @@ RSpec.describe Entitlement, type: :model do
   let(:user) { create(:user) }
 
   describe 'feature key constants' do
-    it 'defines exactly 10 free features and 27 pro features' do
+    it 'defines exactly 10 free features and 26 pro features' do
       # %w[] とインラインコメントの混在で feature key が壊れる回帰を防ぐ
       expect(described_class::FREE_FEATURES.size).to eq 10
-      expect(described_class::PRO_FEATURES.size).to eq 27
-      expect(described_class::ALL_FEATURES.size).to eq 37
+      expect(described_class::PRO_FEATURES.size).to eq 26
+      expect(described_class::ALL_FEATURES.size).to eq 36
     end
 
     it 'contains only valid feature key strings (no stray symbols)' do
@@ -105,6 +105,46 @@ RSpec.describe Entitlement, type: :model do
       2.times { GroupInvitation.create!(user:, group: create(:group), state: 'accepted', sent_at: Time.current) }
       expect { user.can_create_or_join_group? }.not_to(change { user.group_invitations.accepted.count })
       expect(user.group_invitations.accepted.count).to eq 2
+    end
+  end
+
+  describe '#can_upload_media_this_month?' do
+    let(:note) { create(:baseball_note, user:) }
+
+    it 'returns true for a free user below the monthly limit' do
+      create_list(:media_attachment, 2, :ready, user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'returns false for a free user who reached the monthly limit' do
+      create_list(:media_attachment, 3, :ready, user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be false
+    end
+
+    it 'excludes failed attachments from the monthly count' do
+      create_list(:media_attachment, 3, :ready, status: 'failed', user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'excludes attachments created in a previous month' do
+      travel_to(1.month.ago) { create_list(:media_attachment, 3, :ready, user:, baseball_note: note) }
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'returns true for a Pro user beyond the monthly limit' do
+      user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      create_list(:media_attachment, 3, :ready, user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'excludes pending attachments older than the stale threshold' do
+      travel_to(2.hours.ago) { create_list(:media_attachment, 3, user:, baseball_note: note) }
+      expect(user.can_upload_media_this_month?).to be true
+    end
+
+    it 'counts pending attachments still within the stale threshold' do
+      create_list(:media_attachment, 3, user:, baseball_note: note)
+      expect(user.can_upload_media_this_month?).to be false
     end
   end
 end

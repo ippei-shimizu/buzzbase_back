@@ -3,6 +3,8 @@ module V2
     attributes :id, :title, :date, :memo, :memo_preview, :game_result_ids, :practice_log_id, :practice_session_id,
                :improvement_theme_ids, :reflection_template_id, :reflection_answers, :tags
 
+    has_many :media_attachments, serializer: ::V2::MediaAttachmentSerializer
+
     def memo_preview
       object.extract_and_truncate_memo
     end

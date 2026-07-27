@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_20_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_21_150618) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -149,6 +149,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_20_010001) do
     t.bigint "practice_session_id"
     t.jsonb "reflection_answers", default: [], null: false
     t.bigint "reflection_template_id"
+    t.integer "media_attachments_count", default: 0, null: false
     t.index ["practice_log_id"], name: "index_baseball_notes_on_practice_log_id"
     t.index ["practice_session_id"], name: "index_baseball_notes_on_practice_session_id"
     t.index ["reflection_template_id"], name: "index_baseball_notes_on_reflection_template_id"
@@ -417,6 +418,26 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_20_010001) do
     t.index ["opponent_team_id"], name: "index_match_results_on_opponent_team_id"
     t.index ["stadium_id"], name: "index_match_results_on_stadium_id"
     t.index ["user_id"], name: "index_match_results_on_user_id"
+  end
+
+  create_table "media_attachments", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "baseball_note_id", null: false
+    t.string "media_type", null: false
+    t.string "r2_key", null: false
+    t.string "thumbnail_r2_key"
+    t.integer "file_size_bytes"
+    t.integer "duration_seconds"
+    t.integer "width"
+    t.integer "height"
+    t.integer "position", default: 0, null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "memo"
+    t.index ["baseball_note_id"], name: "index_media_attachments_on_baseball_note_id"
+    t.index ["user_id", "created_at"], name: "index_media_attachments_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_media_attachments_on_user_id"
   end
 
   create_table "menu_set_items", force: :cascade do |t|
@@ -1111,6 +1132,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_20_010001) do
   add_foreign_key "match_results", "teams", column: "my_team_id"
   add_foreign_key "match_results", "teams", column: "opponent_team_id"
   add_foreign_key "match_results", "users"
+  add_foreign_key "media_attachments", "baseball_notes"
+  add_foreign_key "media_attachments", "users"
   add_foreign_key "menu_set_items", "menu_sets"
   add_foreign_key "menu_set_items", "practice_menus"
   add_foreign_key "menu_sets", "users"

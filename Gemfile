@@ -60,6 +60,9 @@ gem 'dotenv'
 
 gem 'fog-aws'
 
+# Cloudflare R2（S3互換）への署名URL発行専用。CarrierWave + fog-aws（アバター等）とは別系統で、混在させない。
+gem 'aws-sdk-s3', require: false
+
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
   gem 'debug', platforms: %i[mri mingw x64_mingw]
