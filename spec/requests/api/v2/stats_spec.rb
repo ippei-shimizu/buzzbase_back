@@ -434,4 +434,20 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       end
     end
   end
+
+  describe 'entitlementは閲覧者(current_api_v1_user)基準で判定される' do
+    let(:target_user) { create(:user) }
+
+    it 'returns 403 when a free viewer requests a Pro target user stats' do
+      make_pro(target_user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 when a Pro viewer requests a free target user stats' do
+      make_pro(user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:ok)
+    end
+  end
 end
