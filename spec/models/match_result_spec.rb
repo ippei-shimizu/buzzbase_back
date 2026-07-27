@@ -17,6 +17,15 @@ RSpec.describe MatchResult, type: :model do
     it { should validate_presence_of(:opponent_team_score) }
     it { should validate_presence_of(:inning_format) }
 
+    it 'does not allow a second match_result for the same game_result_id' do
+      # game_result factory の after(:create) が match_result を自動作成するため、
+      # create(:match_result) を直接呼ぶと二重作成になり別のバリデーションエラーが先に発生する。
+      existing_game_result = create(:game_result)
+      duplicate = build(:match_result, game_result: existing_game_result, user: existing_game_result.user)
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:game_result_id]).to be_present
+    end
+
     it 'validates inning_format inclusion with the Japanese locale message' do
       expect(described_class.new).to validate_inclusion_of(:inning_format)
         .in_array([7, 9])
