@@ -4,8 +4,6 @@ module Api
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!
       before_action :authorize_target_user!
-      before_action :require_entitlement!, only: %i[count_situations pitch_types pitcher_faceoffs]
-
       # 成績内訳の詳細のうちPro限定の3項目（カウント別・球種別・対戦投手別）に必要なentitlement。
       # hit_directions は無料機能のSprayChart（打球方向散布図）も同じレスポンスを使うため
       # エンドポイント自体は無料開放のままにし、詳細テーブル表示のみmobile側でPro判定する。
@@ -14,6 +12,7 @@ module Api
         pitch_types: 'pitch_type_average',
         pitcher_faceoffs: 'pitcher_faceoff_average'
       }.freeze
+      before_action :require_entitlement!, only: ENTITLEMENT_BY_ACTION.keys
 
       def hit_directions
         render json: Stats::HitDirectionAggregator.new(**aggregator_params).call
