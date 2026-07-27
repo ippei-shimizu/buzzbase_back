@@ -30,7 +30,6 @@ module Entitlement
     'season_goals',                 # シーズン目標(無料は利用不可)
     'tournament_goals',             # 大会目標(無料は利用不可)
     'custom_notification_messages', # カスタム通知メッセージの設定
-    'advanced_goal_tracking',       # 高度な目標トラッキング(達成率の詳細推移)
     'detailed_condition_log',       # 詳細コンディションログ(体調・気分の詳細記録)
     'unlimited_improvement_themes', # 課題テーマ無制限(無料は取組中2つまで)
     'correlation_insights',         # 相関インサイト(練習量・コンディション×成績の傾向)
@@ -44,7 +43,11 @@ module Entitlement
     'manual_metric_goals', # 自由指標(手動更新)の目標設定(無料は利用不可)
     'shadow_swing_custom_interval', # 素振りカウンターのインターバル自由設定(無料は5〜10秒のみ)
     'shadow_swing_vibration', # 素振りカウンターのバイブレーション設定(無料は利用不可)
-    'unlimited_groups' # グループ作成・参加を無制限に(無料は所属1件まで)
+    'unlimited_groups', # グループ作成・参加を無制限に(無料は所属1件まで)
+    'hit_direction_average', # 方向別の打率(打球方向ごとのヒートマップ)
+    'count_situation_average', # カウント別の打率(初球・有利・追い込み等)
+    'pitch_type_average', # 球種別の打率(ストレート・変化球等)
+    'pitcher_faceoff_average' # 対戦投手別の打撃成績
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze

@@ -4,11 +4,11 @@ RSpec.describe Entitlement, type: :model do
   let(:user) { create(:user) }
 
   describe 'feature key constants' do
-    it 'defines exactly 10 free features and 26 pro features' do
+    it 'defines exactly 10 free features and 29 pro features' do
       # %w[] とインラインコメントの混在で feature key が壊れる回帰を防ぐ
       expect(described_class::FREE_FEATURES.size).to eq 10
-      expect(described_class::PRO_FEATURES.size).to eq 26
-      expect(described_class::ALL_FEATURES.size).to eq 36
+      expect(described_class::PRO_FEATURES.size).to eq 29
+      expect(described_class::ALL_FEATURES.size).to eq 39
     end
 
     it 'contains only valid feature key strings (no stray symbols)' do
