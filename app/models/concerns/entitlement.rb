@@ -30,7 +30,6 @@ module Entitlement
     'season_goals',                 # シーズン目標(無料は利用不可)
     'tournament_goals',             # 大会目標(無料は利用不可)
     'custom_notification_messages', # カスタム通知メッセージの設定
-    'advanced_goal_tracking',       # 高度な目標トラッキング(達成率の詳細推移)
     'detailed_condition_log',       # 詳細コンディションログ(体調・気分の詳細記録)
     'unlimited_improvement_themes', # 課題テーマ無制限(無料は取組中2つまで)
     'correlation_insights',         # 相関インサイト(練習量・コンディション×成績の傾向)
