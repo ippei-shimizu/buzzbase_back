@@ -23,5 +23,17 @@ RSpec.describe RevenueCat::SubscriberClient do
 
       expect { described_class.new.fetch_subscriber('123') }.to raise_error(described_class::RequestFailedError)
     end
+
+    it 'converts a read timeout into RequestFailedError instead of leaking a raw Net::ReadTimeout' do
+      allow(Net::HTTP).to receive(:start).and_raise(Net::ReadTimeout)
+
+      expect { described_class.new.fetch_subscriber('123') }.to raise_error(described_class::RequestFailedError)
+    end
+
+    it 'converts a connection refusal into RequestFailedError' do
+      allow(Net::HTTP).to receive(:start).and_raise(Errno::ECONNREFUSED)
+
+      expect { described_class.new.fetch_subscriber('123') }.to raise_error(described_class::RequestFailedError)
+    end
   end
 end

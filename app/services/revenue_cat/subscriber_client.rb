@@ -11,6 +11,13 @@ module RevenueCat
 
     class RequestFailedError < StandardError; end
 
+    # タイムアウト・接続断・TLSエラー等はRequestFailedErrorへ変換し、
+    # 呼び出し側(SyncController)が一律 bad_gateway として扱えるようにする。
+    NETWORK_ERRORS = [
+      Timeout::Error, Errno::ECONNREFUSED, Errno::ECONNRESET, SocketError, OpenSSL::SSL::SSLError,
+      Net::OpenTimeout, Net::ReadTimeout, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError, Net::ProtocolError
+    ].freeze
+
     # @param app_user_id [String] RevenueCatのapp_user_id(このアプリではuser.id.to_sを使う)
     # @return [Hash] `subscriber` 配下のHash
     def self.fetch_subscriber(app_user_id)
@@ -23,13 +30,16 @@ module RevenueCat
       request['Authorization'] = "Bearer #{secret_key}"
       request['Content-Type'] = 'application/json'
 
-      response = Net::HTTP.start(uri.host, uri.port, use_ssl: true, read_timeout: TIMEOUT_SECONDS) do |http|
+      response = Net::HTTP.start(uri.host, uri.port,
+                                 use_ssl: true, open_timeout: TIMEOUT_SECONDS, read_timeout: TIMEOUT_SECONDS) do |http|
         http.request(request)
       end
 
       raise RequestFailedError, "RevenueCat API returned #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
       JSON.parse(response.body)['subscriber'] || {}
+    rescue *NETWORK_ERRORS => e
+      raise RequestFailedError, "RevenueCat API request failed: #{e.message}"
     end
 
     private
