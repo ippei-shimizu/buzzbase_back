@@ -6,8 +6,8 @@ module Api
     class PlansController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
 
-      # 無料ユーザーのカレンダー俯瞰は「直近月中心」に閲覧範囲を絞る(前後15日)。
-      FREE_CALENDAR_WINDOW_DAYS = 15
+      # 無料ユーザーのカレンダー俯瞰は「直近月中心」に閲覧範囲を絞る(前後3ヶ月)。
+      FREE_CALENDAR_WINDOW_MONTHS = 3
 
       def by_date
         date = parse_date(params[:date])
@@ -26,8 +26,8 @@ module Api
 
         unless current_api_v1_user.has_entitlement?('schedule_calendar_full_history')
           today = Time.find_zone('Asia/Tokyo').today
-          from = [from, today - FREE_CALENDAR_WINDOW_DAYS].max
-          to = [to, today + FREE_CALENDAR_WINDOW_DAYS].min
+          from = [from, today - FREE_CALENDAR_WINDOW_MONTHS.months].max
+          to = [to, today + FREE_CALENDAR_WINDOW_MONTHS.months].min
         end
 
         entries = (from..to).flat_map do |date|

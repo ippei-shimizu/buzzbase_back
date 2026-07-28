@@ -96,9 +96,9 @@ RSpec.describe 'Api::V2::Plans', type: :request do
     end
 
     context '無料ユーザーの閲覧範囲(直近月中心)' do
-      it '前後15日を超える未来の予定はクランプされて含まれない' do
+      it '前後3ヶ月を超える未来の予定はクランプされて含まれない' do
         today = Time.zone.today
-        far_future = today + 40
+        far_future = today + 4.months
         create(:schedule, user:, title: '遠い未来の予定', days_of_week: nil, planned_on: far_future)
 
         get '/api/v2/plans/calendar',
@@ -112,7 +112,7 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       it 'schedule_calendar_full_historyを持つProユーザーはクランプされない' do
         make_pro(user)
         today = Time.zone.today
-        far_future = today + 40
+        far_future = today + 4.months
         create(:schedule, user:, title: '遠い未来の予定', days_of_week: nil, planned_on: far_future)
 
         get '/api/v2/plans/calendar',
