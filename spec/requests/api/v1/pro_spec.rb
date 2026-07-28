@@ -53,7 +53,9 @@ RSpec.describe 'Api::V1::Pro', type: :request do
     end
 
     context 'when authenticated' do
-      it 'updates last_synced_at and returns current state' do
+      it 'fetches the current RevenueCat subscriber state, updates last_synced_at, and returns it' do
+        allow(RevenueCat::SubscriberClient).to receive(:fetch_subscriber).with(user.id.to_s).and_return({})
+
         expect do
           post '/api/v1/pro/sync', headers: auth_headers_for(user)
         end.to change { user.subscription.reload.last_synced_at }.from(nil)
@@ -62,6 +64,36 @@ RSpec.describe 'Api::V1::Pro', type: :request do
         json = response.parsed_body
         expect(json['subscription']['status']).to eq 'free'
         expect(json['entitlements']).to be_an(Array)
+      end
+
+      it 'reflects an active RevenueCat entitlement into the subscription' do
+        allow(RevenueCat::SubscriberClient).to receive(:fetch_subscriber).with(user.id.to_s).and_return(
+          'entitlements' => {
+            'pro' => {
+              'product_identifier' => 'buzzbase_pro_monthly',
+              'purchase_date' => 1.day.ago.iso8601,
+              'expires_date' => 29.days.from_now.iso8601
+            }
+          },
+          'subscriptions' => {
+            'buzzbase_pro_monthly' => { 'store' => 'app_store', 'period_type' => 'NORMAL' }
+          }
+        )
+
+        post '/api/v1/pro/sync', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['subscription']['status']).to eq 'active'
+      end
+
+      it 'returns bad_gateway when the RevenueCat API request fails' do
+        allow(RevenueCat::SubscriberClient).to receive(:fetch_subscriber)
+          .and_raise(RevenueCat::SubscriberClient::RequestFailedError, 'RevenueCat API returned 500')
+
+        post '/api/v1/pro/sync', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:bad_gateway)
+        expect(response.parsed_body['error']).to eq 'revenuecat_api_error'
       end
     end
   end

@@ -93,13 +93,39 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with trend array' do
+    it 'returns 200 with granularity (default month) + points array' do
       get('/api/v2/stats/era_trend', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
-      expect(json['trend']).to be_an(Array)
-      expect(json['trend'].first).to include('month', 'era') if json['trend'].any?
+      expect(json['granularity']).to eq('month')
+      expect(json['points']).to be_an(Array)
+      expect(json['points'].first).to include('key', 'label', 'era') if json['points'].any?
+    end
+
+    it 'returns 403 for granularity=season when the user is free' do
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    context 'Pro ユーザー' do
+      before { make_pro(user) }
+
+      it 'returns season-granularity points for a Pro user' do
+        season1 = create(:season, user:, name: '2026春')
+        season2 = create(:season, user:, name: '2026夏')
+        game1 = create(:game_result, user:, season: season1)
+        game2 = create(:game_result, user:, season: season2)
+        create(:pitching_result, game_result: game1, user:, innings_pitched: 6, earned_run: 2)
+        create(:pitching_result, game_result: game2, user:, innings_pitched: 6, earned_run: 3)
+
+        get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['granularity']).to eq('season')
+        expect(json['points'].pluck('label')).to contain_exactly('2026春', '2026夏')
+      end
     end
   end
 

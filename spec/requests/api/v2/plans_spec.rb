@@ -81,6 +81,8 @@ RSpec.describe 'Api::V2::Plans', type: :request do
     end
 
     it '期間内の予定を日別エントリで返す' do
+      # 無料の閲覧範囲クランプ(直近月中心)の影響を受けないようにする。日付自体はテスト対象外。
+      make_pro(user)
       create(:schedule, user:, title: '朝練', days_of_week: '1', scheduled_time: '06:00')
       create(:schedule, user:, title: '試合', days_of_week: nil, planned_on: '2026-07-08', event_type: 'game')
 
@@ -91,6 +93,35 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       expect(dates).to include('2026-07-06', '2026-07-08')
       game_entry = entries.find { |entry| entry['event_type'] == 'game' }
       expect(game_entry['title']).to eq('試合')
+    end
+
+    context '無料ユーザーの閲覧範囲(直近月中心)' do
+      it '前後3ヶ月を超える未来の予定はクランプされて含まれない' do
+        today = Time.zone.today
+        far_future = today + 4.months
+        create(:schedule, user:, title: '遠い未来の予定', days_of_week: nil, planned_on: far_future)
+
+        get '/api/v2/plans/calendar',
+            params: { from: today.iso8601, to: (far_future + 1).iso8601 },
+            headers: auth_headers_for(user)
+
+        dates = response.parsed_body['entries'].pluck('date')
+        expect(dates).not_to include(far_future.iso8601)
+      end
+
+      it 'schedule_calendar_full_historyを持つProユーザーはクランプされない' do
+        make_pro(user)
+        today = Time.zone.today
+        far_future = today + 4.months
+        create(:schedule, user:, title: '遠い未来の予定', days_of_week: nil, planned_on: far_future)
+
+        get '/api/v2/plans/calendar',
+            params: { from: today.iso8601, to: (far_future + 1).iso8601 },
+            headers: auth_headers_for(user)
+
+        dates = response.parsed_body['entries'].pluck('date')
+        expect(dates).to include(far_future.iso8601)
+      end
     end
   end
 end
