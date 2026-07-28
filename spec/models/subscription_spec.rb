@@ -46,31 +46,6 @@ RSpec.describe Subscription, type: :model do
       subscription = build(:subscription, :active, expires_at: nil)
       expect(subscription.pro_active?).to be true
     end
-
-    context 'when development 環境の admin ユーザー(強制 Pro モード)' do
-      it 'returns true for a free status admin user in development' do
-        allow(Rails.env).to receive(:development?).and_return(true)
-        admin = create(:user, is_admin: true)
-        subscription = build(:subscription, :free, owner: admin)
-
-        expect(subscription.pro_active?).to be true
-      end
-
-      it 'returns false for a free status admin user outside development' do
-        admin = create(:user, is_admin: true)
-        subscription = build(:subscription, :free, owner: admin)
-
-        expect(subscription.pro_active?).to be false
-      end
-
-      it 'returns false for a free status non-admin user in development' do
-        allow(Rails.env).to receive(:development?).and_return(true)
-        non_admin = create(:user, is_admin: false)
-        subscription = build(:subscription, :free, owner: non_admin)
-
-        expect(subscription.pro_active?).to be false
-      end
-    end
   end
 
   describe '#in_trial?' do

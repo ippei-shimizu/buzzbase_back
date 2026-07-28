@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_28_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_07_21_150618) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -1059,7 +1059,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_28_010001) do
     t.string "suspended_reason"
     t.boolean "is_private", default: false, null: false
     t.datetime "last_management_notice_read_at"
-    t.boolean "is_admin", default: false, null: false
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

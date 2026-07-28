@@ -30,10 +30,8 @@ class Subscription < ApplicationRecord
 
   # Pro 機能が利用可能か。
   # 期限内かつ status が trial / active / cancelled / billing_issue のとき true。
-  # development 環境の admin ユーザーは課金なしで常に Pro 扱いにする(強制 Pro モード)。
   # @return [Boolean]
   def pro_active?
-    return true if Rails.env.development? && user.is_admin?
     return false unless PRO_ACTIVE_STATUSES.include?(status)
 
     expires_at.nil? || expires_at > Time.current
