@@ -41,6 +41,9 @@ module Insights
     def build_card(spec)
       paired = paired_weeks(spec[:input_series], spec[:metric_series])
       return insufficient_card(spec, paired.size) if paired.size < MIN_PAIRED_WEEKS
+      # 入力値に変動が無い（例: 素振りを一度もしていないユーザーは全週 0）場合、
+      # 上位群/下位群への分割自体に意味が無く、出てくる差は入力とは無関係なノイズになる。
+      return insufficient_card(spec, paired.size) if paired.pluck(:input).uniq.size < 2
 
       low, high = split_by_input_median(paired)
       diff = mean(high.pluck(:metric)) - mean(low.pluck(:metric))
@@ -161,7 +164,11 @@ module Insights
       logs = @user.activity_logs.where(activity_date: window_start..)
       logs.group_by { |log| log.activity_date.beginning_of_week }.each do |week_start, week_logs|
         inputs[week_start][:total_swings] = week_logs.sum(&:total_swing_count)
-        inputs[week_start][:practice_days] = week_logs.count { |log| log.intensity_level >= 1 }
+        # intensity_level は試合のみの日も L4 として含む（草・Streak向けの定義）ため、
+        # ここでの「練習した日数」には使えない。練習メニュー実施 or 素振りがあった日だけを数える。
+        inputs[week_start][:practice_days] = week_logs.count do |log|
+          log.practice_menu_count.positive? || log.total_swing_count.positive?
+        end
       end
     end
 
