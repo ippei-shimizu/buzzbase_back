@@ -294,6 +294,7 @@ Rails.application.routes.draw do
         collection { get :history }
         resource :achievement, only: %i[create destroy], controller: 'goals/achievements'
       end
+      resources :goal_badges, only: %i[index]
       resources :baseball_notes, only: %i[index show create update destroy]
       resources :improvement_themes, only: %i[index create update destroy]
       resources :reflection_templates, only: %i[index create update destroy]
