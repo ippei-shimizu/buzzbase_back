@@ -21,6 +21,12 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
         expect(json['following_count']).not_to be_nil
         expect(json['followers_count']).not_to be_nil
       end
+
+      it 'does not leak the internal is_admin flag' do
+        get '/api/v1/users/show_user_id_data', params: { user_id: public_user.user_id }
+
+        expect(response.parsed_body['user']).not_to have_key('is_admin')
+      end
     end
 
     context 'when viewing a private user as a follower' do
@@ -200,6 +206,14 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
       public_result = json.find { |u| u['user_id'] == 'publicuser' }
       expect(private_result['is_private']).to be true
       expect(public_result['is_private']).to be false
+    end
+
+    it 'does not leak the internal is_admin flag' do
+      public_user
+
+      get '/api/v1/users/search', params: { query: 'user' }
+
+      expect(response.parsed_body).to all(satisfy { |u| !u.key?('is_admin') })
     end
   end
 end
