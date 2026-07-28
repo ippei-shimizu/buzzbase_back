@@ -45,6 +45,8 @@ module RevenueCat
 
     private
 
+    # デフォルト値を持たせない意図: 秘密鍵の設定漏れは一過性のネットワーク障害ではなく
+    # デプロイ設定のミスのため、502(RequestFailedError)で揉み消さずKeyErrorで即座に気付けるようにする。
     def secret_key
       ENV.fetch('REVENUECAT_SECRET_API_KEY')
     end
