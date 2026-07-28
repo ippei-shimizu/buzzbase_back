@@ -107,6 +107,28 @@ RSpec.describe RevenueCat::SubscriberSync do
           expect(subscription.cancelled_at).to be_present
         end
       end
+
+      it 'PlanCatalogに未登録のproduct_idの場合は更新をスキップしSentryへ警告する' do
+        stub_entitlement(entitlement_overrides: { 'product_identifier' => 'unknown_product' })
+        allow(Sentry).to receive(:capture_message)
+
+        subscription = described_class.new(user).call
+
+        expect(subscription.status).to eq('free')
+        expect(subscription.plan_type).to be_nil
+        expect(Sentry).to have_received(:capture_message).with(/unknown product_id/, level: :warning)
+      end
+
+      it 'PlanCatalogに未登録のstoreの場合は更新をスキップしSentryへ警告する' do
+        stub_entitlement(subscription_overrides: { 'store' => 'unknown_store' })
+        allow(Sentry).to receive(:capture_message)
+
+        subscription = described_class.new(user).call
+
+        expect(subscription.status).to eq('free')
+        expect(subscription.platform).to be_nil
+        expect(Sentry).to have_received(:capture_message).with(/unknown product_id/, level: :warning)
+      end
     end
   end
 end

@@ -30,8 +30,25 @@ module RevenueCat
     def apply_entitlement(subscription, subscriber, entitlement)
       product_id = entitlement['product_identifier']
       subscription_detail = subscriber.dig('subscriptions', product_id) || {}
+      store = subscription_detail['store'].to_s.upcase
+      return if unknown_product?(product_id, store)
 
       subscription.update!(attributes_for(subscription, product_id, subscription_detail, entitlement))
+    end
+
+    # PlanCatalogに未登録のproduct_id/storeが来た場合、plan_type/platformにnilを
+    # 静かに保存してしまうとWebhookのHandler群(unknown_product?で更新自体をスキップする)
+    # と挙動が非対称になる。Webhookと同様に更新を丸ごとスキップしSentryへ警告する。
+    def unknown_product?(product_id, store)
+      plan_type_missing = PlanCatalog.plan_type_from(product_id).nil?
+      platform_missing = PlanCatalog.platform_from(store).nil?
+      return false unless plan_type_missing || platform_missing
+
+      Sentry.capture_message(
+        "RevenueCat sync: unknown product_id=#{product_id.inspect} or store=#{store.inspect}",
+        level: :warning
+      )
+      true
     end
 
     def attributes_for(subscription, product_id, subscription_detail, entitlement)
