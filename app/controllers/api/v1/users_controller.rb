@@ -36,7 +36,7 @@ module Api
 
         if user.profile_visible_to?(current_api_v1_user)
           render json: {
-            user: user.as_json(except: :is_admin),
+            user: user.as_json,
             isFollowing: is_following,
             follow_status:,
             following_count: user.following_count,
@@ -67,9 +67,7 @@ module Api
       end
 
       def show
-        # is_admin は development の強制Proモード判定にのみ使う内部フラグのため、
-        # 旧クライアントも使うv1のレスポンス形(golden snapshot)には含めない。
-        render json: current_api_v1_user, except: :is_admin
+        render json: current_api_v1_user
       end
 
       def update
@@ -123,7 +121,7 @@ module Api
         users = User.where('name LIKE ? OR user_id LIKE ?', "%#{query}%", "%#{query}%")
                     .order(created_at: :desc)
         render json: users.map { |user|
-          user.as_json(except: :is_admin).merge(is_private: user.is_private?)
+          user.as_json.merge(is_private: user.is_private?)
         }
       end
 
