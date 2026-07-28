@@ -45,7 +45,9 @@ module RevenueCat
         platform: PlanCatalog.platform_from(subscription_detail['store'].to_s.upcase),
         product_id:,
         started_at: parse_time(entitlement['purchase_date']) || subscription.started_at,
-        expires_at:,
+        # Subscription#pro_active? / #in_grace_period? はこのカラムで期限内かを判定するため、
+        # グレース期間中はグレース期限を保存する(webhook Handlerと同様、グレース中はPro機能を維持する)。
+        expires_at: effective_expires_at,
         cancelled_at: parse_time(subscription_detail['unsubscribe_detected_at']) || subscription.cancelled_at,
         refunded_at: parse_time(subscription_detail['refunded_at']) || subscription.refunded_at,
         billing_issue_at: parse_time(subscription_detail['billing_issues_detected_at']) || subscription.billing_issue_at,

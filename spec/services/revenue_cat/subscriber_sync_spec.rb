@@ -69,7 +69,7 @@ RSpec.describe RevenueCat::SubscriberSync do
         expect(subscription.status).to eq('expired')
       end
 
-      it '期限切れでもグレース期間内ならactiveのまま扱う' do
+      it '期限切れでもグレース期間内ならactiveのまま扱い、pro_active?も維持する' do
         stub_entitlement(
           entitlement_overrides: {
             'expires_date' => 1.day.ago.iso8601,
@@ -77,7 +77,14 @@ RSpec.describe RevenueCat::SubscriberSync do
           }
         )
         subscription = described_class.new(user).call
-        expect(subscription.status).to eq('active')
+
+        aggregate_failures do
+          expect(subscription.status).to eq('active')
+          # expires_atにグレース期限ではなく本来のexpires_dateだけを保存すると、
+          # pro_active?/in_grace_period?が期限切れ判定してしまい、statusと矛盾する。
+          expect(subscription.pro_active?).to be true
+          expect(subscription.expires_at).to be > Time.current
+        end
       end
 
       it 'billing_issues_detected_atがあればbilling_issueにする' do
