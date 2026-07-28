@@ -10,7 +10,7 @@
   "introduction": "null",
   "is_private": "Boolean",
   "last_login_at": "null",
-  "last_management_notice_read_at": "null",
+  "last_management_notice_read_at": "String",
   "name": "String",
   "positions": [
     {
