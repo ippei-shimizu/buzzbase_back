@@ -6,6 +6,9 @@ module Api
     class PlansController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
 
+      # 無料ユーザーのカレンダー俯瞰は「直近月中心」に閲覧範囲を絞る(前後15日)。
+      FREE_CALENDAR_WINDOW_DAYS = 15
+
       def by_date
         date = parse_date(params[:date])
         return render json: { error: 'date が不正です' }, status: :unprocessable_entity if date.nil?
@@ -20,6 +23,12 @@ module Api
         from = parse_date(params[:from])
         to = parse_date(params[:to])
         return render json: { error: 'from / to が不正です' }, status: :unprocessable_entity if from.nil? || to.nil? || to < from
+
+        unless current_api_v1_user.has_entitlement?('schedule_calendar_full_history')
+          today = Time.find_zone('Asia/Tokyo').today
+          from = [from, today - FREE_CALENDAR_WINDOW_DAYS].max
+          to = [to, today + FREE_CALENDAR_WINDOW_DAYS].min
+        end
 
         entries = (from..to).flat_map do |date|
           plans_on(date).map do |schedule|
