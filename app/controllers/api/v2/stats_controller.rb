@@ -69,7 +69,7 @@ module Api
         end
 
         render json: Stats::BattingTrendAggregator.new(
-          **aggregator_params, granularity: params[:granularity]
+          **batting_trend_params, granularity: params[:granularity]
         ).call
       end
 
@@ -107,6 +107,15 @@ module Api
           start_month: params[:start_month],
           end_month: params[:end_month]
         }
+      end
+
+      # granularity=season はシーズン跨ぎで全シーズンを比較する機能のため、
+      # season_id による単一シーズン絞り込みと併用すると1シーズンに縮退してしまう。
+      # season 粒度選択時は season_id を無視する。
+      def batting_trend_params
+        return aggregator_params unless params[:granularity].to_s == 'season'
+
+        aggregator_params.merge(season_id: nil)
       end
 
       # batting / pitching テーブル用は period (mode) を追加で受け取り、
