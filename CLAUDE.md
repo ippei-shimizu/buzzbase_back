@@ -22,6 +22,12 @@ docker compose exec back bundle exec rails db:seed  # シードデータ投入
 docker compose exec back bundle exec rails routes  # ルーティング確認
 ```
 
+### マイグレーションを戻すとき
+
+- **`rails db:schema:load` は開発環境のデータを全て削除する**（`schema.rb` の `force: :cascade` で全テーブルがdrop&再作成される）。マイグレーションを1つ戻したいだけの場合には絶対に使わない
+- 特定のマイグレーションだけを戻したい場合は `rails db:rollback` または `rails db:migrate:down VERSION=xxxxx` を使う。これなら他のテーブル・データには影響しない
+- データを削除しうるDB操作（`schema:load`、`db:reset`、`db:drop` 等）を実行する前は、必ず内容を説明してユーザーに確認する
+
 ## テスト
 
 ```bash
