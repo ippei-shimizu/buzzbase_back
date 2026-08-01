@@ -58,5 +58,65 @@ RSpec.describe RevenueCat::Handlers::BaseHandler do
         expect(handler.yielded_subscription).not_to be_persisted
       end
     end
+
+    context 'ブロックが after_unlock に処理を積んだとき' do
+      # 通知などの外部 I/O をロック内に持ち込まないことを、トランザクションのネスト深さで検証する。
+      # spec 全体が transactional fixture のトランザクション内で走るため、絶対値ではなく
+      # 「ロック中より解放後の方が浅い」という相対比較で判定する。
+      let(:handler_class) do
+        Class.new(described_class) do
+          attr_reader :depth_in_lock, :depth_after_unlock, :executed
+
+          def call
+            with_resolved_subscription do |_user, subscription, after_unlock|
+              @depth_in_lock = ActiveRecord::Base.connection.open_transactions
+              subscription.update!(last_synced_at: Time.current)
+              after_unlock << lambda {
+                @executed = true
+                @depth_after_unlock = ActiveRecord::Base.connection.open_transactions
+              }
+            end
+          end
+        end
+      end
+
+      before do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      end
+
+      it 'ロック（トランザクション）解放後に実行する' do
+        handler = handler_class.new(payload)
+        handler.call
+
+        expect(handler.executed).to be(true)
+        expect(handler.depth_after_unlock).to be < handler.depth_in_lock
+      end
+    end
+
+    context 'ブロックが next でスキップしたとき' do
+      let(:handler_class) do
+        Class.new(described_class) do
+          attr_reader :executed
+
+          def call
+            with_resolved_subscription do |_user, _subscription, after_unlock|
+              after_unlock << -> { @executed = true }
+              next
+            end
+          end
+        end
+      end
+
+      before do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      end
+
+      it 'next 到達前に積まれた処理は実行される（積む位置で制御する契約であることを明示）' do
+        handler = handler_class.new(payload)
+        handler.call
+
+        expect(handler.executed).to be(true)
+      end
+    end
   end
 end

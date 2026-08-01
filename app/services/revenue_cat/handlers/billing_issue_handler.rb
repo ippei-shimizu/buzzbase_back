@@ -3,7 +3,7 @@ module RevenueCat
     # BILLING_ISSUE は課金失敗。Grace Period 中は Pro 機能利用可なので expires_at は変えない。
     class BillingIssueHandler < BaseHandler
       def call
-        with_resolved_subscription do |user, subscription|
+        with_resolved_subscription do |user, subscription, after_unlock|
           # Job リトライによる時刻ズレを避けるため、billing_issue_at は Webhook payload のイベント時刻を採用する。
           subscription.update!(
             status: 'billing_issue',
@@ -11,7 +11,7 @@ module RevenueCat
             last_synced_at: Time.current
           )
           event_recorder.record(user, subscription, 'billing_issue')
-          BillingIssueNotificationJob.perform_now(user.id)
+          after_unlock << -> { BillingIssueNotificationJob.perform_now(user.id) }
         end
       end
     end
