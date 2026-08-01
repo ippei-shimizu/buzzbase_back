@@ -4,7 +4,7 @@ module RevenueCat
     # billing_issue → active への遷移時は recovered イベントも同時に記録する。
     class RenewalHandler < BaseHandler
       def call
-        with_resolved_subscription do |user, subscription|
+        with_resolved_subscription do |user, subscription, after_unlock|
           new_expires_at = payload.expiration_at
           next if outdated_event?(subscription.expires_at, new_expires_at)
 
@@ -13,7 +13,7 @@ module RevenueCat
           event_recorder.record(user, subscription, 'renewed')
           if was_billing_issue
             record_recovery(user, subscription)
-            RecoveredNotificationJob.perform_now(user.id)
+            after_unlock << -> { RecoveredNotificationJob.perform_now(user.id) }
           end
         end
       end

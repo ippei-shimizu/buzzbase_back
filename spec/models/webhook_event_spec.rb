@@ -42,6 +42,33 @@ RSpec.describe WebhookEvent, type: :model do
         expect(result.status).to eq('processed')
       end
     end
+
+    context '同一イベントが同時到達し INSERT がユニーク制約に競合したとき' do
+      let!(:existing) do
+        create(:webhook_event,
+               provider: 'revenuecat',
+               external_event_id: event_id,
+               status: 'pending')
+      end
+
+      before do
+        # find_or_create_by! の SELECT 時点では未登録 → INSERT 時に相手方が先に
+        # コミット済み、という同時到達の敗者側を RecordNotUnique の raise で再現する。
+        allow(described_class).to receive(:find_or_create_by!)
+          .and_raise(ActiveRecord::RecordNotUnique)
+      end
+
+      it '例外にせず、先勝ちした既存レコードを返す' do
+        result = described_class.find_or_create_pending!(
+          provider: 'revenuecat',
+          external_event_id: event_id,
+          event_type: 'INITIAL_PURCHASE',
+          payload:
+        )
+
+        expect(result.id).to eq(existing.id)
+      end
+    end
   end
 
   describe '#mark_processed!' do

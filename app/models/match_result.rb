@@ -50,10 +50,14 @@ class MatchResult < ApplicationRecord
 
   # 更新後の日付に加え、date_and_time を変更した場合は変更前の日付も再計算する。
   # 旧日付の activity_log（試合ありの強度）が古いまま残るのを防ぐ。
+  # after_commit の同期実行のため、再計算の失敗が試合結果の保存レスポンス自体を
+  # 失敗させないよう rescue で分離し、Sentry への記録に留める。
   def recalculate_activity
     [date_and_time, previous_date_and_time].compact.uniq.each do |time|
       Activities::DailyActivityRecalculator.new(user_id:, date: time.in_time_zone('Asia/Tokyo').to_date).call
     end
+  rescue StandardError => e
+    Sentry.capture_exception(e, tags: { source: 'match_result_recalculate_activity' })
   end
 
   def previous_date_and_time

@@ -22,7 +22,7 @@ module Entitlement
     'no_ads',                       # 広告非表示
     'season_transition_graph',      # シーズン跨ぎ成績推移グラフ(複数シーズン比較)
     'grass_full_history',           # 草機能: 全期間ヒートマップ表示
-    'unlimited_practice_menus',     # 練習メニュー無制限(無料は5件まで)
+    'unlimited_practice_menus',     # 練習メニュー無制限(無料は3件まで: PlanLimits::PRACTICE_MENU_FREE_LIMIT)
     'unlimited_media_uploads',      # 動画・画像アップロード無制限(無料は月3件)
     'schedule_copy_next_week',      # 週の練習プランを来週へ一括コピー
     'unlimited_menu_sets',          # メニューセット無制限(無料は2件まで)
