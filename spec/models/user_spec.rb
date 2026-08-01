@@ -590,4 +590,18 @@ RSpec.describe User, type: :model do
       end
     end
   end
+
+  describe '#last_management_notice_read_at initialization' do
+    it 'sets it to the registration time on create so pre-existing notices are not treated as unread' do
+      user = create(:user)
+      expect(user.last_management_notice_read_at).to be_present
+      expect(user.last_management_notice_read_at).to be_within(5.seconds).of(user.created_at)
+    end
+
+    it 'does not overwrite an explicitly given value' do
+      given_time = 3.days.ago
+      user = create(:user, last_management_notice_read_at: given_time)
+      expect(user.last_management_notice_read_at).to be_within(1.second).of(given_time)
+    end
+  end
 end

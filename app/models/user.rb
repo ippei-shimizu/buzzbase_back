@@ -93,6 +93,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   end
 
   before_validation :normalize_user_id
+  # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
+  before_create :initialize_last_management_notice_read_at
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -216,6 +218,10 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
 
   def normalize_user_id
     self.user_id = nil if user_id.blank?
+  end
+
+  def initialize_last_management_notice_read_at
+    self.last_management_notice_read_at ||= Time.current
   end
 
   def notify_slack_new_user
