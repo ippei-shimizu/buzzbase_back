@@ -8,6 +8,8 @@ class WebhookEvent < ApplicationRecord
 
   # provider × external_event_id をキーに pending な受信レコードを取得する。
   # 既存レコードがあれば status を書き換えず返す（同一イベント二重受信時の冪等性確保）。
+  # 同一イベントが同時到達すると find_or_create_by! は SELECT → INSERT の間で競合し
+  # RecordNotUnique になりうるため、rescue して勝者の既存行を返す（500 を防ぐ）。
   # @return [WebhookEvent]
   def self.find_or_create_pending!(provider:, external_event_id:, event_type:, payload:)
     find_or_create_by!(provider:, external_event_id:) do |we|
@@ -16,6 +18,8 @@ class WebhookEvent < ApplicationRecord
       we.received_at = Time.current
       we.status = 'pending'
     end
+  rescue ActiveRecord::RecordNotUnique
+    find_by!(provider:, external_event_id:)
   end
 
   STATUSES.each do |status_name|
