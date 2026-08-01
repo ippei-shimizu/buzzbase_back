@@ -318,7 +318,9 @@ RSpec.describe RevenueCat::WebhookProcessor do
 
     context 'EXPIRATION を受信したとき' do
       let(:user) { create(:user) }
-      let(:payload) { revenuecat_payload_for('expiration', user:) }
+      let(:existing_expires_at) { Time.zone.parse('2026-07-01 12:00 JST') }
+      let(:overrides) { { expiration_at_ms: existing_expires_at.to_i * 1000 } }
+      let(:payload) { revenuecat_payload_for('expiration', user:, **overrides) }
       let(:webhook_event) do
         create(:webhook_event,
                provider: 'revenuecat',
@@ -336,7 +338,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 60.days.ago,
-          expires_at: 1.day.ago,
+          expires_at: existing_expires_at,
           cancelled_at: 10.days.ago
         )
       end
@@ -354,6 +356,32 @@ RSpec.describe RevenueCat::WebhookProcessor do
         allow(SubscriptionExpiredNotificationJob).to receive(:perform_now)
         process!
         expect(SubscriptionExpiredNotificationJob).to have_received(:perform_now).with(user.id)
+      end
+
+      context '新しい RENEWAL で expires_at が延長された後に古い EXPIRATION が届いたとき（順序逆転）' do
+        let(:existing_expires_at) { Time.zone.parse('2026-09-01 12:00 JST') }
+        let(:overrides) do
+          { expiration_at_ms: Time.zone.parse('2026-07-01 12:00 JST').to_i * 1000 }
+        end
+
+        before do
+          user.subscription.update!(status: 'active', cancelled_at: nil)
+        end
+
+        it 'status を expired に落とさない' do
+          process!
+          expect(user.reload.subscription.status).to eq('active')
+        end
+
+        it 'UserSubscriptionEvent も記録しない（純粋スキップ）' do
+          expect { process! }.not_to(change { user.user_subscription_events.count })
+        end
+
+        it 'SubscriptionExpiredNotificationJob を呼び出さない' do
+          allow(SubscriptionExpiredNotificationJob).to receive(:perform_now)
+          process!
+          expect(SubscriptionExpiredNotificationJob).not_to have_received(:perform_now)
+        end
       end
     end
 
