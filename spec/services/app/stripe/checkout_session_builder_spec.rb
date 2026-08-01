@@ -12,15 +12,11 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
     allow(ENV).to receive(:fetch).and_call_original
     allow(ENV).to receive(:fetch).with('STRIPE_PRICE_ID_MONTHLY').and_return('price_monthly_test_123')
     allow(ENV).to receive(:fetch).with('STRIPE_PRICE_ID_YEARLY').and_return('price_yearly_test_456')
-    allow(ENV).to receive(:fetch).with('EARLY_SUBSCRIBER_WINDOW_START', any_args).and_call_original
-    allow(ENV).to receive(:fetch).with('EARLY_SUBSCRIBER_WINDOW_END', any_args).and_call_original
     allow(Stripe::Checkout::Session).to receive(:create).and_return(stripe_session)
   end
 
   describe '#call' do
-    context '通常ケース（has_used_trial=false、早期特典期間外）' do
-      before { travel_to_outside_early_window }
-
+    context '通常ケース（has_used_trial=false）' do
       it 'Stripe::Checkout::Session.create を期待値で呼び出す' do
         builder.call
         expect(Stripe::Checkout::Session).to have_received(:create) do |args|
@@ -39,13 +35,13 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
       end
     end
 
-    context '早期特典期間内' do
-      before { travel_to_inside_early_window }
+    context '早期加入者期間内でも trial_period_days は 7 のまま（早期特典による延長は廃止）' do
+      before { travel_to Time.zone.parse('2026-06-01 12:00 JST') }
 
-      it 'trial_period_days: 30 で呼び出す' do
+      it 'trial_period_days: 7 で呼び出す' do
         builder.call
         expect(Stripe::Checkout::Session).to have_received(:create) do |args|
-          expect(args[:subscription_data][:trial_period_days]).to eq(30)
+          expect(args[:subscription_data][:trial_period_days]).to eq(7)
         end
       end
     end
@@ -53,7 +49,6 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
     context '再加入（has_used_trial=true）' do
       before do
         user.subscription.update!(has_used_trial: true)
-        travel_to_inside_early_window
       end
 
       it 'trial_period_days を渡さない（即時課金）' do
@@ -103,13 +98,5 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
         expect { builder.call }.to raise_error(described_class::InvalidPlanError)
       end
     end
-  end
-
-  def travel_to_inside_early_window
-    travel_to Time.zone.parse('2026-06-01 12:00 JST')
-  end
-
-  def travel_to_outside_early_window
-    travel_to Time.zone.parse('2026-08-01 12:00 JST')
   end
 end
