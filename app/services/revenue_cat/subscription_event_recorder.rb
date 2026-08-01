@@ -14,17 +14,21 @@ module RevenueCat
     end
 
     def record(user, subscription, event_type, event_id: @payload.event_id)
-      UserSubscriptionEvent.create!(
-        user:,
-        subscription:,
-        event_type:,
-        platform: PlanCatalog.platform_from(@payload.store),
-        product_id: @payload.product_id,
-        period_type: @payload.period_type,
-        occurred_at: @payload.event_timestamp || Time.current,
-        raw_payload: @payload.to_h,
-        revenuecat_event_id: event_id
-      )
+      # BaseHandler の with_lock トランザクション内から呼ばれても INSERT の失敗が
+      # 呼び出し元のトランザクションを abort させないよう、savepoint で分離する。
+      UserSubscriptionEvent.transaction(requires_new: true) do
+        UserSubscriptionEvent.create!(
+          user:,
+          subscription:,
+          event_type:,
+          platform: PlanCatalog.platform_from(@payload.store),
+          product_id: @payload.product_id,
+          period_type: @payload.period_type,
+          occurred_at: @payload.event_timestamp || Time.current,
+          raw_payload: @payload.to_h,
+          revenuecat_event_id: event_id
+        )
+      end
     rescue ActiveRecord::RecordNotUnique
       nil
     rescue StandardError => e
