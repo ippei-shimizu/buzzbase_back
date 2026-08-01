@@ -25,7 +25,7 @@ RSpec.describe TrialDaysCalculator do
   end
 
   describe '.in_early_window?' do
-    context 'ENV で早期特典期間を override したとき' do
+    context 'ENV で早期加入者期間を override したとき' do
       before do
         allow(ENV).to receive(:fetch).with('EARLY_SUBSCRIBER_WINDOW_START', any_args).and_return('2027-01-01 00:00')
         allow(ENV).to receive(:fetch).with('EARLY_SUBSCRIBER_WINDOW_END', any_args).and_return('2027-01-07 23:59')
@@ -35,7 +35,7 @@ RSpec.describe TrialDaysCalculator do
         expect(described_class.in_early_window?(Time.zone.parse('2027-01-03 12:00 JST'))).to be(true)
       end
 
-      it 'override 後の期間外なら false（デフォルトの早期特典期間が無視される）' do
+      it 'override 後の期間外なら false（デフォルトの早期加入者期間が無視される）' do
         expect(described_class.in_early_window?(Time.zone.parse('2026-06-01 12:00 JST'))).to be(false)
       end
     end

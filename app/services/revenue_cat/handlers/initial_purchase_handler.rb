@@ -1,7 +1,7 @@
 module RevenueCat
   module Handlers
     # INITIAL_PURCHASE / TRIAL_STARTED 兼用。period_type で trial / active を出し分け、
-    # 早期特典期間内のタイムスタンプなら is_early_subscriber を立てる。
+    # 早期加入者期間内のタイムスタンプなら is_early_subscriber を立てる。
     class InitialPurchaseHandler < BaseHandler
       def call
         with_resolved_subscription(require_persisted: false, require_known_product: true) do |user, subscription|
