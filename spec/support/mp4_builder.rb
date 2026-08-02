@@ -9,20 +9,25 @@ module Mp4Builder
   # @param duration_seconds [Numeric] mvhd に書き込む再生時間
   # @param width [Integer] tkhd の表示幅（回転時は入れ替え前の値）
   # @param height [Integer] tkhd の表示高さ
-  # @param timescale [Integer] mvhd の timescale
-  # @param rotated [Boolean] 90度回転の表示マトリクスを書き込むか
-  # @param moov_last [Boolean] moov を mdat の後ろに置くか（Android 端末の典型配置）
-  # @param audio_track [Boolean] 0x0 サイズの音声トラックを混ぜるか
+  # @param options [Hash] 端末・エンコーダごとの構造差を再現するオプション
+  # @option options [Integer] :timescale mvhd の timescale（既定 600）
+  # @option options [Boolean] :rotated 90度回転の表示マトリクスを書き込むか
+  # @option options [Boolean] :moov_last moov を mdat の後ろに置くか（Android 端末の典型配置）
+  # @option options [Boolean] :audio_track 0x0 サイズの音声トラックを混ぜるか
+  # @option options [Boolean] :empty_box 中身が空のトップレベルボックス（free）を先頭に挟むか
   # @return [String] ASCII-8BIT のバイト列
-  def build_mp4(duration_seconds:, width:, height:, timescale: 600, rotated: false, moov_last: false, audio_track: false)
+  def build_mp4(duration_seconds:, width:, height:, **options)
+    timescale = options.fetch(:timescale, 600)
+
     traks = []
-    traks << trak(width: 0, height: 0, duration_seconds:, timescale:) if audio_track
-    traks << trak(width:, height:, duration_seconds:, timescale:, rotated:)
+    traks << trak(width: 0, height: 0, duration_seconds:, timescale:) if options[:audio_track]
+    traks << trak(width:, height:, duration_seconds:, timescale:, rotated: options[:rotated])
 
     moov = box('moov', mvhd(duration_seconds:, timescale:) + traks.join)
     mdat = box('mdat', "\x00".b * 512)
 
-    parts = moov_last ? [ftyp, mdat, moov] : [ftyp, moov, mdat]
+    parts = options[:moov_last] ? [ftyp, mdat, moov] : [ftyp, moov, mdat]
+    parts.unshift(box('free', '')) if options[:empty_box]
     parts.join.b
   end
 

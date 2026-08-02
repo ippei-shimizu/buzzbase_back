@@ -43,6 +43,16 @@ RSpec.describe MediaAttachments::VideoMetadataFetcher do
     end
   end
 
+  context '中身が空のボックスが挟まっているとき' do
+    before do
+      stub_r2_video_object(build_mp4(duration_seconds: 10, width: 640, height: 480, empty_box: true))
+    end
+
+    it '読み飛ばして解析を続ける' do
+      expect(metadata).to have_attributes(duration_seconds: 10, width: 640, height: 480)
+    end
+  end
+
   context 'MP4 として解析できないファイルのとき' do
     before { stub_r2_video_object('this is not a video'.b * 8) }
 

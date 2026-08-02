@@ -65,7 +65,8 @@ module MediaAttachments
       return [nil, nil] if header.nil? || header.bytesize < 8
 
       size = header.unpack1('N')
-      return [size, 8] if size > 8
+      # 中身が空のボックス（size == 8）も規格上は正当なので、解析を打ち切らず読み飛ばす。
+      return [size, 8] if size >= 8
       return [nil, nil] unless size == 1 && header.bytesize >= BOX_HEADER_BYTES
 
       large_size = header.byteslice(8, 8).unpack1('Q>')

@@ -45,7 +45,10 @@ class ShadowSwingSession < ApplicationRecord
     return nil if swing_count <= 0
 
     log = user.practice_logs.find_by(logged_on:, source: 'shadow_swing')
-    return log.tap { log.update!(amount: log.amount.to_i + swing_count) } if log
+    if log
+      log.update!(amount: log.amount.to_i + swing_count)
+      return log
+    end
 
     menu = linked_menu
     user.practice_logs.create!(
