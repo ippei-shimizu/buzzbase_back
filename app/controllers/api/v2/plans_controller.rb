@@ -32,7 +32,15 @@ module Api
 
         entries = (from..to).flat_map do |date|
           plans_on(date).map do |schedule|
-            { date: date.iso8601, event_type: schedule.event_type, title: schedule.display_title, schedule_id: schedule.id }
+            {
+              date: date.iso8601,
+              event_type: schedule.event_type,
+              title: schedule.display_title,
+              schedule_id: schedule.id,
+              # 「日」表示のタイムラインで時刻軸に配置するため、time 型を保存 TZ に依存しない
+              # "HH:MM" 文字列で返す。終日予定は nil。
+              scheduled_time: schedule.scheduled_time&.strftime('%H:%M')
+            }
           end
         end
         render json: { entries: }, status: :ok

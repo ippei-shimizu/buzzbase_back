@@ -5,7 +5,9 @@ module MediaAttachments
     FREE_VIDEO_MAX_DURATION = 30
     PRO_VIDEO_MAX_DURATION = 180
     FREE_VIDEO_MAX_HEIGHT = 480
-    PRO_VIDEO_MAX_HEIGHT = 1080
+    # クライアントは長辺基準で縮小するため、縦持ち動画は長辺がそのまま height になる。
+    # モバイル側の PRO_VIDEO_MAX_HEIGHT と揃えておかないと縦動画だけ弾かれる。
+    PRO_VIDEO_MAX_HEIGHT = 1280
     FREE_IMAGE_MAX_BYTES = 5.megabytes
     PRO_IMAGE_MAX_BYTES = 10.megabytes
 

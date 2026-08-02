@@ -2,6 +2,15 @@ class ReflectionTemplate < ApplicationRecord
   # user_id が nil のものは運営提供プリセット。ユーザー自作は user に属する。
   belongs_to :user, optional: true
 
+  # 運営提供プリセットの正本。初回投入はマイグレーションが行うが、環境ごとに
+  # 消えていた場合へ備えて rake reflection_templates:seed_presets から再投入できるようにしている。
+  PRESETS = [
+    { title: 'ふりかえり3行', questions: %w[うまくいったこと 課題 次やること] },
+    { title: '課題フォーカス', questions: ['今日の課題への手応え（◎○△）', '気づき', '次に試すこと'] },
+    { title: '試合後', questions: ['良かった打席・投球', '悔しかった場面', '次戦への修正点'] },
+    { title: 'コンディション重視', questions: %w[体の状態 疲れの原因 ケアすること] }
+  ].freeze
+
   validates :title, presence: true, length: { maximum: 50 }
   validate :questions_must_be_array_of_strings
 
@@ -22,6 +31,17 @@ class ReflectionTemplate < ApplicationRecord
     overridden_preset_ids = own_active.where.not(origin_template_id: nil).pluck(:origin_template_id)
     visible_presets = presets.where.not(id: overridden_preset_ids)
     where(id: own_active.ids + visible_presets.ids).ordered
+  end
+
+  # PRESETS を冪等に投入する。既存プリセットは title で引き当てて questions / sort_order を更新し、
+  # ユーザーが編集して作った自作コピー（origin_template_id 参照）は触らない。
+  # @return [Integer] 投入・更新したプリセット件数
+  def self.seed_presets!
+    PRESETS.each_with_index do |preset, index|
+      record = find_or_initialize_by(title: preset[:title], is_preset: true, user_id: nil)
+      record.update!(questions: preset[:questions], sort_order: index)
+    end
+    PRESETS.size
   end
 
   # 編集を「新バージョンの作成」として扱う。原本(self)は更新せず、user 所有の新テンプレを作る。

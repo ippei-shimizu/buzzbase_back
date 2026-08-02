@@ -95,6 +95,18 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       expect(game_entry['title']).to eq('試合')
     end
 
+    it '時刻付きの予定は scheduled_time を "HH:MM" で返し、終日予定は nil を返す' do
+      make_pro(user)
+      create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-08', scheduled_time: '06:00')
+      create(:schedule, user:, title: '終日', days_of_week: nil, planned_on: '2026-07-08', scheduled_time: nil)
+
+      get '/api/v2/plans/calendar', params: { from: '2026-07-08', to: '2026-07-08' }, headers: auth_headers_for(user)
+
+      entries = response.parsed_body['entries'].index_by { |entry| entry['title'] }
+      expect(entries['朝練']['scheduled_time']).to eq('06:00')
+      expect(entries['終日']['scheduled_time']).to be_nil
+    end
+
     context '無料ユーザーの閲覧範囲(直近月中心)' do
       it '前後3ヶ月を超える未来の予定はクランプされて含まれない' do
         today = Time.zone.today

@@ -27,6 +27,33 @@ RSpec.describe ReflectionTemplate, type: :model do
     end
   end
 
+  describe '.seed_presets!' do
+    it 'プリセットが1件も無い環境で PRESETS を投入する' do
+      described_class.presets.delete_all
+
+      expect { described_class.seed_presets! }
+        .to change { described_class.presets.count }.from(0).to(described_class::PRESETS.size)
+      expect(described_class.presets.pluck(:title)).to match_array(described_class::PRESETS.pluck(:title))
+    end
+
+    it '二重実行しても重複を作らず、questions を正本へ揃える' do
+      described_class.seed_presets!
+      described_class.presets.first.update!(questions: ['書き換えられた問い'])
+
+      expect { described_class.seed_presets! }.not_to(change { described_class.presets.count })
+      expect(described_class.presets.ordered.first.questions).to eq(described_class::PRESETS.first[:questions])
+    end
+
+    it 'ユーザーの自作テンプレには影響しない' do
+      mine = create(:reflection_template, user:, title: described_class::PRESETS.first[:title],
+                                          questions: %w[自分の問い])
+
+      described_class.seed_presets!
+
+      expect(mine.reload.questions).to eq(%w[自分の問い])
+    end
+  end
+
   describe '既定テンプレの一意性' do
     it '既定を立てると同一ユーザーの他の既定は解除される' do
       first = create(:reflection_template, user:, is_default: true)
