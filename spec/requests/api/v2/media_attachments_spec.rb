@@ -19,8 +19,17 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
         .and_return(instance_double(Aws::S3::Types::HeadObjectOutput, content_length:))
     end
 
-    def complete(attachment, params, headers: auth_headers_for(user), actual_size: params[:file_size_bytes])
+    # 動画のduration/解像度はR2上の実ファイルから読み直されるため、既定では
+    # 申告値と一致する動画が置かれているものとしてスタブする。改ざんのテストでは
+    # actual_video に実ファイル側の値を渡して申告値と食い違わせる。
+    def complete(attachment, params, headers: auth_headers_for(user), actual_size: params[:file_size_bytes],
+                 actual_video: params)
       stub_r2_head_object(content_length: actual_size) if actual_size
+      if attachment.media_type == 'video'
+        stub_r2_video_object(build_mp4(duration_seconds: actual_video[:duration_seconds] || 0,
+                                       width: actual_video[:width] || 640,
+                                       height: actual_video[:height] || 480))
+      end
       patch "/api/v2/media_attachments/#{attachment.id}", params: { media_attachment: params }, headers:
     end
 
@@ -73,6 +82,29 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
       expect(image_attachment.reload.status).to eq 'failed'
       expect(image_attachment.file_size_bytes).to eq 8_000_000
+    end
+
+    it 'ignores spoofed video duration and resolution and validates against the real R2 object' do
+      # 3分/1080pの動画を「10秒/480p」と偽っても、R2上の実ファイルのヘッダで検証される。
+      complete(attachment,
+               { duration_seconds: 10, width: 640, height: 480, file_size_bytes: 8_000_000 },
+               actual_video: { duration_seconds: 180, width: 1920, height: 1080 })
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(attachment.reload).to have_attributes(status: 'failed', duration_seconds: 180, height: 1080)
+    end
+
+    it 'marks as failed when the uploaded video cannot be parsed' do
+      stub_r2_head_object(content_length: 8_000_000)
+      allow(MediaAttachments::PresignedUrlService.client).to receive(:get_object)
+        .and_return(instance_double(Aws::S3::Types::GetObjectOutput, body: StringIO.new('not a video')))
+
+      patch "/api/v2/media_attachments/#{attachment.id}",
+            params: { media_attachment: { duration_seconds: 10, width: 640, height: 480, file_size_bytes: 8_000_000 } },
+            headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(attachment.reload.status).to eq 'failed'
     end
 
     it 'marks as failed when the object cannot be found on R2' do

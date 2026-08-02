@@ -15,6 +15,18 @@ RSpec.describe 'Api::V2::Schedules::WeekCopies', type: :request do
       end
     end
 
+    # 週コピー自体が Pro 限定機能のため、複製結果からカスタム通知文が落ちてはいけない。
+    it 'Proユーザーの複製結果にカスタム通知文を含める' do
+      make_pro(user)
+      create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-06',
+                        scheduled_time: '06:00', notification_message: '頑張れ')
+
+      post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body.first['notification_message']).to eq('頑張れ')
+    end
+
     it '無料ユーザーは403（Pro限定機能）' do
       create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-06', scheduled_time: '06:00')
       post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)

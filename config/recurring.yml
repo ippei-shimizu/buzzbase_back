@@ -24,3 +24,6 @@ production:
   finalize_goals:
     class: FinalizeGoalsJob
     schedule: every day at 12:10am
+  purge_stale_media_attachments:
+    class: PurgeStaleMediaAttachmentsJob
+    schedule: every day at 4am

@@ -72,6 +72,39 @@ RSpec.describe Activities::DailyActivityRecalculator do
       end
     end
 
+    # 素振り0本のような「量ゼロ」のログを1メニュー分の活動として数えると、
+    # 実際には何もしていない日が草・Streak に載ってしまう。
+    context 'amount 0 の練習ログだけがある日' do
+      before { create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: today, amount: 0) }
+
+      it '活動としてカウントしない（activity_log は作られない）' do
+        expect(recalc).to be_nil
+      end
+    end
+
+    context 'amount 未入力の練習ログがある日' do
+      before { create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: today, amount: nil) }
+
+      it '数値を伴わないメニューの実施として活動にカウントする' do
+        expect(recalc.practice_menu_count).to eq(1)
+      end
+    end
+
+    context '他ユーザー・他日付の練習ログが同居しているとき' do
+      before do
+        create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: today, amount: 10)
+
+        other_user = create(:user)
+        create(:practice_log, user: other_user, practice_menu: create(:practice_menu, user: other_user),
+                              logged_on: today, amount: 10)
+        create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: today - 1, amount: 10)
+      end
+
+      it '対象ユーザー・対象日のメニューだけを数える' do
+        expect(recalc.practice_menu_count).to eq(1)
+      end
+    end
+
     context 'コンディションのみ記録した日' do
       before { create(:condition_log, user:, logged_on: today) }
 

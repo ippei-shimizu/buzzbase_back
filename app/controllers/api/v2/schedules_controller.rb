@@ -12,14 +12,14 @@ module Api
                                                  { menu_set: { menu_set_items: :practice_menu } },
                                                  { schedule_menus: :practice_menu })
                                        .order(:scheduled_time)
-        render json: schedules, each_serializer: ::V2::ScheduleSerializer, status: :ok
+        render json: schedules, each_serializer: ::V2::ScheduleSerializer, status: :ok, **serializer_options
       end
 
       def create
         schedule = current_api_v1_user.schedules.build(schedule_params)
         assign_menus(schedule)
         if schedule.save
-          render json: schedule, serializer: ::V2::ScheduleSerializer, status: :created
+          render json: schedule, serializer: ::V2::ScheduleSerializer, status: :created, **serializer_options
         else
           render json: { errors: schedule.errors.full_messages }, status: :unprocessable_entity
         end
@@ -33,7 +33,7 @@ module Api
           assign_menus(@schedule) if params[:schedule].key?(:menus)
           @schedule.save!
         end
-        render json: @schedule, serializer: ::V2::ScheduleSerializer, status: :ok
+        render json: @schedule, serializer: ::V2::ScheduleSerializer, status: :ok, **serializer_options
       rescue ActiveRecord::RecordInvalid
         render json: { errors: @schedule.errors.full_messages }, status: :unprocessable_entity
       end
@@ -47,6 +47,12 @@ module Api
 
       def load_schedule
         @schedule = current_api_v1_user.schedules.find(params[:id])
+      end
+
+      # entitlement 判定は全レコードで同じ結果になるため、シリアライザ内で個別に引かず
+      # 1回だけ解決して渡す（index の N+1 回避）。
+      def serializer_options
+        { custom_notification_messages: current_api_v1_user.has_entitlement?('custom_notification_messages') }
       end
 
       # カスタム通知文は Pro 限定。無料ユーザーの指定は無視する。

@@ -3,7 +3,8 @@ class Goal < ApplicationRecord
   belongs_to :season, optional: true
   belongs_to :tournament, optional: true
   belongs_to :practice_menu, optional: true
-  has_many :goal_badges, dependent: :destroy
+  # 獲得済みバッジは達成の記念として恒久保存する。目標を削除しても道連れにしない。
+  has_many :goal_badges, dependent: :nullify
 
   PERIOD_TYPES = %w[season monthly tournament weekly yearly custom].freeze
   # 個人の期間目標（試合エンティティに紐づかない日付レンジ系）。無料枠を共有する。

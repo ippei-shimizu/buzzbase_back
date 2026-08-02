@@ -9,6 +9,12 @@ module V2
       object.display_title
     end
 
+    # カスタム通知文は Pro 限定。解約しても DB には過去に設定した値が残るため、
+    # 保存値ではなく参照時点の entitlement で出し分ける（無料なら端末側の既定文が使われる）。
+    def notification_message
+      custom_messages_allowed? ? object.notification_message : nil
+    end
+
     def scheduled_time
       object.scheduled_time&.strftime('%H:%M')
     end
@@ -30,6 +36,17 @@ module V2
     # 該当メニューを編集不可にする目印としてクライアントへ返す。
     def logged_practice_menu_ids
       object.practice_logs.filter_map(&:practice_menu_id).uniq
+    end
+
+    private
+
+    # 判定結果は同一ユーザーなら同じなので、一覧系は instance_options で 1 回だけ
+    # 解決した値を渡して N+1 を避ける。渡されなかった場合はレコードの所有者から引く
+    # （呼び出し側の渡し忘れで Pro ユーザーの通知文が消えないようにするため）。
+    def custom_messages_allowed?
+      return instance_options[:custom_notification_messages] if instance_options.key?(:custom_notification_messages)
+
+      object.user.has_entitlement?('custom_notification_messages')
     end
   end
 end

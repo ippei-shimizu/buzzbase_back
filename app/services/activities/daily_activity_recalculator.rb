@@ -48,8 +48,11 @@ module Activities
 
     # その日の練習ログの distinct メニュー数。
     # メニュー削除済みでも menu_name スナップショットで識別する。
+    # amount が明示的に 0 のログは「やっていない」の記録なので活動に数えない
+    # （amount nil は数値を伴わないメニューの実施記録なので数える）。
     def practice_menu_count
       PracticeLog.where(user_id: @user_id, logged_on: @date)
+                 .where('amount IS NULL OR amount <> 0')
                  .distinct
                  .count(Arel.sql('COALESCE(practice_menu_id::text, menu_name)'))
     end
