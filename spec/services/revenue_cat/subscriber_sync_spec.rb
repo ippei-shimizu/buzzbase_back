@@ -12,13 +12,13 @@ RSpec.describe RevenueCat::SubscriberSync do
     stub_subscriber(
       'entitlements' => {
         'pro' => {
-          'product_identifier' => 'buzzbase_pro_monthly',
+          'product_identifier' => 'jp.buzzbase.mobile.pro.monthly',
           'purchase_date' => 10.days.ago.iso8601,
           'expires_date' => 20.days.from_now.iso8601
         }.merge(entitlement_overrides)
       },
       'subscriptions' => {
-        'buzzbase_pro_monthly' => { 'store' => 'app_store', 'period_type' => 'NORMAL' }.merge(subscription_overrides)
+        'jp.buzzbase.mobile.pro.monthly' => { 'store' => 'app_store', 'period_type' => 'NORMAL' }.merge(subscription_overrides)
       }
     )
   end
@@ -32,7 +32,7 @@ RSpec.describe RevenueCat::SubscriberSync do
       end
 
       it '過去に加入していれば expired にする' do
-        user.subscription.update!(status: 'active', product_id: 'buzzbase_pro_monthly')
+        user.subscription.update!(status: 'active', product_id: 'jp.buzzbase.mobile.pro.monthly')
         stub_subscriber({})
         subscription = described_class.new(user).call
         expect(subscription.status).to eq('expired')
@@ -48,7 +48,7 @@ RSpec.describe RevenueCat::SubscriberSync do
           expect(subscription.status).to eq('active')
           expect(subscription.plan_type).to eq('monthly')
           expect(subscription.platform).to eq('ios')
-          expect(subscription.product_id).to eq('buzzbase_pro_monthly')
+          expect(subscription.product_id).to eq('jp.buzzbase.mobile.pro.monthly')
           expect(subscription.last_synced_at).to be_present
         end
       end
