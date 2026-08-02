@@ -85,7 +85,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
             status: 'active',
             plan_type: 'monthly',
             platform: 'ios',
-            product_id: 'buzzbase_pro_monthly'
+            product_id: 'jp.buzzbase.mobile.pro.monthly'
           )
           expect(subscription.started_at).to be_within(1.second).of(Time.zone.at(payload['event']['event_timestamp_ms'] / 1000))
           expect(subscription.expires_at).to be_within(1.second).of(Time.zone.at(payload['event']['expiration_at_ms'] / 1000))
@@ -208,7 +208,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'active',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 30.days.ago,
@@ -289,7 +289,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'active',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 30.days.ago,
@@ -334,7 +334,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'cancelled',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 60.days.ago,
@@ -402,7 +402,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'active',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 30.days.ago,
@@ -445,7 +445,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'active',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 30.days.ago,
@@ -489,7 +489,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
             status: 'cancelled',
             plan_type: 'monthly',
             platform: 'ios',
-            product_id: 'buzzbase_pro_monthly',
+            product_id: 'jp.buzzbase.mobile.pro.monthly',
             revenuecat_user_id: user.id.to_s,
             has_used_trial: true,
             started_at: 30.days.ago,
@@ -544,7 +544,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
           status: 'active',
           plan_type: 'monthly',
           platform: 'ios',
-          product_id: 'buzzbase_pro_monthly',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
           revenuecat_user_id: user.id.to_s,
           has_used_trial: true,
           started_at: 30.days.ago,
@@ -556,7 +556,7 @@ RSpec.describe RevenueCat::WebhookProcessor do
         process!
         subscription = user.reload.subscription
         expect(subscription.plan_type).to eq('yearly')
-        expect(subscription.product_id).to eq('buzzbase_pro_yearly')
+        expect(subscription.product_id).to eq('jp.buzzbase.mobile.pro.yearly')
       end
 
       it 'UserSubscriptionEvent に product_changed を記録する' do

@@ -10,8 +10,8 @@ module RevenueCat
     }.freeze
 
     PRODUCT_ID_TO_PLAN_TYPE = {
-      'buzzbase_pro_monthly' => 'monthly',
-      'buzzbase_pro_yearly' => 'yearly'
+      'jp.buzzbase.mobile.pro.monthly' => 'monthly',
+      'jp.buzzbase.mobile.pro.yearly' => 'yearly'
     }.freeze
 
     module_function

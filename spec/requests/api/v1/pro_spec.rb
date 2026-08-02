@@ -70,13 +70,13 @@ RSpec.describe 'Api::V1::Pro', type: :request do
         allow(RevenueCat::SubscriberClient).to receive(:fetch_subscriber).with(user.id.to_s).and_return(
           'entitlements' => {
             'pro' => {
-              'product_identifier' => 'buzzbase_pro_monthly',
+              'product_identifier' => 'jp.buzzbase.mobile.pro.monthly',
               'purchase_date' => 1.day.ago.iso8601,
               'expires_date' => 29.days.from_now.iso8601
             }
           },
           'subscriptions' => {
-            'buzzbase_pro_monthly' => { 'store' => 'app_store', 'period_type' => 'NORMAL' }
+            'jp.buzzbase.mobile.pro.monthly' => { 'store' => 'app_store', 'period_type' => 'NORMAL' }
           }
         )
 
