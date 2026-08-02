@@ -14,7 +14,8 @@ class FinalizeGoalsJob < ApplicationJob
         goal.update!(
           achieved_value: calculator.current_value,
           is_achieved: achieved,
-          achieved_at: achieved ? Time.current : nil,
+          # 定性目標はユーザーが達成ボタンを押した時刻が既に入っているため、ジョブ実行時刻で上書きしない。
+          achieved_at: achieved ? (goal.achieved_at || Time.current) : nil,
           is_finalized: true
         )
         award_badge(goal) if achieved
@@ -31,6 +32,8 @@ class FinalizeGoalsJob < ApplicationJob
       user: goal.user,
       badge_type:,
       badge_name:,
+      # 目標が後から削除されてもバッジ一覧に何の目標だったか出せるようスナップショットする。
+      goal_title: goal.title,
       awarded_at: Time.current
     )
   end

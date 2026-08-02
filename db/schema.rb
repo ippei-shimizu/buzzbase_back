@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_07_21_150618) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_02_010002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -261,12 +261,13 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_150618) do
 
   create_table "goal_badges", force: :cascade do |t|
     t.bigint "user_id", null: false
-    t.bigint "goal_id", null: false
+    t.bigint "goal_id"
     t.string "badge_type", null: false
     t.string "badge_name", null: false
     t.datetime "awarded_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "goal_title", null: false
     t.index ["goal_id"], name: "index_goal_badges_on_goal_id"
     t.index ["user_id"], name: "index_goal_badges_on_user_id"
   end
@@ -794,6 +795,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_07_21_150618) do
     t.bigint "practice_log_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.decimal "interval_seconds", precision: 4, scale: 1, default: "5.0", null: false
+    t.boolean "vibration_enabled", default: false, null: false
+    t.boolean "sound_enabled", default: true, null: false
+    t.boolean "voice_enabled", default: false, null: false
     t.index ["practice_log_id"], name: "index_shadow_swing_sessions_on_practice_log_id"
     t.index ["user_id", "logged_on"], name: "index_shadow_swing_sessions_on_user_id_and_logged_on"
     t.index ["user_id"], name: "index_shadow_swing_sessions_on_user_id"

@@ -37,5 +37,20 @@ RSpec.describe 'Api::V2::GoalBadges', type: :request do
       get('/api/v2/goal_badges', headers:)
       expect(response.parsed_body.first['goal_title']).to eq('今月20日練習')
     end
+
+    # バッジは達成の記念として恒久保存する。元の目標を消しても失われてはいけない。
+    context '元になった目標が削除されたとき' do
+      it 'バッジは残り、付与時のタイトルを表示できる' do
+        goal = create(:goal, user:, title: '今月20日練習')
+        create(:goal_badge, user:, goal:)
+
+        goal.destroy!
+
+        get('/api/v2/goal_badges', headers:)
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body.size).to eq(1)
+        expect(response.parsed_body.first).to include('goal_id' => nil, 'goal_title' => '今月20日練習')
+      end
+    end
   end
 end

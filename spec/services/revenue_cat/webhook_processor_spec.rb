@@ -564,6 +564,125 @@ RSpec.describe RevenueCat::WebhookProcessor do
       end
     end
 
+    # RevenueCat は Webhook の到達順序を保証しない。短時間で状態が往復する操作
+    # （解約→解約撤回、課金失敗→復旧）で先発イベントが遅れて届いても、
+    # 適用済みの新しい状態を巻き戻さないことを結合で確認する。
+    context 'Webhook が順序逆転して届いたとき' do
+      let(:user) { create(:user) }
+
+      # 指定 payload を webhook_event 経由で処理する。順序逆転の再現に使う。
+      def process_payload(payload)
+        webhook_event = create(:webhook_event,
+                               provider: 'revenuecat',
+                               external_event_id: payload['event']['id'],
+                               event_type: payload['event']['type'],
+                               payload:)
+        described_class.new(webhook_event).process
+      end
+
+      before do
+        user.subscription.update!(
+          status: 'active',
+          plan_type: 'monthly',
+          platform: 'ios',
+          product_id: 'jp.buzzbase.mobile.pro.monthly',
+          revenuecat_user_id: user.id.to_s,
+          has_used_trial: true,
+          started_at: 30.days.ago,
+          expires_at: 30.days.from_now
+        )
+      end
+
+      context 'UNCANCELLATION の後に古い CANCELLATION が届いたとき' do
+        let(:uncancellation_at) { Time.zone.parse('2026-06-20 10:00 JST') }
+        let(:stale_cancellation_at) { uncancellation_at - 1.hour }
+
+        before do
+          user.subscription.update!(status: 'cancelled', cancelled_at: 2.days.ago)
+          process_payload(revenuecat_payload_for('uncancellation', user:,
+                                                                   event_timestamp_ms: uncancellation_at.to_i * 1000))
+        end
+
+        it 'active のまま巻き戻さない' do
+          allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+
+          process_payload(revenuecat_payload_for('cancellation', user:,
+                                                                 event_timestamp_ms: stale_cancellation_at.to_i * 1000))
+
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('active')
+          expect(subscription.cancelled_at).to be_nil
+        end
+
+        it '誤った解約受付メールを送らない' do
+          allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+
+          process_payload(revenuecat_payload_for('cancellation', user:,
+                                                                 event_timestamp_ms: stale_cancellation_at.to_i * 1000))
+
+          expect(SubscriptionCancelledNotificationJob).not_to have_received(:perform_now)
+        end
+      end
+
+      context 'RENEWAL による復旧の後に古い BILLING_ISSUE が届いたとき' do
+        let(:renewal_at) { Time.zone.parse('2026-06-20 10:00 JST') }
+        let(:stale_billing_issue_at) { renewal_at - 1.hour }
+
+        before do
+          user.subscription.update!(status: 'billing_issue', billing_issue_at: 2.days.ago)
+          process_payload(revenuecat_payload_for('renewal', user:,
+                                                            event_timestamp_ms: renewal_at.to_i * 1000,
+                                                            expiration_at_ms: 60.days.from_now.to_i * 1000))
+        end
+
+        it 'active のまま billing_issue に戻さず、督促通知も送らない' do
+          allow(BillingIssueNotificationJob).to receive(:perform_now)
+
+          process_payload(revenuecat_payload_for('billing_issue', user:,
+                                                                  event_timestamp_ms: stale_billing_issue_at.to_i * 1000))
+
+          expect(user.reload.subscription.status).to eq('active')
+          expect(BillingIssueNotificationJob).not_to have_received(:perform_now)
+        end
+      end
+
+      context 'CANCELLATION の後に古い UNCANCELLATION が届いたとき' do
+        let(:cancellation_at) { Time.zone.parse('2026-06-20 10:00 JST') }
+        let(:stale_uncancellation_at) { cancellation_at - 1.hour }
+
+        before do
+          allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+          process_payload(revenuecat_payload_for('cancellation', user:,
+                                                                 event_timestamp_ms: cancellation_at.to_i * 1000))
+        end
+
+        it 'cancelled のまま active へ戻さない' do
+          process_payload(revenuecat_payload_for('uncancellation', user:,
+                                                                   event_timestamp_ms: stale_uncancellation_at.to_i * 1000))
+
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('cancelled')
+          expect(subscription.cancelled_at).to be_within(1.second).of(cancellation_at)
+        end
+      end
+
+      context '正しい順序で届いたとき' do
+        let(:cancellation_at) { Time.zone.parse('2026-06-20 10:00 JST') }
+
+        it 'ガードは後発イベントの適用を妨げない' do
+          allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+          process_payload(revenuecat_payload_for('cancellation', user:,
+                                                                 event_timestamp_ms: cancellation_at.to_i * 1000))
+          process_payload(revenuecat_payload_for('uncancellation', user:,
+                                                                   event_timestamp_ms: (cancellation_at + 1.hour).to_i * 1000))
+
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('active')
+          expect(subscription.cancelled_at).to be_nil
+        end
+      end
+    end
+
     context '未知の event_type を受信したとき' do
       let(:payload) do
         {

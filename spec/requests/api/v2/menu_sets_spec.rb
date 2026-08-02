@@ -80,6 +80,23 @@ RSpec.describe 'Api::V2::MenuSets', type: :request do
       expect(body['name']).to eq('新')
       expect(body['items'].size).to eq(1)
     end
+
+    # items の差し替えは destroy_all → build → save の順で走るため、save が失敗すると
+    # 既存アイテムだけが消えた状態が残りうる。ロールバックされることを保証する。
+    it 'バリデーション失敗時に既存の items を巻き戻す' do
+      menu_set = create(:menu_set, user:, name: '旧')
+      menu = create(:practice_menu, user:)
+      existing_menu = create(:practice_menu, user:)
+      menu_set.menu_set_items.create!(practice_menu: existing_menu, target_value: 10, sort_order: 0)
+
+      patch "/api/v2/menu_sets/#{menu_set.id}",
+            params: { menu_set: { name: 'あ' * 51, items: [{ practice_menu_id: menu.id, target_value: 50 }] } },
+            headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(menu_set.reload.name).to eq('旧')
+      expect(menu_set.menu_set_items.pluck(:practice_menu_id)).to eq([existing_menu.id])
+    end
   end
 
   describe 'DELETE /api/v2/menu_sets/:id' do

@@ -49,6 +49,28 @@ module RevenueCat
         after_unlock.each(&:call)
       end
 
+      # RevenueCat Webhook の到達順序は保証されない。解約→解約撤回のように短時間で
+      # 状態が往復すると、後発イベントを適用した後に先発イベントが遅れて届き、
+      # 無条件に上書きする handler は有効な状態を巻き戻してしまう（誤った通知メールも飛ぶ）。
+      #
+      # RenewalHandler / ExpirationHandler は expires_at という「イベント固有の比較軸」を
+      # 持つためそれで判定できるが、CANCELLATION / UNCANCELLATION / BILLING_ISSUE は
+      # expires_at を変えないため比較軸がない。そこで監査ログ（UserSubscriptionEvent）の
+      # occurred_at 最大値を「適用済みイベント時刻」のマーカーとして使う。
+      #
+      # 同時刻は再配信の冪等な再適用とみなし stale としない。
+      # event_timestamp を持たない payload はマーカーと比較できないため素通しする。
+      #
+      # @param user [User]
+      # @return [Boolean] 適用済みより古いイベントなら true
+      def stale_event?(user)
+        event_at = payload.event_timestamp
+        return false if event_at.blank?
+
+        latest_applied_at = user.user_subscription_events.maximum(:occurred_at)
+        latest_applied_at.present? && event_at < latest_applied_at
+      end
+
       private
 
       # PlanCatalog に未登録の product_id / store が来ると plan_type: nil 等で silent に

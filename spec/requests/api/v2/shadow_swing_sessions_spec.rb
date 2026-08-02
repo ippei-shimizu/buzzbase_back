@@ -20,6 +20,48 @@ RSpec.describe 'Api::V2::ShadowSwingSessions', type: :request do
       expect(response).to have_http_status(:created)
       expect(response.parsed_body['target_count']).to eq(200)
     end
+
+    # クライアントのロック表示は直接 API を叩けば回避できるため、サーバー側で弾く。
+    context 'Pro 限定の設定を無料ユーザーが指定したとき' do
+      it '無料枠外のインターバルを 422 で拒否する' do
+        post '/api/v2/shadow_swing_sessions',
+             params: { shadow_swing_session: { target_count: 200, interval_seconds: 1.0 } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(user.shadow_swing_sessions).to be_empty
+      end
+
+      it 'バイブレーションの有効化を 422 で拒否する' do
+        post '/api/v2/shadow_swing_sessions',
+             params: { shadow_swing_session: { target_count: 200, interval_seconds: 5.0, vibration_enabled: true } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it '無料枠内のインターバルは受け付ける' do
+        post '/api/v2/shadow_swing_sessions',
+             params: { shadow_swing_session: { target_count: 200, interval_seconds: 10.0 } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['interval_seconds']).to eq(10.0)
+      end
+    end
+
+    context 'Pro ユーザーのとき' do
+      before { user.subscription.update!(status: 'active', expires_at: 30.days.from_now) }
+
+      it '全範囲のインターバルとバイブレーションを保存して返す' do
+        post '/api/v2/shadow_swing_sessions',
+             params: { shadow_swing_session: { target_count: 200, interval_seconds: 1.0, vibration_enabled: true } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body).to include('interval_seconds' => 1.0, 'vibration_enabled' => true)
+      end
+    end
   end
 
   describe 'POST /api/v2/shadow_swing_sessions/:id/complete' do
@@ -55,6 +97,29 @@ RSpec.describe 'Api::V2::ShadowSwingSessions', type: :request do
            headers: auth_headers_for(user)
 
       expect(user.activity_logs.find_by(activity_date: today).total_swing_count).to eq(150)
+    end
+
+    # 開始してすぐ「終了」を押すだけで草・Streak を水増しできてしまうのを防ぐ。
+    context '0本で完了したとき' do
+      it '練習ログを作らず、当日を活動ありにしない' do
+        expect do
+          post "/api/v2/shadow_swing_sessions/#{session.id}/complete",
+               params: { shadow_swing_session: { swing_count: 0 } },
+               headers: auth_headers_for(user)
+        end.not_to(change { user.practice_logs.count })
+
+        expect(response).to have_http_status(:ok)
+        expect(user.activity_logs.find_by(activity_date: today)).to be_nil
+      end
+
+      it 'セッション自体は完了扱いにする（開始したまま残さない）' do
+        post "/api/v2/shadow_swing_sessions/#{session.id}/complete",
+             params: { shadow_swing_session: { swing_count: 0 } },
+             headers: auth_headers_for(user)
+
+        expect(session.reload).to have_attributes(swing_count: 0, practice_log_id: nil)
+        expect(session.completed_at).to be_present
+      end
     end
   end
 

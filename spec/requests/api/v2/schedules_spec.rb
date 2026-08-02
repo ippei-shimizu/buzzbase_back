@@ -75,6 +75,16 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
         post '/api/v2/schedules', params: custom_params, headers: auth_headers_for(user)
         expect(response.parsed_body['notification_message']).to eq('頑張れ')
       end
+
+      # 解約しても DB には過去に設定した通知文が残るため、参照時点の entitlement で出し分ける。
+      it 'Pro 期間中に設定した通知文は、解約後は返さない' do
+        make_pro(user)
+        post '/api/v2/schedules', params: custom_params, headers: auth_headers_for(user)
+        user.subscription.update!(status: 'expired', expires_at: 1.day.ago)
+
+        get '/api/v2/schedules', headers: auth_headers_for(user)
+        expect(response.parsed_body.first['notification_message']).to be_nil
+      end
     end
   end
 

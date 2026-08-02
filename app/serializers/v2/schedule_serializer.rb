@@ -9,6 +9,12 @@ module V2
       object.display_title
     end
 
+    # カスタム通知文は Pro 限定。解約しても DB には過去に設定した値が残るため、
+    # 保存値ではなく参照時点の entitlement で出し分ける（無料なら端末側の既定文が使われる）。
+    def notification_message
+      instance_options[:custom_notification_messages] ? object.notification_message : nil
+    end
+
     def scheduled_time
       object.scheduled_time&.strftime('%H:%M')
     end

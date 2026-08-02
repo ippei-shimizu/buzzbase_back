@@ -9,8 +9,7 @@ module Api
       # POST /api/v2/shadow_swing_sessions
       def create
         session = current_api_v1_user.shadow_swing_sessions.build(
-          target_count: params.require(:shadow_swing_session).permit(:target_count)[:target_count],
-          logged_on: Time.find_zone('Asia/Tokyo').today
+          create_params.merge(logged_on: Time.find_zone('Asia/Tokyo').today)
         )
         if session.save
           render json: session, serializer: ::V2::ShadowSwingSessionSerializer, status: :created
@@ -51,6 +50,14 @@ module Api
         return if current_api_v1_user.has_entitlement?('practice_menu_trend_detail')
 
         render json: { error: 'メニュー推移の詳細表示は Pro プラン限定です' }, status: :forbidden
+      end
+
+      # インターバル・バイブ等の Pro 限定設定は ShadowSwingSession のバリデーションで検証する。
+      # カウンター画面はここで保存した値を読むため、クライアント側のロック表示を回避しても
+      # サーバーが許可した設定でしか実行できない。
+      def create_params
+        params.require(:shadow_swing_session)
+              .permit(:target_count, :interval_seconds, :vibration_enabled, :sound_enabled, :voice_enabled)
       end
 
       def complete_params

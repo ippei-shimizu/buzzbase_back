@@ -286,5 +286,25 @@ RSpec.describe 'Api::V2::Goals', type: :request do
       expect(goal.reload.is_finalized).to be(true)
       expect(goal.is_achieved).to be(true)
     end
+
+    it 'バッジに目標タイトルをスナップショットする' do
+      create(:goal, user:, title: '今月20日練習', deadline: today - 1, target_value: 1, metric_key: 'practice_days',
+                    month_start: (today - 1).beginning_of_month)
+      create(:activity_log, user:, activity_date: today - 1, intensity_level: 2)
+
+      FinalizeGoalsJob.new.perform
+      expect(user.goal_badges.last.goal_title).to eq('今月20日練習')
+    end
+
+    # 定性目標はユーザーが達成ボタンを押した時刻が achieved_at に入っているため、
+    # 確定ジョブの実行時刻（深夜バッチ）で塗り潰さない。
+    it '達成済みの achieved_at をジョブ実行時刻で上書きしない' do
+      achieved_at = Time.zone.parse('2026-07-15 21:30 JST')
+      goal = create(:goal, user:, kind: 'qualitative', target_value: nil, deadline: today - 1,
+                           month_start: (today - 1).beginning_of_month, is_achieved: true, achieved_at:)
+
+      FinalizeGoalsJob.new.perform
+      expect(goal.reload.achieved_at).to be_within(1.second).of(achieved_at)
+    end
   end
 end

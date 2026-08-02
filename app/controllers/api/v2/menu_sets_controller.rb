@@ -29,13 +29,16 @@ module Api
       end
 
       def update
-        @menu_set.assign_attributes(menu_set_params)
-        assign_items(@menu_set) if params[:menu_set].key?(:items)
-        if @menu_set.save
-          render json: @menu_set, serializer: ::V2::MenuSetSerializer, status: :ok
-        else
-          render json: { errors: @menu_set.errors.full_messages }, status: :unprocessable_entity
+        # assign_items の destroy_all は即時実行されるため、save 失敗時に既存アイテムだけ
+        # 消えて残らないよう、属性更新・アイテム再構築・保存を1トランザクションに包む。
+        ActiveRecord::Base.transaction do
+          @menu_set.assign_attributes(menu_set_params)
+          assign_items(@menu_set) if params[:menu_set].key?(:items)
+          @menu_set.save!
         end
+        render json: @menu_set, serializer: ::V2::MenuSetSerializer, status: :ok
+      rescue ActiveRecord::RecordInvalid
+        render json: { errors: @menu_set.errors.full_messages }, status: :unprocessable_entity
       end
 
       def destroy
