@@ -3,6 +3,9 @@ module RevenueCat
     # 全 event handler の共通基底。user lookup と subscription 取得の共通フローを提供する。
     # 各サブクラスは `call` だけ実装し、本処理を `with_resolved_subscription` ブロックで包む。
     class BaseHandler
+      # stale_event? の比較対象。加入の有効／無効が往復しうるイベントだけを並べる。
+      ORDERING_SENSITIVE_EVENT_TYPES = %w[cancelled uncancelled billing_issue renewed recovered expired refunded].freeze
+
       def initialize(payload)
         @payload = payload
         @event_recorder = SubscriptionEventRecorder.new(payload)
@@ -58,6 +61,11 @@ module RevenueCat
       # expires_at を変えないため比較軸がない。そこで監査ログ（UserSubscriptionEvent）の
       # occurred_at 最大値を「適用済みイベント時刻」のマーカーとして使う。
       #
+      # マーカーは加入状態の遷移を表すイベントに限る。initial_purchase / trial_started /
+      # purchased / product_changed は解約状態と競合せず、これらを含めると
+      # 「プラン変更が先に処理され、実際には先行していた解約が遅れて届く」ケースで
+      # 正当な解約を stale と誤判定してしまう。
+      #
       # 同時刻は再配信の冪等な再適用とみなし stale としない。
       # event_timestamp を持たない payload はマーカーと比較できないため素通しする。
       #
@@ -67,7 +75,9 @@ module RevenueCat
         event_at = payload.event_timestamp
         return false if event_at.blank?
 
-        latest_applied_at = user.user_subscription_events.maximum(:occurred_at)
+        latest_applied_at = user.user_subscription_events
+                                .where(event_type: ORDERING_SENSITIVE_EVENT_TYPES)
+                                .maximum(:occurred_at)
         latest_applied_at.present? && event_at < latest_applied_at
       end
 

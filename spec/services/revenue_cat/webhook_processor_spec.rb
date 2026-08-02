@@ -681,6 +681,29 @@ RSpec.describe RevenueCat::WebhookProcessor do
           expect(subscription.cancelled_at).to be_nil
         end
       end
+
+      # プラン変更は解約状態と競合しないため、順序判定のマーカーに含めてはいけない。
+      context 'PRODUCT_CHANGE の後に、それより古い CANCELLATION が遅れて届いたとき' do
+        let(:product_change_at) { Time.zone.parse('2026-06-20 10:00 JST') }
+        let(:delayed_cancellation_at) { product_change_at - 1.hour }
+
+        before do
+          process_payload(revenuecat_payload_for('product_change', user:,
+                                                                   event_timestamp_ms: product_change_at.to_i * 1000))
+        end
+
+        it '解約を stale 扱いせず適用し、解約受付メールも送る' do
+          allow(SubscriptionCancelledNotificationJob).to receive(:perform_now)
+
+          process_payload(revenuecat_payload_for('cancellation', user:,
+                                                                 event_timestamp_ms: delayed_cancellation_at.to_i * 1000))
+
+          subscription = user.reload.subscription
+          expect(subscription.status).to eq('cancelled')
+          expect(subscription.cancelled_at).to be_within(1.second).of(delayed_cancellation_at)
+          expect(SubscriptionCancelledNotificationJob).to have_received(:perform_now).with(user.id)
+        end
+      end
     end
 
     context '未知の event_type を受信したとき' do
