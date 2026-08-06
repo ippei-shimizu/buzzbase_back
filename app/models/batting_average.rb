@@ -131,7 +131,12 @@ class BattingAverage < ApplicationRecord
   end
 
   def self.apply_filters(scope, year, match_type, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
-    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
+    if year.present? && year.to_s != '通算'
+      # Date レンジは default_timezone(:local) 下では JST 変換されず UTC 値と素で比較されるため、
+      # JST 早朝(0:00-8:59)の試合が年フィルタから漏れる。Time.zone.local で明示的に JST 境界を作る。
+      year_range = Time.zone.local(year.to_i, 1, 1).beginning_of_day..Time.zone.local(year.to_i, 12, 31).end_of_day
+      scope = scope.where(match_results: { date_and_time: year_range })
+    end
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
     scope = scope.where(game_results: { season_id: }) if season_id.present?
     scope = scope.where(match_results: { tournament_id: }) if tournament_id.present?
