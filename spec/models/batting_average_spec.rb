@@ -68,6 +68,24 @@ RSpec.describe BattingAverage, type: :model do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2022').take
       expect(result).to be_nil
     end
+
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      let!(:game_jst_new_year) do
+        gr = create(:game_result, user:)
+        # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままだと年フィルタから漏れる
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        create(:batting_average, game_result: gr, user:, hit: 1, at_bats: 3, home_run: 0, times_at_bat: 4)
+        gr
+      end
+
+      it 'includes it in the JST year (2026), not the UTC year (2025)' do
+        result_jst_year = described_class.filtered_aggregate_for_user(user.id, year: '2026').take
+        result_utc_year = described_class.filtered_aggregate_for_user(user.id, year: '2025').take
+
+        expect(result_jst_year.hit.to_i).to eq(1)
+        expect(result_utc_year).to be_nil
+      end
+    end
   end
 
   describe '.filtered_stats_for_user' do
