@@ -97,6 +97,20 @@ RSpec.describe MatchResult, type: :model do
     end
   end
 
+  describe '.available_years_for' do
+    it 'returns years based on JST, not UTC' do
+      user = create(:user)
+      game_result = create(:game_result, user:)
+      # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままEXTRACTすると前年(2025)にずれる
+      game_result.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+
+      years = described_class.available_years_for(user)
+
+      expect(years).to include(2026)
+      expect(years).not_to include(2025)
+    end
+  end
+
   describe 'APPEARANCE_TYPES' do
     # 値ごとの挙動はバリデーション spec で網羅しているので、ここでは件数だけ守る。
     it 'has 5 entries' do

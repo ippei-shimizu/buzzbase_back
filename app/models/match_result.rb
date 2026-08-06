@@ -23,11 +23,12 @@ class MatchResult < ApplicationRecord
   validates :appearance_type, presence: true, inclusion: { in: APPEARANCE_TYPES }
 
   # 指定ユーザーの試合データに紐づく年度を新しい順で返す
+  # date_and_time は UTC 保存のため JST に揃えて抽出し、元日早朝の試合が前年に流れないようにする。
   # @param user [User]
   # @return [Array<Integer>]
   def self.available_years_for(user)
     where(user_id: user.id)
-      .pluck(Arel.sql('DISTINCT EXTRACT(YEAR FROM date_and_time)::int'))
+      .pluck(Arel.sql("DISTINCT #{Stats::JstDateSql::YEAR_JST_INT_SQL}"))
       .sort
       .reverse
   end
