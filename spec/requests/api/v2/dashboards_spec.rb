@@ -67,6 +67,23 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
       end
     end
 
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままEXTRACTすると前年(2025)にずれる
+      let!(:game_result) do
+        gr = create(:game_result, user:)
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        gr
+      end
+
+      it 'returns available_years based on JST, not UTC' do
+        get '/api/v2/dashboard', headers: auth_headers_for(user)
+
+        json = response.parsed_body
+        expect(json['available_years']).to include(2026)
+        expect(json['available_years']).not_to include(2025)
+      end
+    end
+
     context 'when user has pitching data' do
       let!(:game_result) do
         gr = create(:game_result, user:)
