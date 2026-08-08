@@ -26,11 +26,17 @@ module MediaAttachments
 
     def valid_video?(pro)
       @attachment.duration_seconds.to_i <= (pro ? PRO_VIDEO_MAX_DURATION : FREE_VIDEO_MAX_DURATION) &&
-        @attachment.height.to_i <= (pro ? PRO_VIDEO_MAX_HEIGHT : FREE_VIDEO_MAX_HEIGHT)
+        long_edge <= (pro ? PRO_VIDEO_MAX_HEIGHT : FREE_VIDEO_MAX_HEIGHT)
     end
 
     def valid_image?(pro)
       @attachment.file_size_bytes.to_i <= (pro ? PRO_IMAGE_MAX_BYTES : FREE_IMAGE_MAX_BYTES)
+    end
+
+    # モバイル側は縦横どちらでも長辺基準で圧縮するため、height だけを見ると
+    # 横持ち動画（長辺 = width）の検証をすり抜けてしまう。
+    def long_edge
+      [@attachment.width.to_i, @attachment.height.to_i].max
     end
   end
 end
