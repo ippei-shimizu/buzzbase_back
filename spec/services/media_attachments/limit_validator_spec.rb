@@ -23,9 +23,9 @@ RSpec.describe MediaAttachments::LimitValidator do
       expect(described_class.new(user:, attachment:).valid?).to be false
     end
 
-    it 'allows a Pro user at exactly 180 seconds / 1080p' do
+    it 'allows a Pro user at exactly 180 seconds / 1280px height' do
       make_pro(user)
-      attachment = build(:media_attachment, :video, duration_seconds: 180, height: 1080)
+      attachment = build(:media_attachment, :video, duration_seconds: 180, height: 1280)
       expect(described_class.new(user:, attachment:).valid?).to be true
     end
 
@@ -33,6 +33,23 @@ RSpec.describe MediaAttachments::LimitValidator do
       make_pro(user)
       attachment = build(:media_attachment, :video, duration_seconds: 181, height: 1080)
       expect(described_class.new(user:, attachment:).valid?).to be false
+    end
+
+    it 'rejects a Pro user at 1281px height' do
+      make_pro(user)
+      attachment = build(:media_attachment, :video, duration_seconds: 180, height: 1281)
+      expect(described_class.new(user:, attachment:).valid?).to be false
+    end
+
+    it 'rejects a landscape video whose width exceeds the limit even if height is small' do
+      attachment = build(:media_attachment, :video, duration_seconds: 30, width: 4000, height: 1200)
+      expect(described_class.new(user:, attachment:).valid?).to be false
+    end
+
+    it 'allows a landscape Pro video at exactly 1280px on the long edge (width)' do
+      make_pro(user)
+      attachment = build(:media_attachment, :video, duration_seconds: 180, width: 1280, height: 720)
+      expect(described_class.new(user:, attachment:).valid?).to be true
     end
   end
 

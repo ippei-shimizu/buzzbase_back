@@ -30,15 +30,26 @@ module Api
           to = [to, today + FREE_CALENDAR_WINDOW_MONTHS.months].min
         end
 
-        entries = (from..to).flat_map do |date|
-          plans_on(date).map do |schedule|
-            { date: date.iso8601, event_type: schedule.event_type, title: schedule.display_title, schedule_id: schedule.id }
-          end
-        end
+        entries = (from..to).flat_map { |date| plans_on(date).map { |schedule| calendar_entry(schedule, date) } }
         render json: { entries: }, status: :ok
       end
 
       private
+
+      # @param schedule [Schedule]
+      # @param date [Date] 繰り返し予定を展開した対象日
+      # @return [Hash] カレンダー1件分のレスポンス
+      def calendar_entry(schedule, date)
+        {
+          date: date.iso8601,
+          event_type: schedule.event_type,
+          title: schedule.display_title,
+          schedule_id: schedule.id,
+          # 「日」表示のタイムラインで時刻軸に配置するため、time 型を保存 TZ に依存しない
+          # "HH:MM" 文字列で返す。終日予定は nil。
+          scheduled_time: schedule.scheduled_time&.strftime('%H:%M')
+        }
+      end
 
       def parse_date(value)
         Date.iso8601(value.to_s)

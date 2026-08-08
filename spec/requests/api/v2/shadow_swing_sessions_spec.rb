@@ -42,11 +42,11 @@ RSpec.describe 'Api::V2::ShadowSwingSessions', type: :request do
 
       it '無料枠内のインターバルは受け付ける' do
         post '/api/v2/shadow_swing_sessions',
-             params: { shadow_swing_session: { target_count: 200, interval_seconds: 10.0 } },
+             params: { shadow_swing_session: { target_count: 200, interval_seconds: 8.0 } },
              headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:created)
-        expect(response.parsed_body['interval_seconds']).to eq(10.0)
+        expect(response.parsed_body['interval_seconds']).to eq(8.0)
       end
     end
 

@@ -7,7 +7,7 @@ class ShadowSwingSession < ApplicationRecord
 
   # カウンターのインターバル（秒）。無料プランは FREE_INTERVAL_RANGE の範囲のみ選べる。
   INTERVAL_RANGE = (1.0..20.0)
-  FREE_INTERVAL_RANGE = (5.0..10.0)
+  FREE_INTERVAL_RANGE = (5.0..8.0)
 
   validates :logged_on, presence: true
   validates :target_count, numericality: { greater_than: 0 }
