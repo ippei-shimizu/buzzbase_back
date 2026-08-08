@@ -33,8 +33,10 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
       patch "/api/v2/media_attachments/#{attachment.id}", params: { media_attachment: params }, headers:
     end
 
+    # クライアントは長辺基準（react-native-compressor の maxSize）で縮小するため、
+    # 無料枠の横向き動画は 480x270 になる。720x480 はこの経路では発生しない。
     it 'marks the attachment as ready when within free limits' do
-      complete(attachment, { duration_seconds: 25, width: 720, height: 480, file_size_bytes: 8_000_000 })
+      complete(attachment, { duration_seconds: 25, width: 480, height: 270, file_size_bytes: 8_000_000 })
 
       expect(response).to have_http_status(:ok)
       expect(attachment.reload.status).to eq 'ready'
@@ -46,8 +48,9 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
       expect(response).to have_http_status(:not_found)
     end
 
+    # 解像度は無料枠内に収め、長さ超過だけで弾かれることを確かめる。
     it 'marks as failed and returns unprocessable_entity when a free user exceeds video duration' do
-      complete(attachment, { duration_seconds: 31, width: 720, height: 480, file_size_bytes: 8_000_000 })
+      complete(attachment, { duration_seconds: 31, width: 480, height: 270, file_size_bytes: 8_000_000 })
 
       expect(response).to have_http_status(:unprocessable_entity)
       expect(attachment.reload.status).to eq 'failed'
@@ -68,7 +71,7 @@ RSpec.describe 'Api::V2::MediaAttachments', type: :request do
     end
 
     it 'accepts memo together with completion params' do
-      complete(attachment, { duration_seconds: 25, width: 720, height: 480, file_size_bytes: 8_000_000, memo: '初回の所感' })
+      complete(attachment, { duration_seconds: 25, width: 480, height: 270, file_size_bytes: 8_000_000, memo: '初回の所感' })
 
       expect(response).to have_http_status(:ok)
       expect(attachment.reload.memo).to eq '初回の所感'
