@@ -44,8 +44,13 @@ plugin :tmp_restart
 
 # Solid Queue の supervisor を Puma と同一プロセス内で起動し、別 worker dyno を持たずに
 # ジョブを処理する（Rails 8 のデフォルト puma.rb と同じパターン）。
-# 本番では SOLID_QUEUE_IN_PUMA を設定して有効化し、development では常に有効化する。
+# test 以外はデフォルトで有効化する。明示的な opt-in（環境変数の設定漏れ）に頼ると、
+# webhookや定期タスクが誰にも処理されずpendingのまま溜まり続ける不具合が起きうるため、
+# 無効化したい場合だけ SOLID_QUEUE_IN_PUMA=false を設定する fail-safe な設計にしている。
 # ENV の値は文字列のため、"false" / "0" もそのままでは truthy になってしまう点に注意し、
 # ActiveModel::Type::Boolean で明示的にキャストする。
-solid_queue_in_puma = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SOLID_QUEUE_IN_PUMA', nil))
-plugin :solid_queue if solid_queue_in_puma || Rails.env.development?
+solid_queue_explicitly_disabled = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SOLID_QUEUE_IN_PUMA', nil)) == false
+plugin :solid_queue unless Rails.env.test? || solid_queue_explicitly_disabled
+
+# クラスタモード（workers指定）を将来有効化する場合、Solid Queue supervisorが
+# workerプロセスごとに多重起動しないか要再確認（現状は単一プロセスのため未検証）。
