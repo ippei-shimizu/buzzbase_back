@@ -2,12 +2,13 @@ require 'rails_helper'
 
 RSpec.describe RevenueCat::WebhookProcessor do
   let(:event_id) { 'evt_initial_purchase_001' }
+  let(:default_user) { create(:user) }
   let(:payload) do
     {
       'event' => {
         'id' => event_id,
         'type' => 'INITIAL_PURCHASE',
-        'app_user_id' => 'user_1'
+        'app_user_id' => default_user.id.to_s
       }
     }
   end
@@ -162,15 +163,18 @@ RSpec.describe RevenueCat::WebhookProcessor do
       context '未知の app_user_id を受信したとき' do
         let(:overrides) { { app_user_id: '9999999' } }
 
-        it 'Sentry に warning を残し、Subscription を更新しない' do
+        it 'Sentry に warning を残し、Subscription を更新せず webhook_event を failed にする（processed 扱いで埋もれさせない）' do
           allow(Sentry).to receive(:capture_message)
-          process!
+          allow(Sentry).to receive(:capture_exception)
+
+          expect { process! }.to raise_error(RevenueCat::UserResolver::UnresolvedUserError)
+
           expect(Sentry).to have_received(:capture_message).with(
             a_string_including('user not found'),
             hash_including(level: :warning)
           )
           expect(user.reload.subscription.status).to eq('free')
-          expect(webhook_event.reload.status).to eq('processed')
+          expect(webhook_event.reload.status).to eq('failed')
         end
       end
 

@@ -37,7 +37,7 @@ module RevenueCat
       # @yieldparam after_unlock [Array<Proc>] ロック解放後に実行したい処理の積み先
       def with_resolved_subscription(require_persisted: true, require_known_product: false)
         user = UserResolver.resolve(payload.app_user_id)
-        return UserResolver.notify_unknown(payload.app_user_id) unless user
+        UserResolver.notify_unknown(payload.app_user_id) unless user
 
         subscription = user.subscription_or_default
         return if require_persisted && !subscription.persisted?
