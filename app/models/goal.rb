@@ -26,8 +26,8 @@ class Goal < ApplicationRecord
   validates :comparison_type, inclusion: { in: COMPARISON_TYPES }
   # 数値目標のみ指標必須（定性は達成/未達、自由指標は指標名で管理）。
   validates :metric_key, inclusion: { in: METRIC_KEYS }, if: :numeric?
-  # 数値・自由指標は目標値必須（定性目標のみ不要）。
-  validates :target_value, presence: true, unless: :qualitative?
+  # 数値・自由指標は目標値必須（定性目標のみ不要）。負の目標値は成立しない。
+  validates :target_value, presence: true, numericality: { greater_than_or_equal_to: 0 }, unless: :qualitative?
   # 自由指標（手動更新）は指標名必須。
   validates :custom_metric_label, presence: true, length: { maximum: 40 }, if: :manual?
   # 継続目標（メニュー継続日数）は対象メニュー必須。

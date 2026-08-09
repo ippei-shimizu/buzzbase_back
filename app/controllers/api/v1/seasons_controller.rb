@@ -37,8 +37,11 @@ module Api
       end
 
       def destroy
-        @season.destroy
-        render json: { message: 'シーズンを削除しました' }, status: :ok
+        if @season.destroy
+          render json: { message: 'シーズンを削除しました' }, status: :ok
+        else
+          render json: { errors: @season.errors.full_messages }, status: :unprocessable_entity
+        end
       end
 
       private

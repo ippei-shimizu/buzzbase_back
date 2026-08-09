@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_09_005516) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_10_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -668,6 +668,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_09_005516) do
     t.index ["practice_session_id"], name: "index_practice_logs_on_practice_session_id"
     t.index ["schedule_id"], name: "index_practice_logs_on_schedule_id"
     t.index ["user_id", "logged_on"], name: "index_practice_logs_on_user_id_and_logged_on"
+    t.index ["user_id", "logged_on"], name: "index_practice_logs_on_user_logged_on_shadow_swing", unique: true, where: "((source)::text = 'shadow_swing'::text)"
     t.index ["user_id"], name: "index_practice_logs_on_user_id"
   end
 

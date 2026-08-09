@@ -21,7 +21,8 @@ module Goals
       return @goal.is_achieved ? 100.0 : 0.0 if @goal.qualitative?
 
       target = @goal.target_value.to_f
-      return 0 if target.zero?
+      # 目標値 0 は除算できないため、achieved? と同じ判定に委ねて進捗率の矛盾を防ぐ。
+      return achieved? ? 100.0 : 0.0 if target.zero?
 
       percent =
         if @goal.comparison_type == 'less_than'

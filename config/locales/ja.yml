@@ -15,6 +15,10 @@ ja:
               required: "カテゴリは必須です"
             prefecture:
               required: "都道府県は必須です"
+        goal:
+          attributes:
+            target_value:
+              greater_than_or_equal_to: "は0以上で入力してください"
         match_result:
           attributes:
             inning_format:
