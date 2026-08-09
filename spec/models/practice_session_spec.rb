@@ -10,6 +10,40 @@ RSpec.describe PracticeSession, type: :model do
       expect { described_class.for(user, today) }.not_to change(described_class, :count)
       expect(described_class.for(user, today)).to eq(first)
     end
+
+    context 'PracticeSessions::Upsert の外側トランザクション内から同時に呼ばれたとき' do
+      # 別スレッドの実コネクションから同じ日次セッション行を奪い合わせるため、テスト用トランザクションを外す。
+      self.use_transactional_tests = false
+
+      after { ActiveRecord::Base.connection.execute('TRUNCATE TABLE users CASCADE') }
+
+      it '一意制約の競合から復旧し、セッションを1件だけ作って全リクエストが成功する' do
+        errors = Queue.new
+        ready = Queue.new
+        start = Queue.new
+        threads = Array.new(4) do |index|
+          Thread.new do
+            ActiveRecord::Base.connection_pool.with_connection do
+              ready << true
+              start.pop
+              begin
+                PracticeSessions::Upsert.new(user:, logged_on: today, memo: "振り返り#{index}").call
+              rescue StandardError => e
+                errors << e
+              end
+            end
+          end
+        end
+        threads.size.times { ready.pop }
+        threads.size.times { start << true }
+        threads.each(&:join)
+
+        aggregate_failures do
+          expect(errors.size).to eq(0)
+          expect(described_class.where(user_id: user.id, logged_on: today).count).to eq(1)
+        end
+      end
+    end
   end
 
   describe '練習ログの自動ぶら下げ' do

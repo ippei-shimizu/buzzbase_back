@@ -20,7 +20,15 @@ class PracticeSession < ApplicationRecord
   # @param date [Date, String]
   # @return [PracticeSession]
   def self.for(user, date)
-    user.practice_sessions.find_or_create_by!(logged_on: date)
+    existing = user.practice_sessions.find_by(logged_on: date)
+    return existing if existing
+
+    # PracticeSessions::Upsert のような外側トランザクション内から呼ばれると、
+    # ユニーク制約違反がトランザクション全体を abort させて rescue 節の復旧クエリまで
+    # 道連れになる。セーブポイント内で INSERT させて影響をここに閉じ込める。
+    ActiveRecord::Base.transaction(requires_new: true) do
+      user.practice_sessions.create!(logged_on: date)
+    end
   rescue ActiveRecord::RecordNotUnique
     # 同時リクエストで find と create の間に他方が作成した場合は、
     # (user_id, logged_on) のユニークインデックスに任せて拾い直す。
