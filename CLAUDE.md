@@ -22,6 +22,11 @@ docker compose exec back bundle exec rails db:seed  # シードデータ投入
 docker compose exec back bundle exec rails routes  # ルーティング確認
 ```
 
+### バックグラウンドジョブ（Solid Queue）
+
+- ジョブは`docker compose up`のbackサービス（`rails s`）だけで自動的に処理される。`config/puma.rb`の`plugin :solid_queue`により、development環境ではPumaプロセス内でSolid Queueのsupervisorが同時に起動するため、別途workerサービスを起動する必要はない
+- 本番（Heroku）も同一Web dyno内でジョブを処理する構成（`SOLID_QUEUE_IN_PUMA`環境変数で有効化）。別workerのdynoは廃止済み
+
 ### マイグレーションを戻すとき
 
 - **`rails db:schema:load` は開発環境のデータを全て削除する**（`schema.rb` の `force: :cascade` で全テーブルがdrop&再作成される）。マイグレーションを1つ戻したいだけの場合には絶対に使わない
