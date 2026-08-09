@@ -89,8 +89,16 @@ module PracticeSessions
     def upsert_condition
       raise NotEntitled unless @user.has_entitlement?('detailed_condition_log')
 
-      log = @user.condition_logs.find_or_initialize_by(logged_on: @logged_on)
-      log.update!(@condition.merge(logged_on: @logged_on))
+      attributes = @condition.merge(logged_on: @logged_on)
+      # ユニーク制約違反は PostgreSQL では外側のトランザクションごと中断させるため、
+      # 復旧クエリを流せるようセーブポイント内で INSERT させる。
+      ActiveRecord::Base.transaction(requires_new: true) do
+        @user.condition_logs.find_or_initialize_by(logged_on: @logged_on).update!(attributes)
+      end
+    rescue ActiveRecord::RecordNotUnique
+      # 同時リクエストで find と INSERT の間に他方が作成した場合は、
+      # (user_id, logged_on) のユニークインデックスに任せて拾い直す。
+      @user.condition_logs.find_by!(logged_on: @logged_on).update!(attributes)
     end
 
     def item_menu_ids
