@@ -51,15 +51,29 @@ class ShadowSwingSession < ApplicationRecord
       return log
     end
 
+    create_shadow_swing_log(swing_count)
+  end
+
+  # 当日まだログが無い状態で複数セッションが同時に完了すると、揃って find_by で
+  # nil を引き create! が競合しうる。一意インデックス（(user_id, logged_on) の
+  # shadow_swing 限定部分インデックス）違反をセーブポイント内で検知し、
+  # 先勝ちした行を取得して加算し直す。
+  def create_shadow_swing_log(swing_count)
     menu = linked_menu
-    user.practice_logs.create!(
-      practice_menu: menu,
-      logged_on:,
-      amount: swing_count,
-      menu_name: MENU_NAME,
-      unit_label: menu&.unit_label || UNIT_LABEL,
-      source: 'shadow_swing'
-    )
+    ActiveRecord::Base.transaction(requires_new: true) do
+      user.practice_logs.create!(
+        practice_menu: menu,
+        logged_on:,
+        amount: swing_count,
+        menu_name: MENU_NAME,
+        unit_label: menu&.unit_label || UNIT_LABEL,
+        source: 'shadow_swing'
+      )
+    end
+  rescue ActiveRecord::RecordNotUnique
+    log = user.practice_logs.find_by!(logged_on:, source: 'shadow_swing')
+    log.with_lock { log.update!(amount: log.amount.to_i + swing_count) }
+    log
   end
 
   def pro_settings_within_entitlements
