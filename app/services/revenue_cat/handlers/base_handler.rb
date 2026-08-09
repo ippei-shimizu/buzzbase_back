@@ -3,6 +3,11 @@ module RevenueCat
     # 全 event handler の共通基底。user lookup と subscription 取得の共通フローを提供する。
     # 各サブクラスは `call` だけ実装し、本処理を `with_resolved_subscription` ブロックで包む。
     class BaseHandler
+      # PlanCatalogに未登録のproduct_id/storeを受けたときに投げる。WebhookProcessorがこれを
+      # rescueしてwebhook_eventをfailedにするため、課金・プラン変更は成立したのにentitlement
+      # が付与されない状態がprocessed扱いのまま埋もれる（自動復旧できなくなる）のを防ぐ。
+      UnknownProductError = Class.new(StandardError)
+
       # stale_event? の比較対象。加入の有効／無効が往復しうるイベントだけを並べる。
       ORDERING_SENSITIVE_EVENT_TYPES = %w[cancelled uncancelled billing_issue renewed recovered expired refunded].freeze
 
@@ -90,11 +95,16 @@ module RevenueCat
         platform_missing = PlanCatalog.platform_from(payload.store).nil?
         return false unless plan_type_missing || platform_missing
 
+        notify_unknown_product
+      end
+
+      def notify_unknown_product
         Sentry.capture_message(
           "RevenueCat: unknown product_id=#{payload.product_id.inspect} or store=#{payload.store.inspect}",
           level: :warning
         )
-        true
+        raise UnknownProductError,
+              "product_id=#{payload.product_id.inspect} or store=#{payload.store.inspect} is not registered in PlanCatalog"
       end
     end
   end
