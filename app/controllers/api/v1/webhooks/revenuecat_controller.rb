@@ -25,8 +25,9 @@ module Api
             payload: params.to_unsafe_h
           )
 
-          # 既存レコードが返ったときはジョブも enqueue 済みなので新規作成時のみ起動する。
-          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.previously_new_record?
+          # claim_for_enqueue! が原子的に判定するため、同一イベントの近接同時配信
+          # （find_or_create_pending! の敗者側含む）でも enqueue するのは1回だけになる。
+          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.claim_for_enqueue!
 
           head :ok
         rescue StandardError => e

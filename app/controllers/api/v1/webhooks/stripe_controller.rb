@@ -18,8 +18,9 @@ module Api
             payload: event.to_hash
           )
 
-          # 既存レコードが返ったときはジョブも enqueue 済みなので新規作成時のみ起動する。
-          App::Stripe::WebhookJob.perform_later(webhook_event.id) if webhook_event.previously_new_record?
+          # claim_for_enqueue! が原子的に判定するため、同一イベントの近接同時配信
+          # （find_or_create_pending! の敗者側含む）でも enqueue するのは1回だけになる。
+          App::Stripe::WebhookJob.perform_later(webhook_event.id) if webhook_event.claim_for_enqueue!
           head :ok
         rescue StandardError => e
           Sentry.capture_exception(e, tags: { source: 'stripe_webhook_controller' })

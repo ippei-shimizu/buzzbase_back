@@ -1,6 +1,11 @@
 class WebhookEvent < ApplicationRecord
   STATUSES = %w[pending processed failed skipped].freeze
 
+  # enqueue自体が失敗した場合や、enqueue後にjobがロスト（Job基盤の障害等）した場合に
+  # 再送で復旧できるよう、この時間を過ぎた enqueued_at は「無かったもの」として
+  # 再claimを許可する。
+  STALE_ENQUEUE_THRESHOLD = 10.minutes
+
   validates :provider, presence: true
   validates :external_event_id, presence: true,
                                 uniqueness: { scope: :provider }
@@ -28,6 +33,26 @@ class WebhookEvent < ApplicationRecord
 
   STATUSES.each do |status_name|
     define_method("#{status_name}?") { status == status_name }
+  end
+
+  # job の enqueue 可否を原子的に判定する。
+  #
+  # 同一イベントの近接同時配信（find_or_create_pending! の RecordNotUnique 敗者側を含む）や
+  # enqueue失敗からの再送で、このメソッドが同じレコードに対してほぼ同時に呼ばれることがある。
+  # 「pending かつ enqueued_at が無い（or 十分古い）」を条件にした update_all 一発で判定する
+  # ことで、複数リクエストが同時に呼んでも成功するのは1回だけになる（DBのUPDATEが唯一の勝者を
+  # 決めるため、Ruby側でのロックや排他制御は不要）。
+  #
+  # @return [Boolean] enqueueしてよいか（true を返したときだけ呼び出し側は perform_later する）
+  def claim_for_enqueue!
+    # update_all は原子性（1クエリでの条件付きUPDATE）そのものが目的のため、
+    # バリデーションをスキップする通常の注意点はここでは当てはまらない。
+    # rubocop:disable Rails/SkipsModelValidations
+    self.class
+        .where(id:, status: 'pending')
+        .where('enqueued_at IS NULL OR enqueued_at < ?', STALE_ENQUEUE_THRESHOLD.ago)
+        .update_all(enqueued_at: Time.current) == 1
+    # rubocop:enable Rails/SkipsModelValidations
   end
 
   # ジョブが処理完了した時点で呼ぶ。受信〜処理完了までの間に Sentry / 監査で参照される。

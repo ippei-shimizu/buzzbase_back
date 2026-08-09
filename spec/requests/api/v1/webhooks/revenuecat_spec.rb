@@ -37,13 +37,48 @@ RSpec.describe 'Api::V1::Webhooks::Revenuecat', type: :request do
         expect(event.event_type).to eq('INITIAL_PURCHASE')
       end
 
-      context '同一 event_id を 2 回送信したとき' do
+      context '同一 event_id を 2 回送信したとき（1 回目で処理済みまで進んだ場合）' do
         it '2 回目は Job を enqueue しない（冪等性）' do
           post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          WebhookEvent.find_by(provider: 'revenuecat', external_event_id: event_id).mark_processed!
 
           expect do
             post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
           end.not_to have_enqueued_job(RevenueCatWebhookJob)
+
+          expect(response).to have_http_status(:ok)
+          expect(WebhookEvent.where(provider: 'revenuecat', external_event_id: event_id).count).to eq(1)
+        end
+      end
+
+      context '同一 event_id を近接同時配信されたとき（find_or_create_pending! の敗者側を含む）' do
+        it '2 回とも pending のまま届いても、enqueue するのは1回だけ（二重通知の防止）' do
+          post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          expect(
+            WebhookEvent.find_by(provider: 'revenuecat', external_event_id: event_id).status
+          ).to eq('pending')
+
+          expect do
+            post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          end.not_to have_enqueued_job(RevenueCatWebhookJob)
+
+          expect(response).to have_http_status(:ok)
+          expect(WebhookEvent.where(provider: 'revenuecat', external_event_id: event_id).count).to eq(1)
+        end
+      end
+
+      context '同一 event_id が enqueue 失敗からの復旧しきい値を過ぎて再送されたとき' do
+        it '再度 Job を enqueue する（enqueue 失敗・job ロストからの復旧）' do
+          post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          expect(
+            WebhookEvent.find_by(provider: 'revenuecat', external_event_id: event_id).status
+          ).to eq('pending')
+
+          travel WebhookEvent::STALE_ENQUEUE_THRESHOLD + 1.second do
+            expect do
+              post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+            end.to have_enqueued_job(RevenueCatWebhookJob).exactly(:once)
+          end
 
           expect(response).to have_http_status(:ok)
           expect(WebhookEvent.where(provider: 'revenuecat', external_event_id: event_id).count).to eq(1)

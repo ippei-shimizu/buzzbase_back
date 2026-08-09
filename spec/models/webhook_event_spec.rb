@@ -112,4 +112,66 @@ RSpec.describe WebhookEvent, type: :model do
       expect(build(:webhook_event, status: 'processed')).not_to be_pending
     end
   end
+
+  describe '#claim_for_enqueue!' do
+    context 'pending かつ enqueued_at が未設定のとき' do
+      let(:webhook_event) { create(:webhook_event, status: 'pending', enqueued_at: nil) }
+
+      it 'true を返し、enqueued_at を現在時刻にする' do
+        expect(webhook_event.claim_for_enqueue!).to be(true)
+        expect(webhook_event.reload.enqueued_at).to be_within(1.second).of(Time.current)
+      end
+    end
+
+    context '同一レコードに対してほぼ同時に呼ばれたとき（近接同時配信の再現）' do
+      let(:webhook_event) { create(:webhook_event, status: 'pending', enqueued_at: nil) }
+
+      it '成功するのは1回だけで、2回目は false を返す（二重 enqueue 防止）' do
+        # find_or_create_pending! の敗者側は別の WebhookEvent インスタンスとして
+        # 同じレコードを参照するため、同一 id の別インスタンスで再現する。
+        other_instance = described_class.find(webhook_event.id)
+
+        expect(webhook_event.claim_for_enqueue!).to be(true)
+        expect(other_instance.claim_for_enqueue!).to be(false)
+      end
+    end
+
+    context 'enqueued_at が STALE_ENQUEUE_THRESHOLD を過ぎているとき（enqueue失敗・job ロストからの復旧）' do
+      let(:webhook_event) do
+        create(:webhook_event, status: 'pending',
+                               enqueued_at: WebhookEvent::STALE_ENQUEUE_THRESHOLD.ago - 1.second)
+      end
+
+      it '再度 true を返し、enqueued_at を更新する（再送での復旧を許可する）' do
+        expect(webhook_event.claim_for_enqueue!).to be(true)
+      end
+    end
+
+    context 'enqueued_at がまだ新しいとき' do
+      let(:webhook_event) do
+        create(:webhook_event, status: 'pending',
+                               enqueued_at: WebhookEvent::STALE_ENQUEUE_THRESHOLD.ago + 1.second)
+      end
+
+      it 'false を返す（enqueue済みの可能性があるため再enqueueしない）' do
+        expect(webhook_event.claim_for_enqueue!).to be(false)
+      end
+    end
+
+    context 'status が processed のとき' do
+      let(:webhook_event) { create(:webhook_event, status: 'processed', enqueued_at: nil) }
+
+      it 'false を返す' do
+        expect(webhook_event.claim_for_enqueue!).to be(false)
+      end
+    end
+
+    context 'status が failed のとき' do
+      let(:webhook_event) { create(:webhook_event, status: 'failed', enqueued_at: nil) }
+
+      it 'false を返す（failed からの再処理は手動re-enqueueに委ねる）' do
+        expect(webhook_event.claim_for_enqueue!).to be(false)
+      end
+    end
+  end
 end
