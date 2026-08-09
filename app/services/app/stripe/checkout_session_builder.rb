@@ -32,10 +32,19 @@ module App
           mode: 'subscription',
           customer_email: @user.email,
           line_items: [{ price: stripe_price_id, quantity: 1 }],
+          # checkout.session.completed の data.object は Checkout Session 自体であり、
+          # subscription_data.metadata（Subscription オブジェクト側）とは別物。
+          # CheckoutSessionCompletedHandler は Session 側の metadata.user_id を読むため、
+          # ここにも同じ値を明示的に持たせる必要がある。
+          metadata: session_metadata,
           subscription_data:,
           success_url: @success_url,
           cancel_url: @cancel_url
         }
+      end
+
+      def session_metadata
+        { user_id: @user.id.to_s, plan: @plan }
       end
 
       # trial_period_days は 0 なら Stripe に渡さない（compact で除去）。
@@ -44,7 +53,7 @@ module App
         trial_days = TrialDaysCalculator.for(@user)
         {
           trial_period_days: trial_days.positive? ? trial_days : nil,
-          metadata: { user_id: @user.id.to_s, plan: @plan }
+          metadata: session_metadata
         }.compact
       end
 
