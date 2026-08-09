@@ -1,13 +1,19 @@
 class AddUniqueIndexToShadowSwingPracticeMenus < ActiveRecord::Migration[7.1]
   MENU_NAME = '素振り'.freeze
+  MENU_UNIT = 'count'.freeze
   INDEX_NAME = 'index_practice_menus_on_user_id_and_shadow_swing_name'.freeze
+  TARGET_CONDITION = "name = '#{MENU_NAME}' AND unit = '#{MENU_UNIT}'".freeze
 
   # 素振りメニューは名前で既存行を探して無ければ作るため、初回セッションの同時完了で
   # 同名メニューが重複作成されうる。ユーザーが任意の名前を重複させること自体は許容する仕様なので、
-  # 自動生成対象の '素振り' に限定した部分ユニークインデックスで競合を検知できるようにする。
+  # 自動生成対象に絞った部分ユニークインデックスで競合を検知できるようにする。
+  #
+  # 対象は name = '素振り' かつ unit = 'count' のみ。ShadowSwingSession#linked_menu は
+  # count 単位のメニューだけを紐付け対象とし、それ以外の単位の同名メニューは
+  # 無関係なリソースとして素通りさせるため、制約もマージもその範囲に合わせる。
   def up
     merge_duplicated_menus
-    add_index :practice_menus, %i[user_id name], unique: true, where: "name = '#{MENU_NAME}'", name: INDEX_NAME
+    add_index :practice_menus, %i[user_id name], unique: true, where: TARGET_CONDITION, name: INDEX_NAME
   end
 
   def down
@@ -52,7 +58,7 @@ class AddUniqueIndexToShadowSwingPracticeMenus < ActiveRecord::Migration[7.1]
   def ranked_menus_sql
     <<-SQL.squish
       SELECT id, FIRST_VALUE(id) OVER (PARTITION BY user_id ORDER BY id) AS keeper_id
-      FROM practice_menus WHERE name = '#{MENU_NAME}'
+      FROM practice_menus WHERE #{TARGET_CONDITION}
     SQL
   end
 end

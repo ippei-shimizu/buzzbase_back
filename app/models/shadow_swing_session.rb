@@ -106,7 +106,7 @@ class ShadowSwingSession < ApplicationRecord
       user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
     end
   rescue ActiveRecord::RecordNotUnique
-    winner = user.practice_menus.find_by!(name: MENU_NAME)
-    winner.unit == 'count' ? winner : nil
+    # 一意インデックスは name / unit の両方で絞っているため、競合相手は必ず count 単位の行。
+    user.practice_menus.find_by!(name: MENU_NAME, unit: 'count')
   end
 end
