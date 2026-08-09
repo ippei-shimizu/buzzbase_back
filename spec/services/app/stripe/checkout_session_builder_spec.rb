@@ -19,14 +19,24 @@ RSpec.describe App::Stripe::CheckoutSessionBuilder do
     context '通常ケース（has_used_trial=false）' do
       it 'Stripe::Checkout::Session.create を期待値で呼び出す' do
         builder.call
+        # checkout.session.completed の data.object は Session 自体のため、
+        # CheckoutSessionCompletedHandler が読む metadata.user_id は Session 直下に必要
+        # （subscription_data.metadata だけでは Handler から参照できない）。
+        expected_metadata = { user_id: user.id.to_s, plan: 'monthly' }
+
         expect(Stripe::Checkout::Session).to have_received(:create) do |args|
-          expect(args[:mode]).to eq('subscription')
-          expect(args[:customer_email]).to eq(user.email)
-          expect(args[:line_items]).to eq([{ price: 'price_monthly_test_123', quantity: 1 }])
-          expect(args[:subscription_data][:trial_period_days]).to eq(7)
-          expect(args[:subscription_data][:metadata]).to eq(user_id: user.id.to_s, plan: 'monthly')
-          expect(args[:success_url]).to eq(success_url)
-          expect(args[:cancel_url]).to eq(cancel_url)
+          expect(args).to include(
+            mode: 'subscription',
+            customer_email: user.email,
+            line_items: [{ price: 'price_monthly_test_123', quantity: 1 }],
+            metadata: expected_metadata,
+            success_url:,
+            cancel_url:
+          )
+          expect(args[:subscription_data]).to include(
+            trial_period_days: 7,
+            metadata: expected_metadata
+          )
         end
       end
 
