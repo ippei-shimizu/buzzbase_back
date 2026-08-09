@@ -30,9 +30,11 @@ RSpec.describe App::Stripe::Handlers::CheckoutSessionCompletedHandler do
     context 'metadata に user_id が無いとき' do
       before { fixture['data']['object']['metadata'] = {} }
 
-      it 'Sentry warning + 処理スキップ' do
+      it 'Sentry warning を残し MissingMetadataError を投げる（processed扱いで埋もれさせない）' do
         allow(Sentry).to receive(:capture_message)
-        handler.call
+
+        expect { handler.call }.to raise_error(described_class::MissingMetadataError)
+
         expect(Sentry).to have_received(:capture_message).with(
           a_string_including('user_id'),
           hash_including(level: :warning)
@@ -43,9 +45,11 @@ RSpec.describe App::Stripe::Handlers::CheckoutSessionCompletedHandler do
     context '未知の user_id のとき' do
       before { fixture['data']['object']['metadata']['user_id'] = '99999999' }
 
-      it 'Sentry warning + Subscription 更新せず' do
+      it 'Sentry warning を残し UnresolvedUserError を投げる（Subscription は更新しない）' do
         allow(Sentry).to receive(:capture_message)
-        handler.call
+
+        expect { handler.call }.to raise_error(described_class::UnresolvedUserError)
+
         expect(Sentry).to have_received(:capture_message).with(
           a_string_including('user not found'),
           hash_including(level: :warning)

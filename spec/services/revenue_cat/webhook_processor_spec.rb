@@ -8,7 +8,10 @@ RSpec.describe RevenueCat::WebhookProcessor do
       'event' => {
         'id' => event_id,
         'type' => 'INITIAL_PURCHASE',
-        'app_user_id' => default_user.id.to_s
+        'app_user_id' => default_user.id.to_s,
+        'product_id' => 'jp.buzzbase.mobile.pro.monthly',
+        'store' => 'APP_STORE',
+        'event_timestamp_ms' => Time.current.to_i * 1000
       }
     }
   end
@@ -181,15 +184,18 @@ RSpec.describe RevenueCat::WebhookProcessor do
       context 'PlanCatalog に未登録の product_id を受信したとき' do
         let(:overrides) { { product_id: 'buzzbase_pro_unknown' } }
 
-        it 'Sentry に warning を残し、Subscription を更新しない（silent corruption を防ぐ）' do
+        it 'Sentry に warning を残し、Subscription を更新せず webhook_event を failed にする（processed 扱いで埋もれさせない）' do
           allow(Sentry).to receive(:capture_message)
-          process!
+          allow(Sentry).to receive(:capture_exception)
+
+          expect { process! }.to raise_error(RevenueCat::Handlers::BaseHandler::UnknownProductError)
+
           expect(Sentry).to have_received(:capture_message).with(
             a_string_including('unknown product_id'),
             hash_including(level: :warning)
           )
           expect(user.reload.subscription.status).to eq('free')
-          expect(webhook_event.reload.status).to eq('processed')
+          expect(webhook_event.reload.status).to eq('failed')
         end
       end
     end
