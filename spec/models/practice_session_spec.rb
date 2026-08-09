@@ -17,26 +17,30 @@ RSpec.describe PracticeSession, type: :model do
 
       after { ActiveRecord::Base.connection.execute('TRUNCATE TABLE users CASCADE') }
 
-      it '一意制約の競合から復旧し、セッションを1件だけ作って全リクエストが成功する' do
+      # 同じ日付への Upsert を同じタイミングで走らせ、発生した例外を集めて返す。
+      def upsert_concurrently(count)
         errors = Queue.new
         ready = Queue.new
         start = Queue.new
-        threads = Array.new(4) do |index|
+        threads = Array.new(count) do |index|
           Thread.new do
             ActiveRecord::Base.connection_pool.with_connection do
               ready << true
               start.pop
-              begin
-                PracticeSessions::Upsert.new(user:, logged_on: today, memo: "振り返り#{index}").call
-              rescue StandardError => e
-                errors << e
-              end
+              PracticeSessions::Upsert.new(user:, logged_on: today, memo: "振り返り#{index}").call
+            rescue StandardError => e
+              errors << e
             end
           end
         end
-        threads.size.times { ready.pop }
-        threads.size.times { start << true }
+        count.times { ready.pop }
+        count.times { start << true }
         threads.each(&:join)
+        errors
+      end
+
+      it '一意制約の競合から復旧し、セッションを1件だけ作って全リクエストが成功する' do
+        errors = upsert_concurrently(4)
 
         aggregate_failures do
           expect(errors.size).to eq(0)
