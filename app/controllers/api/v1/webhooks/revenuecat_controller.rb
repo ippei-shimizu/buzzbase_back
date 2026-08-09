@@ -25,10 +25,9 @@ module Api
             payload: params.to_unsafe_h
           )
 
-          # pending のまま（新規作成 or 前回 enqueue 自体が失敗）なら起動する。
-          # processed/failed 済みなら重複 enqueue しない。WebhookProcessor 側の
-          # processed ガードもあるため、pending 中の再送で二重 enqueue されても安全。
-          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.pending?
+          # claim_for_enqueue! が原子的に判定するため、同一イベントの近接同時配信
+          # （find_or_create_pending! の敗者側含む）でも enqueue するのは1回だけになる。
+          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.claim_for_enqueue!
 
           head :ok
         rescue StandardError => e
