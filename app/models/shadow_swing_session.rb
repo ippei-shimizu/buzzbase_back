@@ -100,6 +100,13 @@ class ShadowSwingSession < ApplicationRecord
     return existing if existing&.unit == 'count'
     return nil if existing
 
-    user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
+    # 初回セッションの同時完了で create! が競合しうる。complete! のトランザクション内から
+    # 呼ばれるため、一意インデックス違反をセーブポイントに閉じ込めて先勝ちした行を拾い直す。
+    ActiveRecord::Base.transaction(requires_new: true) do
+      user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
+    end
+  rescue ActiveRecord::RecordNotUnique
+    winner = user.practice_menus.find_by!(name: MENU_NAME)
+    winner.unit == 'count' ? winner : nil
   end
 end

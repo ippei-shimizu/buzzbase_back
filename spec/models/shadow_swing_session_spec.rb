@@ -115,5 +115,19 @@ RSpec.describe ShadowSwingSession, type: :model do
         expect(logs.first.amount).to eq(40)
       end
     end
+
+    it '素振りメニューが未作成の状態で複数セッションが同時に完了してもメニューは1件しか作られない' do
+      sessions = Array.new(4) { create(:shadow_swing_session, user:, logged_on: today) }
+
+      complete_concurrently(sessions, swing_count: 10)
+
+      menus = user.practice_menus.where(name: described_class::MENU_NAME)
+      log = user.practice_logs.find_by(source: 'shadow_swing', logged_on: today)
+      aggregate_failures do
+        expect(menus.count).to eq(1)
+        expect(log.practice_menu_id).to eq(menus.first.id)
+        expect(log.amount).to eq(40)
+      end
+    end
   end
 end
