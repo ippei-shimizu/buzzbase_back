@@ -25,19 +25,21 @@ class AddUniqueIndexToShadowSwingPracticeMenus < ActiveRecord::Migration[7.1]
   # 制約追加前に既存の重複を最古の1件へ寄せる。参照元を先に付け替えてから重複行を削除する。
   def merge_duplicated_menus
     # 同一 (user_id, input_type, metric) の組み合わせは一意制約があるため、
-    # 付け替えると keeper 側と衝突する敗者側の行だけ先に落とす。
+    # 付け替え前に keeper 側だけでなく敗者行同士の重複も含めてグループ内で1件に絞る。
+    # 絞らずに付け替えると、敗者メニューが3件以上あり複数の敗者に同じ組み合わせが
+    # またがっているケースで UPDATE 自体が一意制約違反になりうる。
     execute(<<-SQL.squish)
       DELETE FROM insight_combinations
-      USING (#{ranked_menus_sql}) AS ranked
-      WHERE insight_combinations.practice_menu_id = ranked.id
-        AND ranked.id <> ranked.keeper_id
-        AND EXISTS (
-          SELECT 1 FROM insight_combinations keeper_row
-          WHERE keeper_row.user_id = insight_combinations.user_id
-            AND keeper_row.input_type = insight_combinations.input_type
-            AND keeper_row.metric = insight_combinations.metric
-            AND keeper_row.practice_menu_id = ranked.keeper_id
-        )
+      USING (
+        SELECT ic.id,
+               ROW_NUMBER() OVER (
+                 PARTITION BY ranked.keeper_id, ic.input_type, ic.metric
+                 ORDER BY ic.practice_menu_id
+               ) AS row_number
+        FROM insight_combinations ic
+        JOIN (#{ranked_menus_sql}) AS ranked ON ranked.id = ic.practice_menu_id
+      ) AS dedup
+      WHERE insight_combinations.id = dedup.id AND dedup.row_number > 1
     SQL
 
     %w[practice_logs goals menu_set_items schedule_menus insight_combinations].each do |table|
