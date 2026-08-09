@@ -23,6 +23,10 @@ module App
 
       # data.object.metadata を HashWithIndifferentAccess として返す。
       # Stripe 直送（Symbol キー）と DB 経由（JSON → String キー）の両方を統一して扱えるようにする。
+      # data.object は event_type によって Checkout Session / Subscription / Invoice 等、
+      # 異なる Stripe API オブジェクトになり、metadata もオブジェクトごとに別々に持てる
+      # （例: checkout.session.completed は Session 側、customer.subscription.* は
+      # Subscription 側）。呼び出し側は対象イベントでどちらの metadata が乗るか要確認。
       def metadata
         meta = data_object.respond_to?(:metadata) ? data_object.metadata : nil
         (meta.respond_to?(:to_h) ? meta.to_h : {}).with_indifferent_access
