@@ -56,7 +56,7 @@ module RevenueCat
       effective_expires_at = grace_expires_at(entitlement, subscription_detail) || expires_at
       # RevenueCat REST API (GET /v1/subscribers) は period_type を小文字("trial")で返すが、
       # Webhookペイロードは大文字("TRIAL")のため、大文字小文字を無視して判定する。
-      is_trial = subscription_detail['period_type'].to_s.casecmp('TRIAL').zero?
+      is_trial = subscription_detail['period_type'].to_s.casecmp?('TRIAL')
 
       {
         status: status_for(subscription_detail, effective_expires_at, is_trial),
