@@ -11,6 +11,20 @@ RSpec.describe PracticeSession, type: :model do
       expect(described_class.for(user, today)).to eq(first)
     end
 
+    it 'find_by が見逃した行を一意性バリデーションが検知した場合も既存セッションを返す' do
+      winner = create(:practice_session, user:, logged_on: today)
+      relation = user.practice_sessions
+      allow(user).to receive(:practice_sessions).and_return(relation)
+      # 相手方のコミットが find_by の後・バリデーションの前に入った同時到達を再現する。
+      allow(relation).to receive(:find_by).and_return(nil, winner)
+
+      expect(described_class.for(user, today)).to eq(winner)
+    end
+
+    it '一意制約と無関係な検証エラーは握り潰さずそのまま投げる' do
+      expect { described_class.for(user, nil) }.to raise_error(ActiveRecord::RecordInvalid)
+    end
+
     context 'PracticeSessions::Upsert の外側トランザクション内から同時に呼ばれたとき' do
       # 別スレッドの実コネクションから同じ日次セッション行を奪い合わせるため、テスト用トランザクションを外す。
       self.use_transactional_tests = false
@@ -36,14 +50,15 @@ RSpec.describe PracticeSession, type: :model do
         count.times { ready.pop }
         count.times { start << true }
         threads.each(&:join)
-        errors
+        Array.new(errors.size) { errors.pop }
       end
 
       it '一意制約の競合から復旧し、セッションを1件だけ作って全リクエストが成功する' do
         errors = upsert_concurrently(4)
 
         aggregate_failures do
-          expect(errors.size).to eq(0)
+          # 失敗時に原因を追えるよう、件数ではなく例外の内容を突き合わせる。
+          expect(errors.map { |e| "#{e.class}: #{e.message}" }).to be_empty
           expect(described_class.where(user_id: user.id, logged_on: today).count).to eq(1)
         end
       end

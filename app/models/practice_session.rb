@@ -29,10 +29,12 @@ class PracticeSession < ApplicationRecord
     ActiveRecord::Base.transaction(requires_new: true) do
       user.practice_sessions.create!(logged_on: date)
     end
-  rescue ActiveRecord::RecordNotUnique
-    # 同時リクエストで find と create の間に他方が作成した場合は、
-    # (user_id, logged_on) のユニークインデックスに任せて拾い直す。
-    user.practice_sessions.find_by!(logged_on: date)
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+    # 同時リクエストで find_by と INSERT の間に他方が作成した場合の復旧。
+    # 相手方のコミットが一意性バリデーションの SELECT より前なら RecordInvalid、
+    # 後なら DB のユニークインデックス違反（RecordNotUnique）になるため両方から拾い直す。
+    # 行が見つからないなら別要因の検証エラーなので握り潰さず投げ直す。
+    user.practice_sessions.find_by(logged_on: date) || raise(e)
   end
 
   # その日のコンディションログ（1日1件・日付で一意）。
