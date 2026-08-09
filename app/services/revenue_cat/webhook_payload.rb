@@ -32,7 +32,7 @@ module RevenueCat
     end
 
     def trial?
-      period_type == 'TRIAL'
+      PeriodType.trial?(period_type)
     end
 
     def event_timestamp
