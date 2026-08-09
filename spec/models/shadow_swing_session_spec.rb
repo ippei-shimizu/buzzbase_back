@@ -65,4 +65,37 @@ RSpec.describe ShadowSwingSession, type: :model do
       expect(log.unit_label).to eq('本')
     end
   end
+
+  describe '#complete! の同時実行' do
+    # 別スレッドの実コネクションから同じ練習ログ行を奪い合わせるため、テスト用トランザクションを外す。
+    self.use_transactional_tests = false
+
+    let(:today) { Time.find_zone('Asia/Tokyo').today }
+
+    after { ActiveRecord::Base.connection.execute('TRUNCATE TABLE users CASCADE') }
+
+    it '同日の複数セッションが同時に完了しても本数が失われず合算される' do
+      create(:practice_menu, user:, name: '素振り', unit: 'count', unit_label: '本')
+      # 既存ログと当日の activity_logs を先に作り、加算の競合だけを見る状態にする。
+      create(:practice_log, :shadow_swing, user:, logged_on: today, amount: 100)
+      sessions = Array.new(4) { create(:shadow_swing_session, user:, logged_on: today) }
+      ready = Queue.new
+      start = Queue.new
+
+      threads = sessions.map do |session|
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            ready << true
+            start.pop
+            session.complete!(swing_count: 10)
+          end
+        end
+      end
+      sessions.size.times { ready.pop }
+      sessions.size.times { start << true }
+      threads.each(&:join)
+
+      expect(user.practice_logs.where(source: 'shadow_swing').sum(:amount)).to eq(140)
+    end
+  end
 end

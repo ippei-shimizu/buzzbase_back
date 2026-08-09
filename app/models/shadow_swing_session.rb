@@ -46,7 +46,8 @@ class ShadowSwingSession < ApplicationRecord
 
     log = user.practice_logs.find_by(logged_on:, source: 'shadow_swing')
     if log
-      log.update!(amount: log.amount.to_i + swing_count)
+      # 同日の複数セッションが同時完了しても加算が失われないよう、行ロック下で読み直して加算する。
+      log.with_lock { log.update!(amount: log.amount.to_i + swing_count) }
       return log
     end
 
