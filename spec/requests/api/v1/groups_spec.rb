@@ -116,7 +116,8 @@ RSpec.describe 'Api::V1::Groups', type: :request do
         end.not_to change(Group, :count)
 
         expect(response).to have_http_status(:forbidden)
-        expect(response.parsed_body['error']).to eq('Pro プランでグループを無制限に作成・参加できます')
+        expect(response.parsed_body['error']).to eq('group_limit_exceeded')
+        expect(response.parsed_body['message']).to eq('Pro プランでグループを無制限に作成・参加できます')
       end
     end
 

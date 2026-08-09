@@ -9,7 +9,8 @@ module Api
         if invitation.nil?
           render json: { error: '招待状況が見つかりません' }, status: :not_found
         elsif !current_api_v1_user.can_create_or_join_group?
-          render json: { error: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
+          render json: { error: 'group_limit_exceeded',
+                         message: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
         else
           invitation.accepted!
           render json: { success: true }

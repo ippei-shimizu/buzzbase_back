@@ -35,7 +35,8 @@ RSpec.describe 'Api::V1::GroupInvitations', type: :request do
         post "/api/v1/group_invitations/#{group.id}/accept_invitation", headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:forbidden)
-        expect(response.parsed_body['error']).to eq('Pro プランでグループを無制限に作成・参加できます')
+        expect(response.parsed_body['error']).to eq('group_limit_exceeded')
+        expect(response.parsed_body['message']).to eq('Pro プランでグループを無制限に作成・参加できます')
         expect(invitation.reload.state).to eq('pending')
       end
     end
