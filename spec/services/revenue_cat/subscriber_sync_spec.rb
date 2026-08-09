@@ -63,6 +63,16 @@ RSpec.describe RevenueCat::SubscriberSync do
         end
       end
 
+      it 'period_type が小文字の trial（GET /v1/subscribers の実レスポンス形式）でもtrialとして反映する' do
+        stub_entitlement(subscription_overrides: { 'period_type' => 'trial' })
+        subscription = described_class.new(user).call
+
+        aggregate_failures do
+          expect(subscription.status).to eq('trial')
+          expect(subscription.has_used_trial).to be true
+        end
+      end
+
       it '期限切れ(グレース期間もなし)なら expired にする' do
         stub_entitlement(entitlement_overrides: { 'expires_date' => 1.day.ago.iso8601 })
         subscription = described_class.new(user).call
