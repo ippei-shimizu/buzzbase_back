@@ -40,17 +40,38 @@ RSpec.describe 'Api::V1::Webhooks::Stripe', type: :request do
         expect(event.status).to eq('pending')
       end
 
-      context '同一 event_id を 2 回送信したとき' do
+      context '同一 event_id を 2 回送信したとき（1 回目で処理済みまで進んだ場合）' do
         it '2 回目は Job を enqueue しない（冪等性）' do
           post '/api/v1/webhooks/stripe',
                params: raw_payload,
                headers: { 'CONTENT_TYPE' => 'application/json', 'Stripe-Signature' => 't=1,v1=abc' }
+          WebhookEvent.find_by(provider: 'stripe', external_event_id: event_id).mark_processed!
 
           expect do
             post '/api/v1/webhooks/stripe',
                  params: raw_payload,
                  headers: { 'CONTENT_TYPE' => 'application/json', 'Stripe-Signature' => 't=1,v1=abc' }
           end.not_to have_enqueued_job(App::Stripe::WebhookJob)
+
+          expect(response).to have_http_status(:ok)
+          expect(WebhookEvent.where(provider: 'stripe', external_event_id: event_id).count).to eq(1)
+        end
+      end
+
+      context '同一 event_id を 2 回送信したとき（1 回目の enqueue 自体が失敗し pending のままの場合）' do
+        it '2 回目で再度 Job を enqueue する（enqueue 失敗からの復旧）' do
+          post '/api/v1/webhooks/stripe',
+               params: raw_payload,
+               headers: { 'CONTENT_TYPE' => 'application/json', 'Stripe-Signature' => 't=1,v1=abc' }
+          expect(
+            WebhookEvent.find_by(provider: 'stripe', external_event_id: event_id).status
+          ).to eq('pending')
+
+          expect do
+            post '/api/v1/webhooks/stripe',
+                 params: raw_payload,
+                 headers: { 'CONTENT_TYPE' => 'application/json', 'Stripe-Signature' => 't=1,v1=abc' }
+          end.to have_enqueued_job(App::Stripe::WebhookJob).exactly(:once)
 
           expect(response).to have_http_status(:ok)
           expect(WebhookEvent.where(provider: 'stripe', external_event_id: event_id).count).to eq(1)

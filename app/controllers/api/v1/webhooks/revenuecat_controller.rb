@@ -25,8 +25,10 @@ module Api
             payload: params.to_unsafe_h
           )
 
-          # 既存レコードが返ったときはジョブも enqueue 済みなので新規作成時のみ起動する。
-          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.previously_new_record?
+          # pending のまま（新規作成 or 前回 enqueue 自体が失敗）なら起動する。
+          # processed/failed 済みなら重複 enqueue しない。WebhookProcessor 側の
+          # processed ガードもあるため、pending 中の再送で二重 enqueue されても安全。
+          RevenueCatWebhookJob.perform_later(webhook_event.id) if webhook_event.pending?
 
           head :ok
         rescue StandardError => e

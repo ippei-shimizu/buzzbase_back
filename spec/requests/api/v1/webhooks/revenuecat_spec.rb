@@ -37,13 +37,30 @@ RSpec.describe 'Api::V1::Webhooks::Revenuecat', type: :request do
         expect(event.event_type).to eq('INITIAL_PURCHASE')
       end
 
-      context '同一 event_id を 2 回送信したとき' do
+      context '同一 event_id を 2 回送信したとき（1 回目で処理済みまで進んだ場合）' do
         it '2 回目は Job を enqueue しない（冪等性）' do
           post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          WebhookEvent.find_by(provider: 'revenuecat', external_event_id: event_id).mark_processed!
 
           expect do
             post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
           end.not_to have_enqueued_job(RevenueCatWebhookJob)
+
+          expect(response).to have_http_status(:ok)
+          expect(WebhookEvent.where(provider: 'revenuecat', external_event_id: event_id).count).to eq(1)
+        end
+      end
+
+      context '同一 event_id を 2 回送信したとき（1 回目の enqueue 自体が失敗し pending のままの場合）' do
+        it '2 回目で再度 Job を enqueue する（enqueue 失敗からの復旧）' do
+          post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          expect(
+            WebhookEvent.find_by(provider: 'revenuecat', external_event_id: event_id).status
+          ).to eq('pending')
+
+          expect do
+            post '/api/v1/webhooks/revenuecat', params: payload, headers: auth_header, as: :json
+          end.to have_enqueued_job(RevenueCatWebhookJob).exactly(:once)
 
           expect(response).to have_http_status(:ok)
           expect(WebhookEvent.where(provider: 'revenuecat', external_event_id: event_id).count).to eq(1)
