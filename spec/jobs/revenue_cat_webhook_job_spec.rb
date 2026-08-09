@@ -31,6 +31,47 @@ RSpec.describe RevenueCatWebhookJob, type: :job do
     end
   end
 
+  describe '恒久的エラーの discard' do
+    let(:handler) { instance_double(RevenueCat::Handlers::InitialPurchaseHandler) }
+
+    before do
+      allow(Sentry).to receive(:capture_exception)
+      allow(RevenueCat::EventDispatcher).to receive(:handler_for).and_return(handler)
+      allow(handler).to receive(:call).and_raise(error)
+    end
+
+    context '恒久的エラー（UnresolvedUserError / UnknownProductError）のとき' do
+      [RevenueCat::UserResolver::UnresolvedUserError,
+       RevenueCat::Handlers::BaseHandler::UnknownProductError].each do |error_class|
+        context error_class.name do
+          let(:error) { error_class }
+
+          it 'リトライせず初回で discard し、Sentry 通知も 1 回だけになる' do
+            perform_enqueued_jobs do
+              expect { described_class.perform_later(webhook_event.id) }.not_to raise_error
+            end
+
+            expect(Sentry).to have_received(:capture_exception).once
+            expect(enqueued_jobs).to be_empty
+            expect(webhook_event.reload).to be_failed
+          end
+        end
+      end
+    end
+
+    context '一時的エラー（RequestFailedError）のとき' do
+      let(:error) { RevenueCat::SubscriberClient::RequestFailedError }
+
+      it '従来通り最大 5 回までリトライされる' do
+        perform_enqueued_jobs do
+          expect { described_class.perform_later(webhook_event.id) }.to raise_error(error)
+        end
+
+        expect(Sentry).to have_received(:capture_exception).exactly(5).times
+      end
+    end
+  end
+
   describe 'queue' do
     it 'default キューに enqueue される' do
       expect(described_class.new.queue_name).to eq('default')
