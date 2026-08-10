@@ -10,8 +10,9 @@ module App
       # 設定漏れ由来の恒久的エラーはリトライしても回復しない。ActiveJob は後から登録した
       # ハンドラが優先されるため retry_on より後に置き、初回で discard させる。
       # 失敗の記録と Sentry 通知は WebhookProcessor#process 側で済んでいる。
-      discard_on App::Stripe::Handlers::CheckoutSessionCompletedHandler::MissingMetadataError,
-                 App::Stripe::Handlers::CheckoutSessionCompletedHandler::UnresolvedUserError
+      # 恒久的エラーは App::Stripe::PermanentWebhookError を継承させれば自動的に対象になるため、
+      # 新しい handler を追加する側がこの discard_on 自体を編集する必要はない。
+      discard_on App::Stripe::PermanentWebhookError
 
       # DB から webhook_event が消えていても落とさない（手動削除や DB 競合に備える）。
       def perform(webhook_event_id)

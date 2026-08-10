@@ -6,7 +6,7 @@ module RevenueCat
     # 解決できない app_user_id を受けたときに投げる。WebhookProcessor がこれを rescue して
     # webhook_event を failed にするため、課金は成立したのに entitlement が付与されない状態が
     # processed 扱いのまま埋もれる（自動復旧できなくなる）のを防ぐ。
-    UnresolvedUserError = Class.new(StandardError)
+    UnresolvedUserError = Class.new(PermanentWebhookError)
 
     module_function
 

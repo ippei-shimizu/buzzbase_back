@@ -6,7 +6,7 @@ module RevenueCat
       # PlanCatalogに未登録のproduct_id/storeを受けたときに投げる。WebhookProcessorがこれを
       # rescueしてwebhook_eventをfailedにするため、課金・プラン変更は成立したのにentitlement
       # が付与されない状態がprocessed扱いのまま埋もれる（自動復旧できなくなる）のを防ぐ。
-      UnknownProductError = Class.new(StandardError)
+      UnknownProductError = Class.new(PermanentWebhookError)
 
       # stale_event? の比較対象。加入の有効／無効が往復しうるイベントだけを並べる。
       ORDERING_SENSITIVE_EVENT_TYPES = %w[cancelled uncancelled billing_issue renewed recovered expired refunded].freeze
