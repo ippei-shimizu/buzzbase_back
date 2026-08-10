@@ -35,7 +35,10 @@ module Api
           return render json: { error: '既にこのグループのメンバーです' }, status: :unprocessable_entity
         end
 
-        return render json: { error: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden unless user.can_create_or_join_group?
+        unless user.can_create_or_join_group?
+          return render json: { error: 'group_limit_exceeded',
+                                message: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
+        end
 
         ActiveRecord::Base.transaction do
           group.group_invitations.create!(user:, state: 'accepted', sent_at: Time.current)
