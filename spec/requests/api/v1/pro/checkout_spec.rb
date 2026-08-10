@@ -11,10 +11,31 @@ RSpec.describe 'Api::V1::Pro::Checkout', type: :request do
   end
 
   describe 'POST /api/v1/pro/checkout' do
+    before { Flipper.enable_actor(:pro_features, user) }
+
+    after { Flipper.disable(:pro_features) }
+
     context '未認証のとき' do
       it '401 を返す' do
         post '/api/v1/pro/checkout', params:, as: :json
         expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'Flipper :pro_features が無効のとき' do
+      let(:builder) { instance_double(App::Stripe::CheckoutSessionBuilder) }
+
+      before do
+        Flipper.disable(:pro_features)
+        allow(App::Stripe::CheckoutSessionBuilder).to receive(:new).and_return(builder)
+      end
+
+      it '403 + error: feature_disabled を返し、Stripe を呼ばない' do
+        post '/api/v1/pro/checkout', params:, headers: auth_headers_for(user), as: :json
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq('feature_disabled')
+        expect(App::Stripe::CheckoutSessionBuilder).not_to have_received(:new)
       end
     end
 

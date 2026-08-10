@@ -7,6 +7,12 @@ module App
       # 指数バックオフで最大 5 回リトライ。ApplicationJob の rescue_from で Sentry 通知される。
       retry_on StandardError, wait: :polynomially_longer, attempts: 5
 
+      # 設定漏れ由来の恒久的エラーはリトライしても回復しない。ActiveJob は後から登録した
+      # ハンドラが優先されるため retry_on より後に置き、初回で discard させる。
+      # 失敗の記録と Sentry 通知は WebhookProcessor#process 側で済んでいる。
+      discard_on App::Stripe::Handlers::CheckoutSessionCompletedHandler::MissingMetadataError,
+                 App::Stripe::Handlers::CheckoutSessionCompletedHandler::UnresolvedUserError
+
       # DB から webhook_event が消えていても落とさない（手動削除や DB 競合に備える）。
       def perform(webhook_event_id)
         webhook_event = WebhookEvent.find_by(id: webhook_event_id)
