@@ -47,6 +47,22 @@ RSpec.describe App::Stripe::WebhookJob, type: :job do
       end
     end
 
+    context 'App::Stripe::PermanentWebhookError を継承した未知のエラーのとき' do
+      # job 側は個別のエラークラスを列挙せず PermanentWebhookError だけを discard_on しているため、
+      # 将来 handler 側で新しい恒久的エラーを追加しても job 側の変更なしに discard される。
+      let(:error) { Class.new(App::Stripe::PermanentWebhookError) }
+
+      it 'リトライせず初回で discard される' do
+        perform_enqueued_jobs do
+          expect { described_class.perform_later(webhook_event.id) }.not_to raise_error
+        end
+
+        expect(Sentry).to have_received(:capture_exception).once
+        expect(enqueued_jobs).to be_empty
+        expect(webhook_event.reload).to be_failed
+      end
+    end
+
     context '一時的エラー（Stripe API 障害）のとき' do
       let(:error) { Stripe::APIConnectionError }
 

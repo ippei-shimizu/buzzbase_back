@@ -7,8 +7,8 @@ module App
         # metadata.user_idが欠落しているときに投げる。WebhookProcessorがこれをrescueして
         # webhook_eventをfailedにするため、決済は成立したのにSubscriptionへStripe IDが
         # 紐付かない状態がprocessed扱いのまま埋もれる（自動復旧できなくなる）のを防ぐ。
-        MissingMetadataError = Class.new(StandardError)
-        UnresolvedUserError = Class.new(StandardError)
+        MissingMetadataError = Class.new(PermanentWebhookError)
+        UnresolvedUserError = Class.new(PermanentWebhookError)
 
         def call
           user_id = payload.metadata[:user_id]
