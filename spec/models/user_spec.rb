@@ -535,23 +535,19 @@ RSpec.describe User, type: :model do
     end
   end
 
-  describe '#sync_stripe_customer_email (after_update)' do
+  describe '#sync_stripe_customer_email (after_commit on: :update)' do
     let(:user) { create(:user, email: 'old@example.com') }
-    let(:job) { instance_double(StripeCustomerUpdateJob, perform: nil) }
-
-    before do
-      allow(StripeCustomerUpdateJob).to receive(:new).and_return(job)
-    end
 
     context 'Web ユーザーで stripe_customer_id が紐付き、email が変わったとき' do
       before do
         user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
       end
 
-      it 'StripeCustomerUpdateJob を起動する' do
+      it 'StripeCustomerUpdateJob をenqueueする' do
         user.skip_reconfirmation!
-        user.update!(email: 'new@example.com')
-        expect(job).to have_received(:perform).with(user.id)
+        expect do
+          user.update!(email: 'new@example.com')
+        end.to have_enqueued_job(StripeCustomerUpdateJob).with(user.id)
       end
     end
 
@@ -560,10 +556,11 @@ RSpec.describe User, type: :model do
         user.subscription.update!(platform: 'ios', stripe_customer_id: 'cus_ios_abc')
       end
 
-      it 'Stripe Customer 同期を起動しない（Apple ID 側で管理される）' do
+      it 'Stripe Customer 同期をenqueueしない（Apple ID 側で管理される）' do
         user.skip_reconfirmation!
-        user.update!(email: 'new@example.com')
-        expect(job).not_to have_received(:perform)
+        expect do
+          user.update!(email: 'new@example.com')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
       end
     end
 
@@ -572,10 +569,11 @@ RSpec.describe User, type: :model do
         user.subscription.update!(platform: 'web', stripe_customer_id: nil)
       end
 
-      it 'Stripe Customer 同期を起動しない' do
+      it 'Stripe Customer 同期をenqueueしない' do
         user.skip_reconfirmation!
-        user.update!(email: 'new@example.com')
-        expect(job).not_to have_received(:perform)
+        expect do
+          user.update!(email: 'new@example.com')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
       end
     end
 
@@ -584,9 +582,10 @@ RSpec.describe User, type: :model do
         user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
       end
 
-      it 'Stripe Customer 同期を起動しない' do
-        user.update!(name: '別名前')
-        expect(job).not_to have_received(:perform)
+      it 'Stripe Customer 同期をenqueueしない' do
+        expect do
+          user.update!(name: '別名前')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
       end
     end
   end

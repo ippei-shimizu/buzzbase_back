@@ -6,7 +6,7 @@ module SubscriptionCallbacks
   included do
     before_destroy :prevent_destroy_if_pro_active
     after_create :create_default_subscription
-    after_update :sync_stripe_customer_email, if: :saved_change_to_email?
+    after_commit :sync_stripe_customer_email, on: :update, if: :saved_change_to_email?
   end
 
   private
@@ -29,11 +29,13 @@ module SubscriptionCallbacks
 
   # email 変更時に Stripe Customer.email を追従させる。
   # iOS / Android ユーザーは Apple ID / Google アカウント側で管理されるため対象外。
-  # 同期実行だが Job 内で rescue しているため User#update! を巻き込まない。
+  # トランザクションcommit後に非同期実行し、Stripe API呼び出しのレイテンシで
+  # User#update! をブロックしたり、後続処理のロールバックとStripe側の状態が
+  # 食い違ったりしないようにする。
   def sync_stripe_customer_email
     return unless subscription&.platform_web?
     return if subscription.stripe_customer_id.blank?
 
-    StripeCustomerUpdateJob.new.perform(id)
+    StripeCustomerUpdateJob.perform_later(id)
   end
 end
