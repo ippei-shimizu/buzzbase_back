@@ -124,7 +124,7 @@ RSpec.describe 'Api::V2::Goals', type: :request do
       it 'カスタム期間目標は無料は403' do
         params = { goal: { title: '大会前3週間', period_type: 'custom',
                            month_start: today, deadline: today + 21,
-                           metric_key: 'total_swing_count', target_value: 2000 } }
+                           metric_key: 'practice_days', target_value: 20 } }
         post '/api/v2/goals', params:, headers: auth_headers_for(user)
         expect(response).to have_http_status(:forbidden)
       end
@@ -133,7 +133,7 @@ RSpec.describe 'Api::V2::Goals', type: :request do
         make_pro(user)
         params = { goal: { title: '大会前3週間', period_type: 'custom',
                            month_start: today, deadline: today + 21,
-                           metric_key: 'total_swing_count', target_value: 2000 } }
+                           metric_key: 'practice_days', target_value: 20 } }
         post '/api/v2/goals', params:, headers: auth_headers_for(user)
         expect(response).to have_http_status(:created)
       end
@@ -305,6 +305,29 @@ RSpec.describe 'Api::V2::Goals', type: :request do
 
       FinalizeGoalsJob.new.perform
       expect(goal.reload.achieved_at).to be_within(1.second).of(achieved_at)
+    end
+
+    it '廃止指標の目標も確定できる' do
+      goal = build(:goal, user:, metric_key: 'total_swing_count', target_value: 100, deadline: today - 1,
+                          month_start: (today - 1).beginning_of_month)
+      goal.save!(validate: false)
+
+      FinalizeGoalsJob.new.perform
+      expect(goal.reload.is_finalized).to be(true)
+    end
+
+    it '保存に失敗する目標があっても他ユーザーの確定を止めない' do
+      # 許可リストから外れた指標が残っている状態を再現する。
+      broken = build(:goal, user:, metric_key: 'removed_metric', target_value: 1, deadline: today - 1,
+                            month_start: (today - 1).beginning_of_month)
+      broken.save!(validate: false)
+      other_user = create(:user)
+      healthy = create(:goal, user: other_user, metric_key: 'practice_days', target_value: 1, deadline: today - 1,
+                              month_start: (today - 1).beginning_of_month)
+
+      expect { FinalizeGoalsJob.new.perform }.not_to raise_error
+      expect(healthy.reload.is_finalized).to be(true)
+      expect(broken.reload.is_finalized).to be(false)
     end
   end
 end

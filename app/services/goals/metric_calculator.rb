@@ -1,13 +1,15 @@
 module Goals
   # 目標の指標を、その目標の対象期間で集計して現在値を返す。
   # 対応 metric は DISPATCH（Goal::METRIC_KEYS と対応）。自動集計できる打撃/投手/練習の値。
-  class MetricCalculator
+  class MetricCalculator # rubocop:disable Metrics/ClassLength
     # metric_key → 集計メソッド。Goal::METRIC_KEYS で検証済みの許可リスト。
     DISPATCH = {
       'practice_days' => :practice_days,
+      'self_practice_days' => :self_practice_days,
       'total_swing_count' => :total_swing_count,
       'game_count' => :game_count,
       'menu_practice_days' => :menu_practice_days,
+      'menu_practice_amount' => :menu_practice_amount,
       'batting_average' => :batting_average,
       'on_base_percentage' => :on_base_percentage,
       'slugging_percentage' => :slugging_percentage,
@@ -95,6 +97,15 @@ module Goals
            .where('intensity_level >= 1').count
     end
 
+    # 自主練習として記録した日のうち、実際に練習ログがある日を数える。
+    def self_practice_days(from, to)
+      @user.practice_sessions
+           .where(practice_type: 'self_practice', logged_on: from.to_date..to.to_date)
+           .joins(:practice_logs)
+           .distinct.count
+    end
+
+    # 新規作成は不可（Goal::DEPRECATED_METRIC_KEYS）。既存目標の集計のためだけに残す。
     def total_swing_count(from, to)
       @user.practice_logs.where(source: 'shadow_swing', logged_on: from.to_date..to.to_date).sum(:amount).to_i
     end
@@ -106,6 +117,16 @@ module Goals
       @user.practice_logs
            .where(practice_menu_id: @goal.practice_menu_id, logged_on: from.to_date..to.to_date)
            .distinct.count(:logged_on)
+    end
+
+    # メニュー回数: 対象メニューの実施量を期間内で合計する。単位はそのメニューの unit_label。
+    # 素振りメニューを選んだ場合は素振り自動ログ（source=shadow_swing）も対象に含む。
+    def menu_practice_amount(from, to)
+      return 0 if @goal.practice_menu_id.nil?
+
+      @user.practice_logs
+           .where(practice_menu_id: @goal.practice_menu_id, logged_on: from.to_date..to.to_date)
+           .sum(:amount).to_f.round(2)
     end
 
     def game_count(from, to)

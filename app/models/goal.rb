@@ -14,11 +14,17 @@ class Goal < ApplicationRecord
   COMPARISON_TYPES = %w[greater_than less_than].freeze
   KINDS = %w[numeric qualitative manual].freeze
   METRIC_KEYS = %w[
-    practice_days total_swing_count game_count menu_practice_days
+    practice_days self_practice_days total_swing_count game_count
+    menu_practice_days menu_practice_amount
     batting_average on_base_percentage slugging_percentage ops
     hits home_runs runs_batted_in runs_scored stolen_bases
     era whip strikeouts wins saves
   ].freeze
+  # 新規作成では選ばせないが、既存目標の進捗計算・確定を壊さないため METRIC_KEYS には残す。
+  DEPRECATED_METRIC_KEYS = %w[total_swing_count].freeze
+  SELECTABLE_METRIC_KEYS = (METRIC_KEYS - DEPRECATED_METRIC_KEYS).freeze
+  # 対象の練習メニュー指定が必須になる指標。
+  MENU_REQUIRED_METRIC_KEYS = %w[menu_practice_days menu_practice_amount].freeze
 
   validates :title, presence: true, length: { maximum: 60 }
   validates :period_type, inclusion: { in: PERIOD_TYPES }
@@ -26,12 +32,14 @@ class Goal < ApplicationRecord
   validates :comparison_type, inclusion: { in: COMPARISON_TYPES }
   # 数値目標のみ指標必須（定性は達成/未達、自由指標は指標名で管理）。
   validates :metric_key, inclusion: { in: METRIC_KEYS }, if: :numeric?
+  # 廃止指標は新規作成のみ禁止する。既存目標は編集も確定もできる状態を保つ。
+  validates :metric_key, inclusion: { in: SELECTABLE_METRIC_KEYS }, on: :create, if: :numeric?
   # 数値・自由指標は目標値必須（定性目標のみ不要）。負の目標値は成立しない。
   validates :target_value, presence: true, numericality: { greater_than_or_equal_to: 0 }, unless: :qualitative?
   # 自由指標（手動更新）は指標名必須。
   validates :custom_metric_label, presence: true, length: { maximum: 40 }, if: :manual?
-  # 継続目標（メニュー継続日数）は対象メニュー必須。
-  validates :practice_menu_id, presence: true, if: -> { metric_key == 'menu_practice_days' }
+  # メニュー単位の指標（継続日数・実施量）は対象メニュー必須。
+  validates :practice_menu_id, presence: true, if: -> { MENU_REQUIRED_METRIC_KEYS.include?(metric_key) }
   # 他ユーザーの練習メニューを指定できないようにする（IDOR / 名称漏洩防止）。
   validate :practice_menu_owned_by_user, if: -> { practice_menu_id.present? }
   # 他ユーザーのシーズンを指定できないようにする（IDOR / 集計混入防止）。

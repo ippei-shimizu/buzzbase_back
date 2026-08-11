@@ -20,6 +20,10 @@ class FinalizeGoalsJob < ApplicationJob
         )
         award_badge(goal) if achieved
       end
+    rescue ActiveRecord::RecordInvalid => e
+      # 1件の不正データで全ユーザーの確定・バッジ付与が止まらないよう、その目標だけ飛ばす。
+      Rails.logger.error("FinalizeGoalsJob skipped goal_id=#{goal.id}: #{e.message}")
+      next
     end
   end
 
