@@ -113,14 +113,60 @@ docker compose exec -e DATABASE_URL=postgres://user:password@db:5432/buzzbase_qa
 
 `✓ migration 前後で既存の集計値・キー値に差分なし` が出れば成功。
 
-### 5. rollback 可逆性確認
+### 5. rollback 可逆性確認（部分 rollback）
+
+意図的に非可逆な migration が含まれるリリースでは、全件 rollback は必ず失敗する。
+対象リリースで `down` が `ActiveRecord::IrreversibleMigration` を raise する migration を除いた
+残りが、1本ずつ破綻なく rollback できることを確認する。
+
+> **`db:rollback STEP=<本数>` や `db:migrate VERSION=<非可逆migrationのバージョン>` による
+> 一括 rollback は使わない。** migration のバージョン番号（タイムスタンプ）はファイル作成日時であり、
+> リリース順とは限らない。実際に release/pro-202605 では最古の新規 migration
+> （`20260517100004`、Pro機能の開発着手時点で作成）より後の日付で、**別リリース（game-stats）の
+> 既に本番適用済みの migration**（`20260530xxxxxx`〜`20260625xxxxxx`）が多数存在した。バージョン
+> 番号だけを基準にした一括 rollback は、対象リリースと無関係なこれら適用済み migration まで
+> 巻き込んで revert してしまう（実際に本手順の検証中に発生し、`pitchers` / `stadiums` 等の
+> 本番稼働中テーブルを誤って drop する寸前だった）。
+
+対象リリース**自身**の migration バージョンだけを新しい順に個別列挙し、非可逆な1本を除いて
+1本ずつ `db:migrate:down VERSION=` で rollback する。
+
+```bash
+# 対象リリースの migration バージョンを新しい順に取得し、非可逆な1本を除外する
+git -C back diff origin/main HEAD --name-only -- db/migrate/ \
+  | grep -oE '^[0-9]{14}' | sort -rn | grep -v <非可逆migrationのバージョン> \
+  > /tmp/reversible_versions.txt
+
+while IFS= read -r v; do
+  docker compose exec -T -e DATABASE_URL=postgres://user:password@db:5432/buzzbase_qa \
+    back bundle exec rails db:migrate:down "VERSION=$v" < /dev/null || { echo "rollback失敗: $v"; break; }
+done < /tmp/reversible_versions.txt
+```
+
+> `docker compose exec` は `-T`（pseudo-tty無効化）と `< /dev/null` を必ず付ける。付けないと
+> while ループの標準入力（ファイル）を `docker compose exec` 側が横取りし、1回目のイテレーションで
+> ループが終了してしまう。
+
+エラーなく全件完了すれば OK。1回の rails 起動あたり数秒かかるため、対象リリースの migration
+本数によっては数分かかる。
+
+> 例（release/pro-202605）: `20260517100004_backfill_default_subscriptions_for_existing_users.rb` の
+> `down` は「`status = 'free'` の一律削除は、Pro解約で free に戻った正規データを巻き込むため」raiseする設計。
+> 上記コマンドで除外対象に指定する。
+>
+> なお、他にも `down` が例外を出さず no-op なだけの migration（子テーブルへのバックフィル系。例:
+> `backfill_note_game_links` / `backfill_practice_session_theme_links` / `backfill_note_theme_links` /
+> `backfill_practice_type_on_practice_sessions`）が複数含まれる場合がある。これらは rollback は「成功」するが
+> バックフィルしたデータは復元されない（1件のレコードに対し複数の紐付けがある場合に一意の書き戻し先がない、
+> または変更前の値を保持していないため）。本手順が保証するのは「rollback がクラッシュしないこと」であり、
+> 「データが完全に元に戻ること」ではない点に注意する。
+
+確認後は、後続の手順（開発環境への投入や目視確認）のためにスキーマをリリース時点まで戻しておく。
 
 ```bash
 docker compose exec -e DATABASE_URL=postgres://user:password@db:5432/buzzbase_qa \
-  back bundle exec rails db:rollback STEP=<今回適用した migration 本数>
+  back bundle exec rails db:migrate
 ```
-
-全 migration が `IrreversibleMigration` やエラーなく巻き戻ることを確認する。
 
 ### 6. 後片付け
 
@@ -151,7 +197,7 @@ PII が入る瞬間が無い。フローは「一時DB復元 → `qa:anonymize` 
 - [ ] 本番ダンプを取得し QA 専用 DB に復元した（開発 DB は壊していない）
 - [ ] 復元直後に `qa:anonymize` を実行した（`device_tokens=0` / 全 users が `@example.com`）
 - [ ] `qa:rehearse_migration` が `✓ 差分なし` で完了した
-- [ ] `db:rollback` が破綻なく巻き戻った
+- [ ] 非可逆 migration の1つ手前までの部分 rollback が破綻なく通った
 - [ ] 新規 seed を伴う migration は、参照する `db/data/master_seeds/*.yml` が**実在**することを確認した
 - [ ] ダンプファイルと QA 専用 DB を削除した
 
@@ -163,3 +209,21 @@ PII が入る瞬間が無い。フローは「一時DB復元 → `qa:anonymize` 
 - **pg_dump バージョン**: ローカルが本番より古いと `server version mismatch`。15 系バイナリを使う。
 - **行ごと UPDATE は遅い**: Docker 経由だと往復が積み上がるため、anonymize は `update_all` の一括 SQL
   （`id` を参照）で行う。
+- **`qa:rehearse_migration` の自動検証対象外にしているもの**: `backfill_practice_type_on_practice_sessions`
+  のような、既存カラムへの直接 UPDATE で新しい値を導出するだけの migration（参照元データ自体は削除しない）は、
+  自動 diff 対象に含めていない。中間テーブルへの退避・カラム削除を伴う migration（`note_game_links` 等）と違い、
+  参照元（`practice_logs` / `schedules`）さえ残っていれば後からいつでも再導出できるため、データ消失リスクが
+  質的に異なる。必要であれば `qa:rehearse_migration` 実行後に対象テーブルを個別に SELECT して目視確認する。
+- **migration バージョン番号とリリース順は一致しない**: 並行開発中のブランチでは、後からリリースする側の
+  migration が先にリリースする側より古いタイムスタンプを持つことがある（実例は手順5参照）。
+  `db:rollback STEP=` や `db:migrate VERSION=` を「今回のリリース分だけ」のつもりで一括実行すると、
+  無関係な既存 migration まで巻き込む。対象リリースの migration 一覧は `git diff <ベースブランチ> HEAD
+  --name-only -- db/migrate/` で明示的に取得すること。
+- **`change_table` の `bulk: true` はカラム追加とインデックス追加を同居させると rollback を壊す**:
+  `change_table :table, bulk: true do |t| t.column ...; t.index ... end` の形で列追加とインデックス
+  追加を同一ブロックに書くと、自動生成される `down` はカラム削除を先に実行してしまい
+  （PostgreSQL がカラム削除時にそのカラムに依存するインデックスを CASCADE で自動削除するため）、
+  続く `remove_index` が「対象インデックスが見つからない」で失敗する。本リハーサル中に
+  `20260704010001_add_versioning_to_reflection_templates.rb` で実際に検出し、`bulk: true` を
+  外すことで解消した（`bulk: true` は複数カラム変更を1つの `ALTER TABLE` にまとめる性能最適化に
+  過ぎず、除去しても最終スキーマは変わらない）。同種のパターンを書く migration では要注意。
