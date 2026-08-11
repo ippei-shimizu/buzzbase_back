@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_10_000002) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_11_020001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -705,6 +705,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000002) do
     t.text "memo"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "practice_type", default: "self_practice", null: false
     t.index ["user_id", "logged_on"], name: "index_practice_sessions_on_user_id_and_logged_on", unique: true
     t.index ["user_id"], name: "index_practice_sessions_on_user_id"
   end
@@ -772,6 +773,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_10_000002) do
     t.string "event_type", default: "self_practice", null: false
     t.bigint "menu_set_id"
     t.bigint "game_result_id"
+    t.time "end_time"
     t.index ["game_result_id"], name: "index_schedules_on_game_result_id"
     t.index ["menu_set_id"], name: "index_schedules_on_menu_set_id"
     t.index ["user_id", "active"], name: "index_schedules_on_user_id_and_active"

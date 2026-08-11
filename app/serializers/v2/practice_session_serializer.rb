@@ -3,7 +3,7 @@ module V2
   # `condition_logs_by_date`（logged_on => ConditionLog）を instance_options で受け取ると
   # それを使う（一覧表示での N+1 防止）。無ければ個別に 1 件取得する（show 等の単発表示用）。
   class PracticeSessionSerializer < ActiveModel::Serializer
-    attributes :id, :logged_on, :memo, :improvement_theme_ids, :created_at
+    attributes :id, :logged_on, :memo, :practice_type, :improvement_theme_ids, :created_at
 
     has_many :practice_logs, serializer: V2::PracticeLogSerializer
 

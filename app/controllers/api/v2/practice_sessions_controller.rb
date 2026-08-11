@@ -42,6 +42,7 @@ module Api
           user: current_api_v1_user,
           logged_on: session_params[:logged_on],
           memo: session_params[:memo],
+          practice_type: session_params[:practice_type],
           improvement_theme_ids: session_params[:improvement_theme_ids],
           items: session_params[:items]&.map(&:to_h) || [],
           condition: session_params[:condition]&.to_h
@@ -71,7 +72,7 @@ module Api
 
       def session_params
         params.require(:practice_session).permit(
-          :logged_on, :memo,
+          :logged_on, :memo, :practice_type,
           improvement_theme_ids: [],
           items: %i[practice_menu_id amount weight memo],
           condition: [:fatigue_level, :physical_level, :sleep_hours, :mood, :memo, { injuries: %i[part memo] }]

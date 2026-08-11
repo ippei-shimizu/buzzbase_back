@@ -23,7 +23,15 @@ class PracticeLog < ApplicationRecord
   def assign_practice_session
     return if practice_session_id.present? || logged_on.blank?
 
-    self.practice_session = PracticeSession.for(user, logged_on)
+    self.practice_session = PracticeSession.for(user, logged_on, practice_type: inferred_practice_type)
+  end
+
+  # 予定チェックから生まれたログは、その予定の種別でその日をチーム練習として起こす。
+  # nil を返した場合はカラム既定値（self_practice）に委ねる。
+  def inferred_practice_type
+    return nil if schedule.nil?
+
+    %w[practice game].include?(schedule.event_type) ? 'team_practice' : nil
   end
 
   def recalculate_activity

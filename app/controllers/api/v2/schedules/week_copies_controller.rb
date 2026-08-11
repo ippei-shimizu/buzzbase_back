@@ -43,7 +43,9 @@ module Api
             title: schedule.title,
             event_type: schedule.event_type,
             scheduled_time: schedule.scheduled_time,
+            end_time: schedule.end_time,
             planned_on: target_date,
+            note: schedule.note,
             notification_enabled: schedule.notification_enabled,
             notification_message: schedule.notification_message,
             menu_set_id: schedule.menu_set_id
@@ -60,6 +62,8 @@ module Api
           new_schedule
         end
 
+        # 判定キーに note / end_time は含めない。後から追加したカラムを条件に足すと、
+        # 追加前にコピー済みの週が「未コピー」と判定されて重複生成されるため。
         def already_copied?(schedule, target_date)
           current_api_v1_user.schedules.active.single.exists?(
             planned_on: target_date,

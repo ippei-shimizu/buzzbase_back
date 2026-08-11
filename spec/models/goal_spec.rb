@@ -28,4 +28,41 @@ RSpec.describe Goal, type: :model do
       expect(build(:goal, :qualitative, user:)).to be_valid
     end
   end
+
+  describe 'metric_key のバリデーション' do
+    it '廃止指標は新規作成できない' do
+      goal = build(:goal, user:, metric_key: 'total_swing_count')
+
+      expect(goal).not_to be_valid
+      expect(goal.errors[:metric_key]).to be_present
+    end
+
+    it '廃止指標の既存目標は編集して保存できる' do
+      goal = build(:goal, user:, metric_key: 'total_swing_count')
+      goal.save!(validate: false)
+
+      expect(goal.update(title: '編集後のタイトル')).to be(true)
+    end
+
+    it '許可リストに無い指標は無効' do
+      expect(build(:goal, user:, metric_key: 'unknown_metric')).not_to be_valid
+    end
+  end
+
+  describe 'メニュー単位指標の practice_menu_id' do
+    it 'メニュー回数(menu_practice_amount)は対象メニュー必須' do
+      goal = build(:goal, user:, metric_key: 'menu_practice_amount', practice_menu: nil)
+
+      expect(goal).not_to be_valid
+      expect(goal.errors[:practice_menu_id]).to be_present
+    end
+
+    it 'メニュー継続日数(menu_practice_days)は対象メニュー必須' do
+      expect(build(:goal, user:, metric_key: 'menu_practice_days', practice_menu: nil)).not_to be_valid
+    end
+
+    it '対象メニューを指定すれば有効' do
+      expect(build(:goal, user:, metric_key: 'menu_practice_amount', practice_menu: create(:practice_menu, user:))).to be_valid
+    end
+  end
 end

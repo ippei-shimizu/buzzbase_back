@@ -47,7 +47,8 @@ module Api
           schedule_id: schedule.id,
           # 「日」表示のタイムラインで時刻軸に配置するため、time 型を保存 TZ に依存しない
           # "HH:MM" 文字列で返す。終日予定は nil。
-          scheduled_time: schedule.scheduled_time&.strftime('%H:%M')
+          scheduled_time: schedule.scheduled_time&.strftime('%H:%M'),
+          end_time: schedule.end_time&.strftime('%H:%M')
         }
       end
 

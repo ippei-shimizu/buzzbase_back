@@ -2,6 +2,7 @@ module V2
   class GoalSerializer < ActiveModel::Serializer
     attributes :id, :title, :kind, :period_type, :season_id, :tournament_id, :month_start, :deadline,
                :metric_key, :target_value, :comparison_type, :practice_menu_id, :practice_menu_name,
+               :practice_menu_unit_label,
                :custom_metric_label, :custom_unit, :manual_current_value,
                :is_achieved, :is_finalized, :achieved_value,
                :current_value, :progress_percent, :days_remaining
@@ -16,6 +17,11 @@ module V2
 
     def practice_menu_name
       object.practice_menu&.name
+    end
+
+    # menu_practice_amount の単位はメニューごとに変わるため、指標固定の単位では表せない。
+    def practice_menu_unit_label
+      object.practice_menu&.unit_label
     end
 
     def days_remaining

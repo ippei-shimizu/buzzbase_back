@@ -64,6 +64,38 @@ RSpec.describe Goals::MetricCalculator do
 
       expect(described_class.new(goal).current_value).to eq(2)
     end
+
+    it 'メニュー回数(menu_practice_amount)は対象メニューの実施量を期間内で合計する' do
+      menu = create(:practice_menu, user:)
+      month = Time.find_zone('Asia/Tokyo').today.beginning_of_month
+      create(:practice_log, user:, practice_menu: menu, logged_on: month + 5, amount: 200)
+      create(:practice_log, user:, practice_menu: menu, logged_on: month + 6, amount: 150)
+      create(:practice_log, user:, practice_menu: create(:practice_menu, user:), logged_on: month + 5, amount: 999)
+      goal = create(:goal, user:, metric_key: 'menu_practice_amount', practice_menu: menu, target_value: 1000)
+
+      expect(described_class.new(goal).current_value).to eq(350.0)
+    end
+
+    it '自主練習日数(self_practice_days)は自主練習かつ練習ログのある日だけを数える' do
+      month = Time.find_zone('Asia/Tokyo').today.beginning_of_month
+      create(:practice_log, user:, logged_on: month + 5)
+      create(:practice_log, user:, logged_on: month + 6)
+      user.practice_sessions.find_by(logged_on: month + 6).update!(practice_type: 'team_practice')
+      # ログの無い自主練習日はカウントしない。
+      create(:practice_session, user:, logged_on: month + 7)
+      goal = create(:goal, user:, metric_key: 'self_practice_days', target_value: 20)
+
+      expect(described_class.new(goal).current_value).to eq(1)
+    end
+
+    it '素振り本数(total_swing_count)は新規作成できないが既存目標の集計は続く' do
+      month = Time.find_zone('Asia/Tokyo').today.beginning_of_month
+      create(:practice_log, user:, source: 'shadow_swing', logged_on: month + 5, amount: 300)
+      goal = build(:goal, user:, metric_key: 'total_swing_count', target_value: 2000)
+      goal.save!(validate: false)
+
+      expect(described_class.new(goal).current_value).to eq(300)
+    end
   end
 
   describe 'シーズン目標の集計' do

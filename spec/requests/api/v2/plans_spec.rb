@@ -30,6 +30,16 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       expect(titles).to contain_exactly('朝練', '試合')
     end
 
+    it '終了時刻を返す' do
+      create(:schedule, user:, title: '全体練習', days_of_week: '1',
+                        scheduled_time: '09:00', end_time: '12:30')
+
+      get '/api/v2/plans/by_date', params: { date: '2026-07-06' }, headers: auth_headers_for(user)
+
+      plan = response.parsed_body.find { |item| item['title'] == '全体練習' }
+      expect(plan['end_time']).to eq('12:30')
+    end
+
     it '時刻順（未設定は末尾）で並ぶ' do
       create(:schedule, user:, title: '午後', days_of_week: '1', scheduled_time: '15:00')
       create(:schedule, user:, title: '朝', days_of_week: '1', scheduled_time: '06:00')
@@ -105,6 +115,19 @@ RSpec.describe 'Api::V2::Plans', type: :request do
       entries = response.parsed_body['entries'].index_by { |entry| entry['title'] }
       expect(entries['朝練']['scheduled_time']).to eq('06:00')
       expect(entries['終日']['scheduled_time']).to be_nil
+    end
+
+    it '終了時刻を "HH:MM" で返し、未設定なら nil を返す' do
+      make_pro(user)
+      create(:schedule, user:, title: '全体練習', days_of_week: nil, planned_on: '2026-07-08',
+                        scheduled_time: '09:00', end_time: '12:30')
+      create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-08', scheduled_time: '06:00')
+
+      get '/api/v2/plans/calendar', params: { from: '2026-07-08', to: '2026-07-08' }, headers: auth_headers_for(user)
+
+      entries = response.parsed_body['entries'].index_by { |entry| entry['title'] }
+      expect(entries['全体練習']['end_time']).to eq('12:30')
+      expect(entries['朝練']['end_time']).to be_nil
     end
 
     context '無料ユーザーの閲覧範囲(直近月中心)' do

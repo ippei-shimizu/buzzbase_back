@@ -59,7 +59,7 @@ module Api
       # menu_set_id は所有セットのみ許可する（IDOR 防止）。
       def schedule_params
         permitted = params.require(:schedule).permit(
-          :title, :days_of_week, :planned_on, :scheduled_time, :event_type, :menu_set_id,
+          :title, :days_of_week, :planned_on, :scheduled_time, :end_time, :event_type, :menu_set_id,
           :note, :notification_enabled, :active, :notification_message
         )
         permitted.delete(:notification_message) unless current_api_v1_user.has_entitlement?('custom_notification_messages')

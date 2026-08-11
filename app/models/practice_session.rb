@@ -1,4 +1,6 @@
 class PracticeSession < ApplicationRecord
+  PRACTICE_TYPES = %w[self_practice team_practice].freeze
+
   belongs_to :user
   # nullify だと after_commit（草・Streak 再計算）が発火せず集計が古いまま残るため destroy にする。
   has_many :practice_logs, dependent: :destroy
@@ -10,6 +12,7 @@ class PracticeSession < ApplicationRecord
 
   validates :logged_on, presence: true
   validates :user_id, uniqueness: { scope: :logged_on }
+  validates :practice_type, inclusion: { in: PRACTICE_TYPES }
 
   scope :ordered, -> { order(logged_on: :desc) }
 
@@ -18,8 +21,9 @@ class PracticeSession < ApplicationRecord
   #
   # @param user [User]
   # @param date [Date, String]
+  # @param practice_type [String, nil] 新規作成時のみ反映する練習種別（nil ならカラム既定値）
   # @return [PracticeSession]
-  def self.for(user, date)
+  def self.for(user, date, practice_type: nil)
     existing = user.practice_sessions.find_by(logged_on: date)
     return existing if existing
 
@@ -27,7 +31,7 @@ class PracticeSession < ApplicationRecord
     # ユニーク制約違反がトランザクション全体を abort させて rescue 節の復旧クエリまで
     # 道連れになる。セーブポイント内で INSERT させて影響をここに閉じ込める。
     ActiveRecord::Base.transaction(requires_new: true) do
-      user.practice_sessions.create!(logged_on: date)
+      user.practice_sessions.create!({ logged_on: date, practice_type: }.compact)
     end
   rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
     # 同時リクエストで find_by と INSERT の間に他方が作成した場合の復旧。
