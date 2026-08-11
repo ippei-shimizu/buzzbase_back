@@ -13,7 +13,8 @@ class Schedule < ApplicationRecord
   validates :title, length: { maximum: 50 }, allow_blank: true
   validates :title, presence: true, if: -> { menu_set_id.blank? }
   validates :event_type, inclusion: { in: EVENT_TYPES }
-  validate :note_within_limit
+  # 既存の超過データが「メモを触らない更新」まで弾いて修復不能にならないよう、変更時のみ検証する。
+  validate :note_within_limit, if: :note_changed?
   validate :exactly_one_of_recurrence_or_date
   validate :end_time_after_scheduled_time
 
