@@ -27,6 +27,18 @@ RSpec.describe 'Api::V2::Schedules::WeekCopies', type: :request do
       expect(response.parsed_body.first['notification_message']).to eq('頑張れ')
     end
 
+    it '複製結果に終了時刻とメモを引き継ぐ' do
+      make_pro(user)
+      create(:schedule, user:, title: '全体練習', days_of_week: nil, planned_on: '2026-07-06',
+                        scheduled_time: '09:00', end_time: '12:30', note: '集合はグラウンド前')
+
+      post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)
+
+      copied = response.parsed_body.first
+      expect(copied['end_time']).to eq('12:30')
+      expect(copied['note']).to eq('集合はグラウンド前')
+    end
+
     it '無料ユーザーは403（Pro限定機能）' do
       create(:schedule, user:, title: '朝練', days_of_week: nil, planned_on: '2026-07-06', scheduled_time: '06:00')
       post '/api/v2/schedules/week_copy', params: { week_start: '2026-07-06' }, headers: auth_headers_for(user)

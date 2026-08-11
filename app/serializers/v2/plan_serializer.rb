@@ -3,7 +3,7 @@ module V2
   # `done_menu_ids`（schedule_id => その日にログ済みの practice_menu_id 集合）を instance_options で受け取り、
   # 予定単位・メニュー単位の「済」判定に使う。同じメニューが複数の予定にあっても予定ごとに独立して判定する。
   class PlanSerializer < ActiveModel::Serializer
-    attributes :id, :title, :event_type, :scheduled_time, :recurring,
+    attributes :id, :title, :event_type, :scheduled_time, :end_time, :recurring,
                :menu_set_id, :game_result_id, :note, :menus, :done
 
     def title
@@ -12,6 +12,10 @@ module V2
 
     def scheduled_time
       object.scheduled_time&.strftime('%H:%M')
+    end
+
+    def end_time
+      object.end_time&.strftime('%H:%M')
     end
 
     def recurring

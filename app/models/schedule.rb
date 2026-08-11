@@ -1,5 +1,6 @@
 class Schedule < ApplicationRecord
   EVENT_TYPES = %w[self_practice practice game other].freeze
+  NOTE_MAX_LENGTH = 2000
 
   belongs_to :user
   belongs_to :menu_set, optional: true
@@ -12,7 +13,9 @@ class Schedule < ApplicationRecord
   validates :title, length: { maximum: 50 }, allow_blank: true
   validates :title, presence: true, if: -> { menu_set_id.blank? }
   validates :event_type, inclusion: { in: EVENT_TYPES }
+  validate :note_within_limit
   validate :exactly_one_of_recurrence_or_date
+  validate :end_time_after_scheduled_time
 
   scope :active, -> { where(active: true) }
   scope :recurring, -> { where.not(days_of_week: nil) }
@@ -61,6 +64,24 @@ class Schedule < ApplicationRecord
       errors.add(:base, '曜日または日付のいずれかを指定してください')
     elsif days_of_week.present? && planned_on.present?
       errors.add(:base, '曜日と日付は同時に指定できません')
+    end
+  end
+
+  # 属性名つきの既定メッセージは日本語ロケール未整備で壊れるため、:base に文言を持たせる。
+  def note_within_limit
+    return if note.blank? || note.length <= NOTE_MAX_LENGTH
+
+    errors.add(:base, "メモは#{NOTE_MAX_LENGTH}文字以内で入力してください")
+  end
+
+  # 日跨ぎの予定は扱わないため、終了時刻は同日内で開始時刻より後であること。
+  def end_time_after_scheduled_time
+    return if end_time.blank?
+
+    if scheduled_time.blank?
+      errors.add(:base, '終了時刻は開始時刻とセットで指定してください')
+    elsif end_time <= scheduled_time
+      errors.add(:base, '終了時刻は開始時刻より後にしてください')
     end
   end
 end

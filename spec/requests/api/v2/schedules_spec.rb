@@ -60,6 +60,50 @@ RSpec.describe 'Api::V2::Schedules', type: :request do
       expect(response).to have_http_status(:created)
     end
 
+    context '終了時刻・メモ' do
+      it '終了時刻とメモを保存し "HH:MM" 形式で返す' do
+        post '/api/v2/schedules',
+             params: { schedule: { title: '全体練習', days_of_week: '1', scheduled_time: '09:00',
+                                   end_time: '12:30', note: '集合はグラウンド前' } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        body = response.parsed_body
+        expect(body['end_time']).to eq('12:30')
+        expect(body['note']).to eq('集合はグラウンド前')
+      end
+
+      it '終了時刻のみの指定は422' do
+        post '/api/v2/schedules',
+             params: { schedule: { title: 'x', days_of_week: '1', end_time: '12:30' } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'メモが長すぎると読めるエラーを返す' do
+        post '/api/v2/schedules',
+             params: { schedule: { title: 'x', days_of_week: '1', note: 'あ' * 2001 } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('メモは2000文字以内で入力してください')
+      end
+
+      it '終了時刻が開始時刻以前だと422' do
+        post '/api/v2/schedules',
+             params: { schedule: { title: 'x', days_of_week: '1', scheduled_time: '09:00', end_time: '09:00' } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('終了時刻は開始時刻より後にしてください')
+      end
+
+      it '終了時刻なしでも作成できる' do
+        post '/api/v2/schedules',
+             params: { schedule: { title: 'x', days_of_week: '1', scheduled_time: '09:00' } },
+             headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['end_time']).to be_nil
+      end
+    end
+
     context 'カスタム通知文' do
       let(:custom_params) do
         { schedule: { title: 'x', days_of_week: '1', scheduled_time: '06:00', notification_message: '頑張れ' } }

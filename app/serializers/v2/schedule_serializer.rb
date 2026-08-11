@@ -1,6 +1,6 @@
 module V2
   class ScheduleSerializer < ActiveModel::Serializer
-    attributes :id, :title, :days_of_week, :planned_on, :scheduled_time, :event_type,
+    attributes :id, :title, :days_of_week, :planned_on, :scheduled_time, :end_time, :event_type,
                :recurring, :menu_set_id, :game_result_id, :note,
                :notification_enabled, :active, :notification_message, :menus,
                :logged_practice_menu_ids
@@ -17,6 +17,10 @@ module V2
 
     def scheduled_time
       object.scheduled_time&.strftime('%H:%M')
+    end
+
+    def end_time
+      object.end_time&.strftime('%H:%M')
     end
 
     def recurring
