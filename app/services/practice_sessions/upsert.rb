@@ -16,13 +16,15 @@ module PracticeSessions
     # @param user [User]
     # @param logged_on [Date, String]
     # @param memo [String, nil] その日の振り返りメモ
+    # @param practice_type [String, nil] 自主練習/チーム練習の種別（nil なら更新しない）
     # @param improvement_theme_ids [Array<Integer, String>, nil] 紐付ける課題テーマ群（nilならテーマ紐付けを更新しない）
     # @param items [Array<Hash>] [{ practice_menu_id:, amount:, memo: }]
     # @param condition [Hash, nil] コンディション入力（nil なら更新しない）
-    def initialize(user:, logged_on:, memo: nil, improvement_theme_ids: nil, items: [], condition: nil)
+    def initialize(user:, logged_on:, memo: nil, practice_type: nil, improvement_theme_ids: nil, items: [], condition: nil)
       @user = user
       @logged_on = logged_on
       @memo = memo
+      @practice_type = practice_type
       @improvement_theme_ids = improvement_theme_ids
       @items = items || []
       @condition = condition
@@ -32,8 +34,8 @@ module PracticeSessions
     def call
       session = nil
       ActiveRecord::Base.transaction do
-        session = PracticeSession.for(@user, @logged_on)
-        session.update!(memo: @memo) unless @memo.nil?
+        session = PracticeSession.for(@user, @logged_on, practice_type: @practice_type)
+        update_session_attributes(session)
         assign_themes(session) unless @improvement_theme_ids.nil?
         sync_items(session)
         upsert_condition if @condition.present?
@@ -42,6 +44,15 @@ module PracticeSessions
     end
 
     private
+
+    # memo と practice_type は片方だけ送られることがあるため、1回の update! にまとめて
+    # 送られなかった側を nil で潰さないようにする。
+    def update_session_attributes(session)
+      attributes = {}
+      attributes[:memo] = @memo unless @memo.nil?
+      attributes[:practice_type] = @practice_type unless @practice_type.nil?
+      session.update!(attributes) if attributes.any?
+    end
 
     # 自分の課題テーマのみ紐付ける（他ユーザーの課題は無視）。無料は1件まで、Proは複数件可。
     # Pro 解約後も既存の複数紐付けを維持・削減できるよう、既存件数を超えて新規に増やす場合のみ

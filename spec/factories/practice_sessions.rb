@@ -4,6 +4,10 @@ FactoryBot.define do
     logged_on { Time.find_zone('Asia/Tokyo').today }
     memo { nil }
 
+    trait :team_practice do
+      practice_type { 'team_practice' }
+    end
+
     transient do
       improvement_theme { nil }
     end

@@ -65,6 +65,26 @@ RSpec.describe PracticeSession, type: :model do
     end
   end
 
+  describe 'practice_type' do
+    it '既定は自主練習' do
+      expect(described_class.for(user, today).practice_type).to eq('self_practice')
+    end
+
+    it '許可リストに無い種別は無効' do
+      expect(build(:practice_session, user:, practice_type: 'unknown')).not_to be_valid
+    end
+
+    it '新規作成時のみ指定した種別が入る' do
+      expect(described_class.for(user, today, practice_type: 'team_practice').practice_type).to eq('team_practice')
+    end
+
+    it '既存セッションがあれば種別を上書きしない' do
+      create(:practice_session, user:, logged_on: today)
+
+      expect(described_class.for(user, today, practice_type: 'team_practice').practice_type).to eq('self_practice')
+    end
+  end
+
   describe '練習ログの自動ぶら下げ' do
     let!(:menu) { create(:practice_menu, user:) }
 
@@ -72,6 +92,22 @@ RSpec.describe PracticeSession, type: :model do
       log = user.practice_logs.create!(practice_menu: menu, logged_on: today, amount: 100, menu_name: menu.name, source: 'manual')
       expect(log.practice_session).to be_present
       expect(log.practice_session.logged_on).to eq(today)
+    end
+
+    it 'チーム練習・試合の予定から作られたログはその日をチーム練習として起こす' do
+      schedule = create(:schedule, user:, event_type: 'practice')
+      log = user.practice_logs.create!(practice_menu: menu, schedule:, logged_on: today, amount: 100,
+                                       menu_name: menu.name, source: 'manual')
+
+      expect(log.practice_session.practice_type).to eq('team_practice')
+    end
+
+    it '自主練習の予定から作られたログは自主練習のままにする' do
+      schedule = create(:schedule, user:, event_type: 'self_practice')
+      log = user.practice_logs.create!(practice_menu: menu, schedule:, logged_on: today, amount: 100,
+                                       menu_name: menu.name, source: 'manual')
+
+      expect(log.practice_session.practice_type).to eq('self_practice')
     end
 
     it '同日の複数ログは同一セッションに束ねられる' do
