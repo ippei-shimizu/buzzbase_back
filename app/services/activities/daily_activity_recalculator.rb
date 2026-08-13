@@ -23,28 +23,63 @@ module Activities
 
     # @return [ActivityLog, nil] 更新後のレコード。無活動日（強度0）なら削除して nil
     def call
-      menu_count = practice_menu_count
-      swing_count = total_swing_count
-      game = game_on_day?
-      level = intensity_level(menu_count, swing_count, game)
+      existing = ActivityLog.find_by(user_id: @user_id, activity_date: @date)
+      return refresh(existing) if existing
 
-      activity_log = ActivityLog.find_or_initialize_by(user_id: @user_id, activity_date: @date)
+      attributes = aggregate
+      return nil if attributes[:intensity_level].zero?
 
-      if level.zero?
-        activity_log.destroy if activity_log.persisted?
-        return nil
-      end
-
-      activity_log.update!(
-        practice_menu_count: menu_count,
-        total_swing_count: swing_count,
-        has_game: game,
-        intensity_level: level
-      )
-      activity_log
+      create_activity_log(attributes)
     end
 
     private
+
+    # 既存行は行ロックを取ってから集計し直す。同日の練習ログが同時にコミットされたとき、
+    # ロック待ちの側がロック取得後に読み直すため、古い集計値で上書きしない。
+    def refresh(activity_log)
+      result = nil
+      activity_log.with_lock do
+        attributes = aggregate
+        if attributes[:intensity_level].zero?
+          activity_log.destroy
+        else
+          activity_log.update!(attributes)
+          result = activity_log
+        end
+      end
+      result
+    rescue ActiveRecord::RecordNotFound
+      # 並行する再計算が無活動と判定して削除済み。より新しい集計の結果なので何もしない。
+      nil
+    end
+
+    # 当日の行がまだ無いときの初回作成。同時実行で INSERT が競合しうるため、
+    # 制約違反をセーブポイント内に閉じ込めて先勝ちした行へ集計し直す。
+    # 相手方のコミットが一意性バリデーションの SELECT より前なら RecordInvalid、
+    # 後なら DB のユニークインデックス違反（RecordNotUnique）になるため両方から拾う。
+    def create_activity_log(attributes)
+      ActiveRecord::Base.transaction(requires_new: true) do
+        ActivityLog.create!(attributes.merge(user_id: @user_id, activity_date: @date))
+      end
+    rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
+      # 行が見つからないなら別要因の検証エラーなので握り潰さず投げ直す。
+      existing = ActivityLog.find_by(user_id: @user_id, activity_date: @date) || raise(e)
+      refresh(existing)
+    end
+
+    # @return [Hash] activity_logs の集計カラム一式
+    def aggregate
+      menu_count = practice_menu_count
+      swing_count = total_swing_count
+      game = game_on_day?
+
+      {
+        practice_menu_count: menu_count,
+        total_swing_count: swing_count,
+        has_game: game,
+        intensity_level: intensity_level(menu_count, swing_count, game)
+      }
+    end
 
     # その日の練習ログの distinct メニュー数。
     # メニュー削除済みでも menu_name スナップショットで識別する。
