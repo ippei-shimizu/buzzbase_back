@@ -103,6 +103,22 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(json['points'].first).to include('key', 'label', 'era') if json['points'].any?
     end
 
+    it 'includes a legacy trend array (month + era) alongside points for backward compatibility' do
+      get('/api/v2/stats/era_trend', headers:)
+
+      json = response.parsed_body
+      expect(json['trend']).to be_an(Array)
+      expect(json['trend'].first).to include('month' => 7, 'era' => json['points'].first['era'])
+    end
+
+    it 'returns an empty trend array for granularity=season (never requested by legacy clients)' do
+      make_pro(user)
+
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+      expect(response.parsed_body['trend']).to eq([])
+    end
+
     it 'returns 403 for granularity=season when the user is free' do
       get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
       expect(response).to have_http_status(:forbidden)

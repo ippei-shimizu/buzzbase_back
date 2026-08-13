@@ -21,12 +21,20 @@ module Stats
     end
 
     # @return [Hash] granularity と points 配列。points は key / label / era を持つ。
+    # trend は旧レスポンス形式({month:, era:}の配列)との後方互換用で、season粒度は
+    # 旧クライアントから要求されることが無いため空配列を返す。
     def call
       points = @granularity == 'season' ? aggregate_by_season : aggregate_by_month
-      { granularity: @granularity, points: }
+      { granularity: @granularity, points:, trend: legacy_trend(points) }
     end
 
     private
+
+    def legacy_trend(points)
+      return [] if @granularity == 'season'
+
+      points.map { |point| { month: point[:key].delete_prefix('month-').to_i, era: point[:era] } }
+    end
 
     def aggregate_by_month
       scope = base_scope
