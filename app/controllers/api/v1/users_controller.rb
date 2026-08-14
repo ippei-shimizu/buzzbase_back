@@ -126,6 +126,15 @@ module Api
       end
 
       def destroy
+        # Pro 加入中ユーザーは Apple/Stripe 側の自動課金が続いてしまうため、削除前に解約を促す。
+        if current_api_v1_user.subscription&.pro_active?
+          return render json: {
+            success: false,
+            error: 'pro_active',
+            message: 'Pro 加入中のため、先に解約してください'
+          }, status: :unprocessable_entity
+        end
+
         current_api_v1_user.destroy!
         render json: { success: true, message: 'アカウントが削除されました' }
       rescue StandardError => e

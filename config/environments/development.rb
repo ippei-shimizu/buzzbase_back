@@ -67,4 +67,8 @@ Rails.application.configure do
   # config.action_cable.disable_request_forgery_protection = true
   config.hosts << 'api'
   config.hosts << 'back'
+  # ngrokの無料プランはセッションごとにURLが変わるため、個別ドメインではなくサブドメインパターンで許可する
+  # 非アンカーの正規表現だと `ngrok-free.app.evil.com` のような偽装ホストも一致してしまうため \A...\z で固定する
+  config.hosts << /\A[a-z0-9-]+\.ngrok-free\.(app|dev)\z/
+  config.hosts << /\A[a-z0-9-]+\.ngrok\.io\z/
 end

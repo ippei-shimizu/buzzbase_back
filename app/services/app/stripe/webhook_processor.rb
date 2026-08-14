@@ -1,0 +1,35 @@
+module App
+  module Stripe
+    # Stripe Webhook 処理のエントリポイント。
+    # 冪等性ガード・例外時の失敗マーク + Sentry 通知の責務だけ持ち、
+    # event_type 別の本処理は EventDispatcher 経由で各 Handler に委譲する。
+    class WebhookProcessor
+      def initialize(webhook_event)
+        @webhook_event = webhook_event
+        @payload = WebhookPayload.new(::Stripe::Event.construct_from(webhook_event.payload || {}))
+      end
+
+      # failed のレコードは手動で再 enqueue されたとき再処理する設計のため processed のみガードする。
+      def process
+        return if @webhook_event.processed?
+
+        EventDispatcher.handler_for(@payload).call
+        @webhook_event.mark_processed!
+      rescue StandardError => e
+        # mark_failed! 自体が例外で落ちると元の e が握り潰されるため、
+        # 内側を rescue で守って元例外を必ず Sentry に届ける。
+        safely_mark_failed(e.message)
+        Sentry.capture_exception(e, tags: { source: 'stripe_webhook' })
+        raise
+      end
+
+      private
+
+      def safely_mark_failed(message)
+        @webhook_event.mark_failed!(message)
+      rescue StandardError => e
+        Sentry.capture_exception(e, tags: { source: 'stripe_webhook_mark_failed' })
+      end
+    end
+  end
+end

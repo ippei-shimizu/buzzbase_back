@@ -32,6 +32,11 @@ module Api
       end
 
       def create
+        unless current_api_v1_user.can_create_or_join_group?
+          return render json: { error: 'group_limit_exceeded',
+                                message: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
+        end
+
         group = current_api_v1_user.groups.build(group_params)
         if group.save
           group.users << current_api_v1_user

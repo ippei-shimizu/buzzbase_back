@@ -140,5 +140,21 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
         expect(response).to have_http_status(:not_found)
       end
     end
+
+    context 'when the free user already belongs to the free limit of groups' do
+      before do
+        GroupInvitation.create!(user:, group: create(:group), state: 'accepted', sent_at: Time.current)
+      end
+
+      it 'returns 403 and does not create a new invitation' do
+        expect do
+          post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
+        end.not_to change(GroupInvitation, :count)
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq('group_limit_exceeded')
+        expect(response.parsed_body['message']).to eq('Pro プランでグループを無制限に作成・参加できます')
+      end
+    end
   end
 end

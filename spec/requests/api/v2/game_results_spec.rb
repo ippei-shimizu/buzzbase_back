@@ -31,6 +31,24 @@ RSpec.describe 'Api::V2::GameResults', type: :request do
     end
   end
 
+  describe 'GET /api/v2/game_results/:id' do
+    it '自分の試合1件を返す' do
+      get "/api/v2/game_results/#{user_game.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['game_result_id']).to eq(user_game.id)
+    end
+
+    it '他ユーザーの試合は 404（IDOR防止）' do
+      get "/api/v2/game_results/#{other_user_game.id}", headers: auth_headers_for(user)
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it '未認証は 401' do
+      get "/api/v2/game_results/#{user_game.id}"
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
   describe 'GET /api/v2/game_results/all' do
     it 'returns 200 with game results for all users' do
       get '/api/v2/game_results/all'

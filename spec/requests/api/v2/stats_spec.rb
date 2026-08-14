@@ -93,13 +93,55 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with trend array' do
+    it 'returns 200 with granularity (default month) + points array' do
       get('/api/v2/stats/era_trend', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
+      expect(json['granularity']).to eq('month')
+      expect(json['points']).to be_an(Array)
+      expect(json['points'].first).to include('key', 'label', 'era') if json['points'].any?
+    end
+
+    it 'includes a legacy trend array (month + era) alongside points for backward compatibility' do
+      get('/api/v2/stats/era_trend', headers:)
+
+      json = response.parsed_body
       expect(json['trend']).to be_an(Array)
-      expect(json['trend'].first).to include('month', 'era') if json['trend'].any?
+      expect(json['trend'].first).to include('month' => 7, 'era' => json['points'].first['era'])
+    end
+
+    it 'returns an empty trend array for granularity=season (never requested by legacy clients)' do
+      make_pro(user)
+
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+      expect(response.parsed_body['trend']).to eq([])
+    end
+
+    it 'returns 403 for granularity=season when the user is free' do
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    context 'Pro ユーザー' do
+      before { make_pro(user) }
+
+      it 'returns season-granularity points for a Pro user' do
+        season1 = create(:season, user:, name: '2026春')
+        season2 = create(:season, user:, name: '2026夏')
+        game1 = create(:game_result, user:, season: season1)
+        game2 = create(:game_result, user:, season: season2)
+        create(:pitching_result, game_result: game1, user:, innings_pitched: 6, earned_run: 2)
+        create(:pitching_result, game_result: game2, user:, innings_pitched: 6, earned_run: 3)
+
+        get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['granularity']).to eq('season')
+        expect(json['points'].pluck('label')).to contain_exactly('2026春', '2026夏')
+      end
     end
   end
 
@@ -221,7 +263,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/count_situations', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/count_situations', headers:)
 
       expect(response).to have_http_status(:ok)
@@ -256,7 +304,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with rows for all 10 master pitch types + total_target_pa' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_types', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows for all 10 master pitch types + total_target_pa for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/pitch_types', headers:)
 
       expect(response).to have_http_status(:ok)
@@ -276,7 +330,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with rows + total_target_pa + min_plate_appearances' do
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitcher_faceoffs', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows + total_target_pa + min_plate_appearances for a Pro user' do
+      make_pro(user)
       get('/api/v2/stats/pitcher_faceoffs', headers:)
 
       expect(response).to have_http_status(:ok)
@@ -414,6 +474,22 @@ RSpec.describe 'Api::V2::Stats', type: :request do
             headers: auth_headers_for(user)
         expect(response).to have_http_status(:ok)
       end
+    end
+  end
+
+  describe 'entitlementは閲覧者(current_api_v1_user)基準で判定される' do
+    let(:target_user) { create(:user) }
+
+    it 'returns 403 when a free viewer requests a Pro target user stats' do
+      make_pro(target_user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 when a Pro viewer requests a free target user stats' do
+      make_pro(user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:ok)
     end
   end
 end

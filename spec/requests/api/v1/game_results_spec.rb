@@ -260,6 +260,20 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
         expect(GameResult.exists?(other_user_game_result.id)).to be true
       end
     end
+
+    context 'when a baseball note is linked to the game result' do
+      it 'destroys the game result and its note links, leaving the note intact' do
+        note = create(:baseball_note, user:)
+        note.game_result_ids = [game_result.id]
+
+        delete "/api/v1/game_results/#{game_result.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(GameResult.exists?(game_result.id)).to be false
+        expect(NoteGameLink.where(game_result_id: game_result.id)).to be_empty
+        expect(BaseballNote.exists?(note.id)).to be true
+      end
+    end
   end
 
   describe 'GET /api/v1/game_results/filtered_game_associated_data' do
