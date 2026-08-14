@@ -102,6 +102,39 @@ RSpec.describe 'Api::V1::Groups', type: :request do
         expect(response).to have_http_status(:unauthorized)
       end
     end
+
+    context 'when the free user already belongs to the free limit of groups' do
+      before do
+        GroupInvitation.create!(user:, group: Group.create!(name: '既存グループ'), state: 'accepted', sent_at: Time.current)
+      end
+
+      it 'returns 403 and does not create the group' do
+        expect do
+          post '/api/v1/groups',
+               params: { group: { name: '2つ目のグループ' } },
+               headers: auth_headers_for(user)
+        end.not_to change(Group, :count)
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq('group_limit_exceeded')
+        expect(response.parsed_body['message']).to eq('Pro プランでグループを無制限に作成・参加できます')
+      end
+    end
+
+    context 'when a Pro user already belongs to a group' do
+      before do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+        GroupInvitation.create!(user:, group: Group.create!(name: '既存グループ'), state: 'accepted', sent_at: Time.current)
+      end
+
+      it 'creates the group and returns 201' do
+        post '/api/v1/groups',
+             params: { group: { name: '2つ目のグループ' } },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+      end
+    end
   end
 
   describe 'PUT /api/v1/groups/:id' do
