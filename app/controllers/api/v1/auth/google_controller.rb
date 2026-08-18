@@ -35,8 +35,9 @@ module Api
 
           user = User.find_by(email: google_data[:email])
           if user
-            user.update!(provider: 'google', uid: google_data[:uid])
-            user.update!(confirmed_at: Time.current) if user.confirmed_at.blank?
+            attrs = { provider: 'google', uid: google_data[:uid] }
+            attrs[:confirmed_at] = Time.current if user.confirmed_at.blank?
+            user.update!(attrs)
             return user
           end
 
