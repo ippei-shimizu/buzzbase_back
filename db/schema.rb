@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_11_020001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_18_010001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -1055,7 +1055,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_11_020001) do
     t.string "name"
     t.string "image"
     t.string "email"
-    t.json "tokens"
+    t.json "tokens", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "user_id"
