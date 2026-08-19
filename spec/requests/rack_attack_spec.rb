@@ -106,6 +106,20 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     end
   end
 
+  describe 'counter expiry' do
+    it 'lets requests through again after the period has passed' do
+      10.times { |i| post_sign_in(email: "expiry#{i}@example.com", ip: '203.0.113.70') }
+      post_sign_in(email: 'expiry10@example.com', ip: '203.0.113.70')
+      expect(response).to have_http_status(:too_many_requests)
+
+      travel 6.minutes do
+        post_sign_in(email: 'expiry11@example.com', ip: '203.0.113.70')
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
   describe 'POST /api/v1/auth/password' do
     it 'throttles repeated reset requests for the same email' do
       3.times do |i|
