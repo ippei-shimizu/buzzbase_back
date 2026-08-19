@@ -73,7 +73,9 @@ Rack::Attack.throttle('auth/sign_in/email', limit: 5, period: 20.minutes) do |re
   AuthThrottle.auth_email(request) if AuthThrottle.post_to?(request, AuthThrottle::SIGN_IN_PATHS)
 end
 
-Rack::Attack.throttle('auth/sign_up/ip', limit: 5, period: 1.hour) do |request|
+# 学校やチームの共有 Wi-Fi（NAT 配下の同一 IP）から複数人が続けて登録するケースがあるため、
+# IP 単位は余裕を持たせ、悪用の抑止は email 単位側で担保する。
+Rack::Attack.throttle('auth/sign_up/ip', limit: 15, period: 1.hour) do |request|
   AuthThrottle.client_ip(request) if AuthThrottle.post_to?(request, AuthThrottle::SIGN_UP_PATHS)
 end
 
