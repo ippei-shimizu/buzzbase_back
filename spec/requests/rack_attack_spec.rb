@@ -26,10 +26,10 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
   describe 'POST /api/v1/auth/sign_in' do
     context 'when the same IP exceeds the limit' do
       it 'returns 429 with a stable error code' do
-        10.times { |i| post_sign_in(email: "attacker#{i}@example.com", ip: '203.0.113.10') }
+        30.times { |i| post_sign_in(email: "attacker#{i}@example.com", ip: '203.0.113.10') }
         expect(response).to have_http_status(:unauthorized)
 
-        post_sign_in(email: 'attacker10@example.com', ip: '203.0.113.10')
+        post_sign_in(email: 'attacker30@example.com', ip: '203.0.113.10')
 
         expect(response).to have_http_status(:too_many_requests)
         expect(response.parsed_body['error']).to eq('rate_limit_exceeded')
@@ -41,10 +41,10 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     context 'when the same email is attacked from many IPs' do
       # JSON ボディの email を Rack::Attack が読めることの回帰テスト。
       it 'returns 429' do
-        5.times { |i| post_sign_in(email: 'victim@example.com', ip: "198.51.100.#{i}") }
+        20.times { |i| post_sign_in(email: 'victim@example.com', ip: "198.51.100.#{i}") }
         expect(response).to have_http_status(:unauthorized)
 
-        post_sign_in(email: 'victim@example.com', ip: '198.51.100.99')
+        post_sign_in(email: 'victim@example.com', ip: '198.51.100.199')
 
         expect(response).to have_http_status(:too_many_requests)
         expect(response.parsed_body['error']).to eq('rate_limit_exceeded')
@@ -53,7 +53,7 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
 
     context 'when the email is sent as form-encoded params' do
       it 'returns 429' do
-        5.times do |i|
+        20.times do |i|
           post '/api/v1/auth/sign_in',
                params: { email: 'formvictim@example.com', password: 'wrong_password' },
                headers: { 'X-Forwarded-For' => "192.0.2.#{i}" }
@@ -69,9 +69,9 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
 
     context 'when the path has a format extension' do
       it 'still throttles' do
-        10.times { |i| post_sign_in_path('/api/v1/auth/sign_in.json', email: "ext#{i}@example.com", ip: '203.0.113.60') }
+        30.times { |i| post_sign_in_path('/api/v1/auth/sign_in.json', email: "ext#{i}@example.com", ip: '203.0.113.60') }
 
-        post_sign_in_path('/api/v1/auth/sign_in.json', email: 'ext10@example.com', ip: '203.0.113.60')
+        post_sign_in_path('/api/v1/auth/sign_in.json', email: 'ext30@example.com', ip: '203.0.113.60')
 
         expect(response).to have_http_status(:too_many_requests)
       end
@@ -79,9 +79,9 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
 
     context 'when the path has a trailing slash' do
       it 'still throttles' do
-        10.times { |i| post_sign_in_path('/api/v1/auth/sign_in/', email: "slash#{i}@example.com", ip: '203.0.113.61') }
+        30.times { |i| post_sign_in_path('/api/v1/auth/sign_in/', email: "slash#{i}@example.com", ip: '203.0.113.61') }
 
-        post_sign_in_path('/api/v1/auth/sign_in/', email: 'slash10@example.com', ip: '203.0.113.61')
+        post_sign_in_path('/api/v1/auth/sign_in/', email: 'slash30@example.com', ip: '203.0.113.61')
 
         expect(response).to have_http_status(:too_many_requests)
       end
@@ -108,12 +108,12 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
 
   describe 'counter expiry' do
     it 'lets requests through again after the period has passed' do
-      10.times { |i| post_sign_in(email: "expiry#{i}@example.com", ip: '203.0.113.70') }
-      post_sign_in(email: 'expiry10@example.com', ip: '203.0.113.70')
+      30.times { |i| post_sign_in(email: "expiry#{i}@example.com", ip: '203.0.113.70') }
+      post_sign_in(email: 'expiry30@example.com', ip: '203.0.113.70')
       expect(response).to have_http_status(:too_many_requests)
 
       travel 6.minutes do
-        post_sign_in(email: 'expiry11@example.com', ip: '203.0.113.70')
+        post_sign_in(email: 'expiry31@example.com', ip: '203.0.113.70')
 
         expect(response).to have_http_status(:unauthorized)
       end

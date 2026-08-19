@@ -65,11 +65,11 @@ Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new(size: 4.megabyt
 # 既存の認証リクエストスペックが sign_in を連投するため、test では既定で無効にし専用スペック内でのみ有効化する。
 Rack::Attack.enabled = !Rails.env.test?
 
-Rack::Attack.throttle('auth/sign_in/ip', limit: 10, period: 5.minutes) do |request|
+Rack::Attack.throttle('auth/sign_in/ip', limit: 30, period: 5.minutes) do |request|
   AuthThrottle.client_ip(request) if AuthThrottle.post_to?(request, AuthThrottle::SIGN_IN_PATHS)
 end
 
-Rack::Attack.throttle('auth/sign_in/email', limit: 5, period: 20.minutes) do |request|
+Rack::Attack.throttle('auth/sign_in/email', limit: 20, period: 20.minutes) do |request|
   AuthThrottle.auth_email(request) if AuthThrottle.post_to?(request, AuthThrottle::SIGN_IN_PATHS)
 end
 
