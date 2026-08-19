@@ -24,6 +24,8 @@ module AuthThrottle
 
   # front / mobile は Content-Type: application/json で送るが Rack::Request#params は
   # form-encoded しかパースしないため、JSON の場合はボディを自前で読む。
+  # chunked 転送やサイズ上限超過で email が取れない場合は nil を返し、
+  # そのリクエストは email 単位のスロットルの対象外になる（IP 単位は引き続き効く）。
   def self.auth_email(request)
     raw = json_body_email(request) || request.params['email']
     raw.to_s.downcase.strip.presence
