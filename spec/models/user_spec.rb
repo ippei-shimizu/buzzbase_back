@@ -369,6 +369,43 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe 'tokens カラム' do
+    # NOT NULL 制約を入れた後は本物の NULL 行を作れないため、DB から NULL が返ってきた
+    # 状態を instantiate で再現する
+    let(:persisted) { create(:user) }
+    let(:legacy) { described_class.instantiate(persisted.attributes.merge('tokens' => nil)) }
+
+    it 'DB に NULL が残っているレコードでも空ハッシュとして読める' do
+      expect(legacy.tokens).to eq({})
+    end
+
+    it 'DB に NULL が残っているレコードでもトークンを発行して永続化できる' do
+      headers = legacy.create_new_auth_token
+
+      expect(persisted.reload.tokens.keys).to include(headers['client'])
+    end
+
+    it 'NULL を読み込んだだけでは無関係な更新で tokens を書き込まない' do
+      legacy.update!(name: '新しい名前')
+
+      expect(legacy.saved_changes).not_to have_key('tokens')
+    end
+
+    it 'nil を代入しても空ハッシュに正規化される' do
+      user = build(:user)
+      user.tokens = nil
+
+      expect(user.tokens).to eq({})
+    end
+
+    it 'DB 側でも NULL を許容せず空ハッシュがデフォルトになっている' do
+      column = described_class.columns_hash['tokens']
+
+      expect(column.null).to be false
+      expect(column.default).to eq('{}')
+    end
+  end
+
   describe '#create_new_auth_token' do
     let(:user) { create(:user) }
 

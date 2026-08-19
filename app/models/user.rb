@@ -64,11 +64,20 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
 
+  # gem 側 coder が持っていた「NULL は空ハッシュ」の読み替えを型で復活させる。reader を
+  # 上書きすると gem の in-place 更新 (`tokens[client] = ...`) が attribute に戻らず
+  # トークンが永続化されないため、必ず deserialize 側で吸収する。
+  class TokensType < ActiveRecord::Type::Json
+    def deserialize(value)
+      super || {}
+    end
+  end
+
   # devise_token_auth 1.2.6 + Rails 7.1 では `serialize :tokens, coder: TokensSerialization`
   # が json 型カラムに当たって二重シリアライズになり認証が壊れるため、明示的に json 型を当てて
   # coder を打ち消す。default は devise_token_auth が `tokens.fetch(...)` を呼ぶ前提のため
   # 空ハッシュにしておく。
-  attribute :tokens, ActiveRecord::Type::Json.new, default: -> { {} }
+  attribute :tokens, TokensType.new, default: -> { {} }
 
   # devise_token_auth 1.2.6 の clean_old_tokens は (1) `self.tokens = ...to_h` で Hash を
   # 全置換して attribute tracking と衝突し直前の create_token の代入を消す、(2)
