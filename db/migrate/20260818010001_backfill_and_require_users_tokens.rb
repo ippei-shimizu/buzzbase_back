@@ -14,6 +14,8 @@ class BackfillAndRequireUsersTokens < ActiveRecord::Migration[7.1]
   end
 
   def down
+    execute "SET LOCAL lock_timeout = '5s'"
+
     change_column_null :users, :tokens, true
     change_column_default :users, :tokens, from: {}, to: nil
   end
