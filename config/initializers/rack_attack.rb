@@ -4,7 +4,10 @@ module AuthThrottle
   SIGN_IN_PATHS = ['/api/v1/auth/sign_in', '/users/sign_in'].freeze
   SIGN_UP_PATHS = ['/api/v1/auth', '/users'].freeze
   PASSWORD_RESET_PATHS = ['/api/v1/auth/password', '/users/password'].freeze
-  TOKEN_LOOKUP_PATHS = ['/api/v1/auth/password/edit', '/api/v1/auth/confirmation'].freeze
+  TOKEN_LOOKUP_PATHS = [
+    '/api/v1/auth/password/edit', '/api/v1/auth/confirmation',
+    '/users/password/edit', '/users/confirmation'
+  ].freeze
   CONFIRMATION_RESEND_PATHS = ['/api/v1/auth/confirmation', '/users/confirmation'].freeze
   OAUTH_PATHS = ['/api/v1/google_sign_in', '/api/v1/apple_sign_in'].freeze
   ADMIN_SIGN_IN_PATHS = ['/api/v1/admin/sign_in'].freeze

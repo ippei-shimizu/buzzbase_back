@@ -153,6 +153,34 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     end
   end
 
+  describe 'GET /api/v1/auth/confirmation' do
+    it 'throttles token brute force from the same IP' do
+      20.times do |i|
+        get "/api/v1/auth/confirmation?confirmation_token=token#{i}",
+            headers: { 'X-Forwarded-For' => '203.0.113.50' }
+      end
+
+      get '/api/v1/auth/confirmation?confirmation_token=token20',
+          headers: { 'X-Forwarded-For' => '203.0.113.50' }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'GET /users/password/edit' do
+    it 'throttles the bare Devise route as well' do
+      20.times do |i|
+        get "/users/password/edit?reset_password_token=token#{i}",
+            headers: { 'X-Forwarded-For' => '203.0.113.51' }
+      end
+
+      get '/users/password/edit?reset_password_token=token20',
+          headers: { 'X-Forwarded-For' => '203.0.113.51' }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
   describe 'endpoints outside the throttle list' do
     it 'does not throttle token validation' do
       30.times do
