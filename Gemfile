@@ -39,6 +39,9 @@ gem 'bootsnap', require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin AJAX possible
 gem 'rack-cors'
 
+# 認証エンドポイントへのブルートフォース対策（レート制限）
+gem 'rack-attack', '~> 6.7'
+
 gem 'devise'
 
 gem 'devise_token_auth', '~> 1.2.5'
