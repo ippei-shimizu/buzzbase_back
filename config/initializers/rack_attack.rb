@@ -5,6 +5,7 @@ module AuthThrottle
   SIGN_UP_PATHS = ['/api/v1/auth', '/users'].freeze
   PASSWORD_RESET_PATHS = ['/api/v1/auth/password', '/users/password'].freeze
   TOKEN_LOOKUP_PATHS = ['/api/v1/auth/password/edit', '/api/v1/auth/confirmation'].freeze
+  CONFIRMATION_RESEND_PATHS = ['/api/v1/auth/confirmation', '/users/confirmation'].freeze
   OAUTH_PATHS = ['/api/v1/google_sign_in', '/api/v1/apple_sign_in'].freeze
   ADMIN_SIGN_IN_PATHS = ['/api/v1/admin/sign_in'].freeze
 
@@ -69,6 +70,15 @@ end
 
 Rack::Attack.throttle('auth/password_reset/email', limit: 3, period: 1.hour) do |request|
   AuthThrottle.auth_email(request) if AuthThrottle.post_to?(request, AuthThrottle::PASSWORD_RESET_PATHS)
+end
+
+# 確認メールの再送はメール爆撃に使えるためリセット申請と同等に制限する。
+Rack::Attack.throttle('auth/confirmation_resend/ip', limit: 5, period: 1.hour) do |request|
+  AuthThrottle.client_ip(request) if AuthThrottle.post_to?(request, AuthThrottle::CONFIRMATION_RESEND_PATHS)
+end
+
+Rack::Attack.throttle('auth/confirmation_resend/email', limit: 3, period: 1.hour) do |request|
+  AuthThrottle.auth_email(request) if AuthThrottle.post_to?(request, AuthThrottle::CONFIRMATION_RESEND_PATHS)
 end
 
 # リセット・確認トークンの総当たりを防ぐ。

@@ -97,6 +97,22 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     end
   end
 
+  describe 'POST /api/v1/auth/confirmation' do
+    it 'throttles repeated resend requests for the same email' do
+      3.times do |i|
+        post '/api/v1/auth/confirmation',
+             params: { email: 'resend-target@example.com', redirect_url: 'http://localhost:8100/signin' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => "203.0.113.#{150 + i}")
+      end
+
+      post '/api/v1/auth/confirmation',
+           params: { email: 'resend-target@example.com', redirect_url: 'http://localhost:8100/signin' }.to_json,
+           headers: json_headers.merge('X-Forwarded-For' => '203.0.113.198')
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
   describe 'POST /api/v1/admin/sign_in' do
     it 'throttles repeated attempts from the same IP' do
       5.times do
