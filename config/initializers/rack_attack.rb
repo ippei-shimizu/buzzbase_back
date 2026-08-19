@@ -40,8 +40,15 @@ module AuthThrottle
     nil
   end
 
+  # Rails のルーターは `.json` 等のフォーマット拡張子付きでも同じアクションに解決するため、
+  # 拡張子を落としてから比較しないとスロットルをすり抜けられる。
+  # 末尾スラッシュは Rack::Attack が PATH_INFO を正規化済みなのでここでは扱わない。
+  def self.match_path?(request, paths)
+    paths.include?(request.path.sub(/\.\w+\z/, ''))
+  end
+
   def self.post_to?(request, paths)
-    request.post? && paths.include?(request.path)
+    request.post? && match_path?(request, paths)
   end
 end
 
@@ -83,7 +90,7 @@ end
 
 # リセット・確認トークンの総当たりを防ぐ。
 Rack::Attack.throttle('auth/token_lookup/ip', limit: 20, period: 1.hour) do |request|
-  AuthThrottle.client_ip(request) if request.get? && AuthThrottle::TOKEN_LOOKUP_PATHS.include?(request.path)
+  AuthThrottle.client_ip(request) if request.get? && AuthThrottle.match_path?(request, AuthThrottle::TOKEN_LOOKUP_PATHS)
 end
 
 Rack::Attack.throttle('auth/oauth/ip', limit: 20, period: 5.minutes) do |request|

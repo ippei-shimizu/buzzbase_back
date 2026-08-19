@@ -13,7 +13,11 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
   let(:json_headers) { { 'CONTENT_TYPE' => 'application/json' } }
 
   def post_sign_in(email:, ip:)
-    post '/api/v1/auth/sign_in',
+    post_sign_in_path('/api/v1/auth/sign_in', email:, ip:)
+  end
+
+  def post_sign_in_path(path, email:, ip:)
+    post path,
          params: { email:, password: 'wrong_password' }.to_json,
          headers: json_headers.merge('X-Forwarded-For' => ip)
   end
@@ -57,6 +61,26 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
         post '/api/v1/auth/sign_in',
              params: { email: 'formvictim@example.com', password: 'wrong_password' },
              headers: { 'X-Forwarded-For' => '192.0.2.99' }
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+
+    context 'when the path has a format extension' do
+      it 'still throttles' do
+        10.times { |i| post_sign_in_path('/api/v1/auth/sign_in.json', email: "ext#{i}@example.com", ip: '203.0.113.60') }
+
+        post_sign_in_path('/api/v1/auth/sign_in.json', email: 'ext10@example.com', ip: '203.0.113.60')
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+
+    context 'when the path has a trailing slash' do
+      it 'still throttles' do
+        10.times { |i| post_sign_in_path('/api/v1/auth/sign_in/', email: "slash#{i}@example.com", ip: '203.0.113.61') }
+
+        post_sign_in_path('/api/v1/auth/sign_in/', email: 'slash10@example.com', ip: '203.0.113.61')
 
         expect(response).to have_http_status(:too_many_requests)
       end
