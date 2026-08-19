@@ -6,6 +6,7 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     Rack::Attack.enabled = true
     Rack::Attack.cache.store.clear
     example.run
+  ensure
     Rack::Attack.enabled = false
     Rack::Attack.cache.store.clear
   end
