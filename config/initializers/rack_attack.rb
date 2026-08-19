@@ -60,7 +60,7 @@ end
 
 # Rails.cache は production が file_store（Heroku の ephemeral FS）、test が null_store のため使えない。
 # dyno 単位のカウントで十分なので専用のメモリストアを割り当てる。
-Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new(size: 4.megabytes)
 
 # 既存の認証リクエストスペックが sign_in を連投するため、test では既定で無効にし専用スペック内でのみ有効化する。
 Rack::Attack.enabled = !Rails.env.test?
