@@ -385,6 +385,12 @@ RSpec.describe User, type: :model do
       expect(persisted.reload.tokens.keys).to include(headers['client'])
     end
 
+    it 'NULL を読み込んだだけでは無関係な更新で tokens を書き込まない' do
+      legacy.update!(name: '新しい名前')
+
+      expect(legacy.saved_changes).not_to have_key('tokens')
+    end
+
     it 'nil を代入しても空ハッシュに正規化される' do
       user = build(:user)
       user.tokens = nil
