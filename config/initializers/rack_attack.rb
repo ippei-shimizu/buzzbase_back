@@ -39,7 +39,8 @@ module AuthThrottle
     request.body.rewind
     parsed = JSON.parse(body)
     parsed.is_a?(Hash) ? parsed['email'] : nil
-  rescue JSON::ParserError
+  rescue StandardError
+    # ミドルウェア層のため、ここで例外を漏らすと Rails のエラーハンドリングを経ない生の 500 になる。
     nil
   end
 
