@@ -137,6 +137,7 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
 
       before do
         # SELECT の後・INSERT の前に勝者がコミットした敗者側を再現する。
+        # resolver が provider+uid を2回引く前提に依存しているため、解決順序を変えたらここも直す。
         allow(User).to receive(:find_by).and_call_original
         allow(User).to receive(:find_by).with(provider: 'google', uid: google_uid).and_return(nil, winner)
         allow(User).to receive(:find_by).with(email:).and_return(nil)
