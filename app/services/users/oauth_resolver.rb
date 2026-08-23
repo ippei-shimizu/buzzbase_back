@@ -1,6 +1,7 @@
 module Users
   # Google / Apple の検証済みペイロードから User を冪等に解決する。
-  # provider+uid 一致 -> email 一致（provider/uid をリンク）-> 新規作成 の順に解決する。
+  # provider+uid 一致 -> email 一致（provider/uid をリンク）-> 新規作成 の順に解決し、
+  # 並行リクエストによる一意制約違反は勝者を引き直して吸収する。
   class OauthResolver
     # Apple は2回目以降のサインインで email を返さないため、uid で既存ユーザーを
     # 引けなかった場合にだけ投げる。呼び出し側で provider 固有の文言に翻訳する。
@@ -25,8 +26,17 @@ module Users
 
       raise EmailMissing if @email.blank?
 
-      linked_user = find_by_email
-      linked_user ? link_provider!(linked_user) : create_user!
+      # 一意制約違反は外側のトランザクションごと中断させるため、復旧クエリを流せるよう
+      # セーブポイント内で書き込む。
+      ActiveRecord::Base.transaction(requires_new: true) do
+        linked_user = find_by_email
+        linked_user ? link_provider!(linked_user) : create_user!
+      end
+    rescue ActiveRecord::RecordNotUnique => e
+      # 同一 email / uid が並行到達したときの敗者側。勝者は必ず provider+uid を満たすため
+      # そこから引き直す。引けないなら email / uid 以外の制約違反なので握り潰さず投げ直す。
+      Rails.logger.warn("OAuth sign-in race recovered: provider=#{@provider}")
+      find_by_provider_uid || find_by_email || raise(e)
     end
 
     private
