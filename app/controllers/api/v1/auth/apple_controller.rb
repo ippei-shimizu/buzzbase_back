@@ -9,7 +9,7 @@ module Api
 
           apple_data = AppleAuthService.verify(params[:identity_token], full_name: full_name_params)
 
-          user = find_or_create_user(apple_data)
+          user = resolve_user(apple_data)
 
           return render json: { errors: ['アカウントが停止されています'] }, status: :unauthorized if user.suspended_at.present?
           return render json: { errors: ['アカウントが削除されています'] }, status: :unauthorized if user.deleted_at.present?
@@ -24,33 +24,21 @@ module Api
         rescue AppleAuthService::InvalidToken => e
           Rails.logger.error "Apple Auth Error: #{e.message}"
           render json: { errors: [e.message] }, status: :unauthorized
+        rescue ::Users::OauthResolver::EmailMissing
+          render json: { errors: ['メールアドレスが取得できませんでした'] }, status: :unauthorized
         rescue ActiveRecord::RecordInvalid => e
           render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
         end
 
         private
 
-        def find_or_create_user(apple_data)
-          user = User.find_by(provider: 'apple', uid: apple_data[:uid])
-          return user if user
-
-          raise AppleAuthService::InvalidToken, 'メールアドレスが取得できませんでした' if apple_data[:email].blank?
-
-          user = User.find_by(email: apple_data[:email])
-          if user
-            attrs = { provider: 'apple', uid: apple_data[:uid] }
-            attrs[:confirmed_at] = Time.current if user.confirmed_at.blank?
-            user.update!(attrs)
-            return user
-          end
-
-          User.create!(
-            email: apple_data[:email],
+        def resolve_user(apple_data)
+          ::Users::OauthResolver.new(
             provider: 'apple',
             uid: apple_data[:uid],
-            name: apple_data[:name],
-            confirmed_at: Time.current
-          )
+            email: apple_data[:email],
+            name: apple_data[:name]
+          ).call
         end
 
         def full_name_params
