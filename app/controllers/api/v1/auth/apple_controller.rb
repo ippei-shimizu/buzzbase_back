@@ -25,7 +25,9 @@ module Api
           Rails.logger.error "Apple Auth Error: #{e.message}"
           render json: { errors: [e.message] }, status: :unauthorized
         rescue ::Users::OauthResolver::EmailMissing
-          render json: { errors: ['メールアドレスが取得できませんでした'] }, status: :unauthorized
+          message = 'メールアドレスが取得できませんでした'
+          Rails.logger.error "Apple Auth Error: #{message}"
+          render json: { errors: [message] }, status: :unauthorized
         rescue ActiveRecord::RecordInvalid => e
           render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
         end
