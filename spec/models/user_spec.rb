@@ -640,4 +640,32 @@ RSpec.describe User, type: :model do
       expect(user.last_management_notice_read_at).to be_within(1.second).of(given_time)
     end
   end
+
+  describe 'throw_hand / batting_side enums' do
+    it 'defaults to nil (未設定)' do
+      user = create(:user)
+      expect(user.throw_hand).to be_nil
+      expect(user.batting_side).to be_nil
+    end
+
+    it 'maps throw_hand to { right: 0, left: 1 }' do
+      expect(described_class.throw_hands).to eq('right' => 0, 'left' => 1)
+    end
+
+    it 'maps batting_side to { right: 0, left: 1, both: 2 }' do
+      expect(described_class.batting_sides).to eq('right' => 0, 'left' => 1, 'both' => 2)
+    end
+
+    it 'defines prefixed predicate methods so right/left do not collide between the two enums' do
+      user = create(:user, throw_hand: :right, batting_side: :left)
+      expect(user.throw_hand_right?).to be true
+      expect(user.batting_side_left?).to be true
+      expect(user.batting_side_right?).to be false
+    end
+
+    it 'raises ArgumentError for an invalid value (controller側で422に変換される前提)' do
+      user = create(:user)
+      expect { user.throw_hand = 'switch' }.to raise_error(ArgumentError)
+    end
+  end
 end

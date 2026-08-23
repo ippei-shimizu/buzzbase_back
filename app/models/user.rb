@@ -101,6 +101,17 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
     end
   end
 
+  # Rails 7.1 では enum がカラム未存在状態だと "Undeclared attribute type" エラーになるため、
+  # 明示的に attribute type を declare してマイグレーション前後どちらでもロードできるようにする。
+  attribute :throw_hand, :integer
+  attribute :batting_side, :integer
+
+  # 利き腕（投）と打席。NULL = 未設定。どちらも right / left を持ちメソッド名が
+  # 衝突するため _prefix が必須（throw_hand_right? / batting_side_right?）。
+  # throw_hand は対戦相手投手用の pitchers.throw_hand と同じ命名・値に揃える。
+  enum throw_hand: { right: 0, left: 1 }, _prefix: true
+  enum batting_side: { right: 0, left: 1, both: 2 }, _prefix: true
+
   before_validation :normalize_user_id
   # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
   before_create :initialize_last_management_notice_read_at
