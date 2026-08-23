@@ -1,0 +1,226 @@
+require 'rails_helper'
+
+RSpec.describe 'Rack::Attack throttling', type: :request do
+  # Rack::Attack は test 環境では既定で無効なので、このスペック内でのみ有効化する。
+  around do |example|
+    Rack::Attack.enabled = true
+    Rack::Attack.cache.store.clear
+    example.run
+  ensure
+    Rack::Attack.enabled = false
+    Rack::Attack.cache.store.clear
+  end
+
+  let(:json_headers) { { 'CONTENT_TYPE' => 'application/json' } }
+
+  def post_sign_in(email:, ip:)
+    post_sign_in_path('/api/v1/auth/sign_in', email:, ip:)
+  end
+
+  def post_sign_in_path(path, email:, ip:)
+    post path,
+         params: { email:, password: 'wrong_password' }.to_json,
+         headers: json_headers.merge('X-Forwarded-For' => ip)
+  end
+
+  describe 'POST /api/v1/auth/sign_in' do
+    context 'when the same IP exceeds the limit' do
+      it 'returns 429 with a stable error code' do
+        30.times { |i| post_sign_in(email: "attacker#{i}@example.com", ip: '203.0.113.10') }
+        expect(response).to have_http_status(:unauthorized)
+
+        post_sign_in(email: 'attacker30@example.com', ip: '203.0.113.10')
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body['error']).to eq('rate_limit_exceeded')
+        expect(response.parsed_body['message']).to be_present
+        expect(response.headers['Retry-After'].to_i).to be_positive
+      end
+    end
+
+    context 'when the same email is attacked from many IPs' do
+      # JSON ボディの email を Rack::Attack が読めることの回帰テスト。
+      it 'returns 429' do
+        20.times { |i| post_sign_in(email: 'victim@example.com', ip: "198.51.100.#{i}") }
+        expect(response).to have_http_status(:unauthorized)
+
+        post_sign_in(email: 'victim@example.com', ip: '198.51.100.199')
+
+        expect(response).to have_http_status(:too_many_requests)
+        expect(response.parsed_body['error']).to eq('rate_limit_exceeded')
+      end
+    end
+
+    context 'when the email is sent as form-encoded params' do
+      it 'returns 429' do
+        20.times do |i|
+          post '/api/v1/auth/sign_in',
+               params: { email: 'formvictim@example.com', password: 'wrong_password' },
+               headers: { 'X-Forwarded-For' => "192.0.2.#{i}" }
+        end
+
+        post '/api/v1/auth/sign_in',
+             params: { email: 'formvictim@example.com', password: 'wrong_password' },
+             headers: { 'X-Forwarded-For' => '192.0.2.99' }
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+
+    context 'when the path has a format extension' do
+      it 'still throttles' do
+        30.times { |i| post_sign_in_path('/api/v1/auth/sign_in.json', email: "ext#{i}@example.com", ip: '203.0.113.60') }
+
+        post_sign_in_path('/api/v1/auth/sign_in.json', email: 'ext30@example.com', ip: '203.0.113.60')
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+
+    context 'when the path has a trailing slash' do
+      it 'still throttles' do
+        30.times { |i| post_sign_in_path('/api/v1/auth/sign_in/', email: "slash#{i}@example.com", ip: '203.0.113.61') }
+
+        post_sign_in_path('/api/v1/auth/sign_in/', email: 'slash30@example.com', ip: '203.0.113.61')
+
+        expect(response).to have_http_status(:too_many_requests)
+      end
+    end
+
+    context 'when within the limit' do
+      let(:user) do
+        create(:user, email: 'within@example.com', uid: 'within@example.com', password: 'password123',
+                      password_confirmation: 'password123')
+      end
+
+      it 'lets the request through' do
+        3.times { |i| post_sign_in(email: "someone#{i}@example.com", ip: '203.0.113.20') }
+
+        post '/api/v1/auth/sign_in',
+             params: { email: user.email, password: 'password123' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => '203.0.113.20')
+
+        expect(response).to have_http_status(:ok)
+        expect(response.headers['access-token']).to be_present
+      end
+    end
+  end
+
+  describe 'counter expiry' do
+    it 'lets requests through again after the period has passed' do
+      30.times { |i| post_sign_in(email: "expiry#{i}@example.com", ip: '203.0.113.70') }
+      post_sign_in(email: 'expiry30@example.com', ip: '203.0.113.70')
+      expect(response).to have_http_status(:too_many_requests)
+
+      travel 6.minutes do
+        post_sign_in(email: 'expiry31@example.com', ip: '203.0.113.70')
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe 'POST /api/v1/auth/password' do
+    it 'throttles repeated reset requests for the same email' do
+      3.times do |i|
+        post '/api/v1/auth/password',
+             params: { email: 'reset-target@example.com', redirect_url: 'http://localhost:8100/reset-password' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => "203.0.113.#{100 + i}")
+      end
+
+      post '/api/v1/auth/password',
+           params: { email: 'reset-target@example.com', redirect_url: 'http://localhost:8100/reset-password' }.to_json,
+           headers: json_headers.merge('X-Forwarded-For' => '203.0.113.199')
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'POST /api/v1/auth' do
+    it 'throttles repeated sign up attempts for the same email' do
+      3.times do |i|
+        post '/api/v1/auth',
+             params: { email: 'signup-target@example.com', password: 'password123',
+                       password_confirmation: 'password123' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => "198.51.100.#{100 + i}")
+      end
+
+      post '/api/v1/auth',
+           params: { email: 'signup-target@example.com', password: 'password123',
+                     password_confirmation: 'password123' }.to_json,
+           headers: json_headers.merge('X-Forwarded-For' => '198.51.100.199')
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'POST /api/v1/auth/confirmation' do
+    it 'throttles repeated resend requests for the same email' do
+      3.times do |i|
+        post '/api/v1/auth/confirmation',
+             params: { email: 'resend-target@example.com', redirect_url: 'http://localhost:8100/signin' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => "203.0.113.#{150 + i}")
+      end
+
+      post '/api/v1/auth/confirmation',
+           params: { email: 'resend-target@example.com', redirect_url: 'http://localhost:8100/signin' }.to_json,
+           headers: json_headers.merge('X-Forwarded-For' => '203.0.113.198')
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'POST /api/v1/admin/sign_in' do
+    it 'throttles repeated attempts from the same IP' do
+      5.times do
+        post '/api/v1/admin/sign_in',
+             params: { email: 'admin@example.com', password: 'wrong_password' }.to_json,
+             headers: json_headers.merge('X-Forwarded-For' => '203.0.113.30')
+      end
+
+      post '/api/v1/admin/sign_in',
+           params: { email: 'admin@example.com', password: 'wrong_password' }.to_json,
+           headers: json_headers.merge('X-Forwarded-For' => '203.0.113.30')
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'GET /api/v1/auth/confirmation' do
+    it 'throttles token brute force from the same IP' do
+      20.times do |i|
+        get "/api/v1/auth/confirmation?confirmation_token=token#{i}",
+            headers: { 'X-Forwarded-For' => '203.0.113.50' }
+      end
+
+      get '/api/v1/auth/confirmation?confirmation_token=token20',
+          headers: { 'X-Forwarded-For' => '203.0.113.50' }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'GET /users/password/edit' do
+    it 'throttles the bare Devise route as well' do
+      20.times do |i|
+        get "/users/password/edit?reset_password_token=token#{i}",
+            headers: { 'X-Forwarded-For' => '203.0.113.51' }
+      end
+
+      get '/users/password/edit?reset_password_token=token20',
+          headers: { 'X-Forwarded-For' => '203.0.113.51' }
+
+      expect(response).to have_http_status(:too_many_requests)
+    end
+  end
+
+  describe 'endpoints outside the throttle list' do
+    it 'does not throttle token validation' do
+      30.times do
+        get '/api/v1/auth/validate_token', headers: { 'X-Forwarded-For' => '203.0.113.40' }
+      end
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+end
