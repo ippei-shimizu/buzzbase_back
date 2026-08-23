@@ -46,7 +46,13 @@ module Users
     end
 
     def find_by_email
-      User.find_by(email: @email)
+      User.find_by(email: normalized_email)
+    end
+
+    # devise が保存時に strip + downcase する（case_insensitive_keys / strip_whitespace_keys）ため、
+    # 検索キーも同じ形に揃えないと既存ユーザーを取り逃して重複 INSERT になる。
+    def normalized_email
+      @email.to_s.strip.downcase
     end
 
     def link_provider!(user)
@@ -58,7 +64,7 @@ module Users
 
     def create_user!
       User.create!(
-        email: @email,
+        email: normalized_email,
         provider: @provider,
         uid: @uid,
         name: @name,
