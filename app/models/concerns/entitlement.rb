@@ -49,7 +49,8 @@ module Entitlement
     'hit_direction_average', # 方向別の打率(打球方向ごとのヒートマップ)
     'count_situation_average', # カウント別の打率(初球・有利・追い込み等)
     'pitch_type_average', # 球種別の打率(ストレート・変化球等)
-    'pitcher_faceoff_average' # 対戦投手別の打撃成績
+    'pitcher_faceoff_average', # 対戦投手別の打撃成績
+    'pitch_course_average' # コース別の打率(5x5ヒートマップ・球種別クロス集計を含む)
   ].freeze
 
   ALL_FEATURES = (FREE_FEATURES + PRO_FEATURES).freeze
