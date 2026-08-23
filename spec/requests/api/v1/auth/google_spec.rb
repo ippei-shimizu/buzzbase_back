@@ -121,6 +121,17 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
       end
     end
 
+    context 'メールが取得できなかった場合' do
+      let(:google_data) { { uid: google_uid, email: nil, name: nil } }
+
+      it '401を返す' do
+        post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('メールアドレスが取得できませんでした')
+      end
+    end
+
     context '同一メールのリクエストが並行して一意制約に負けた場合' do
       let!(:winner) { create(:user, :google, uid: google_uid, email:, user_id: 'yamada') }
 
