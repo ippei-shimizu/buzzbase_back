@@ -179,4 +179,38 @@ RSpec.describe PlateAppearance, type: :model do
       expect(plate_appearance.is_new_format).to be(false)
     end
   end
+
+  describe 'pitch_course の範囲バリデーション' do
+    let(:plate_appearance) { build(:plate_appearance) }
+
+    it '1〜25 は valid' do
+      [1, 13, 25].each do |course|
+        plate_appearance.pitch_course = course
+        expect(plate_appearance).to be_valid
+      end
+    end
+
+    it 'nil は valid（未記録）' do
+      plate_appearance.pitch_course = nil
+      expect(plate_appearance).to be_valid
+    end
+
+    it '範囲外 (0, 26) は invalid' do
+      [0, 26].each do |course|
+        plate_appearance.pitch_course = course
+        expect(plate_appearance).not_to be_valid
+        expect(plate_appearance.errors[:pitch_course]).to be_present
+      end
+    end
+  end
+
+  describe 'PITCH_COURSES / STRIKE_ZONE_COURSES 定数' do
+    it 'コースは 25 マスある' do
+      expect(described_class::PITCH_COURSES).to eq((1..25).to_a)
+    end
+
+    it 'ストライクゾーンは中央 3x3 の 9 マス' do
+      expect(described_class::STRIKE_ZONE_COURSES).to eq([7, 8, 9, 12, 13, 14, 17, 18, 19])
+    end
+  end
 end

@@ -10,6 +10,18 @@ module Api
       before_action :authenticate_api_v1_user!
       before_action :load_plate_appearance, only: %i[update destroy]
 
+      def show
+        # by_game と同じ公開ポリシーにする。current_api_v1_user.plate_appearances.find だと
+        # 他人の公開打席が 404 になり、試合詳細では見えるのに打席詳細だけ見えない非対称が生まれる。
+        plate_appearance = PlateAppearance.includes(:user, :contact_quality, :timing, :pitch_type,
+                                                    :appearance_situation,
+                                                    pitcher: %i[arm_angle velocity_zone pitcher_style])
+                                          .find(params[:id])
+        return if render_forbidden_if_private!(plate_appearance.user)
+
+        render json: plate_appearance, serializer: ::V2::PlateAppearanceSerializer
+      end
+
       def create
         # game_result_id を current_api_v1_user 所有のものに限定し、IDOR を防ぐ。
         game_result = current_api_v1_user.game_results.find(plate_appearance_params[:game_result_id])
@@ -91,7 +103,7 @@ module Api
           :rbi, :run_scored, :stolen_bases, :caught_stealing,
           :final_balls, :final_strikes, :final_outs,
           :first_pitch_swing, :runners_state, :inning,
-          :contact_quality_id, :timing_id, :pitch_type_id,
+          :contact_quality_id, :timing_id, :pitch_type_id, :pitch_course,
           :self_analysis_memo, :opponent_memo,
           :pitcher_id, :appearance_situation_id
         )

@@ -3,6 +3,14 @@ class PlateAppearance < ApplicationRecord
   # 意味を持つので、validate でこの ID とセットで指定されているか確認する。
   STRIKEOUT_RESULT_ID = 13
 
+  # 投球コース（打席結果が決まった最後の1球）。捕手目線・行優先の 5x5 グリッド
+  # （左上=1 〜 右下=25、row = (n-1)/5 + 1、col = (n-1)%5 + 1）。
+  # 保存値は打者の左右でミラーせず常に捕手目線の絶対座標で固定する。
+  # 内角/外角のラベルは表示側で users.batting_side から導出する。
+  PITCH_COURSES = (1..25).to_a.freeze
+  # 中央 3x3 がストライクゾーン、外周 16 マスがボールゾーン。
+  STRIKE_ZONE_COURSES = [7, 8, 9, 12, 13, 14, 17, 18, 19].freeze
+
   belongs_to :game_result
   belongs_to :user
   belongs_to :plate_result, optional: true
@@ -43,6 +51,10 @@ class PlateAppearance < ApplicationRecord
   validates :hit_direction_id,
             inclusion: { in: ::Stats::HitDirectionAggregator::DIRECTION_LABELS.keys },
             allow_nil: true
+
+  # コースはマスタテーブルを持たず（幾何的定義で運用変更の余地がない）、
+  # hit_direction_id と同じ流儀で定数 + inclusion で範囲を保証する。
+  validates :pitch_course, inclusion: { in: PITCH_COURSES }, allow_nil: true
 
   validate :swing_type_only_for_strikeout
 

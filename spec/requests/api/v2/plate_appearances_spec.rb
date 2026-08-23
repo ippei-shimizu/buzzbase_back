@@ -240,4 +240,56 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/plate_appearances/:id' do
+    let!(:plate_appearance) do
+      create(:plate_appearance, game_result:, user:, plate_result_id: 7,
+                                hit_direction_id: 10, is_new_format: true, batter_box_number: 1,
+                                rbi: 0, runners_state: :first_second)
+    end
+
+    context 'when authenticated' do
+      it '自分の打席を 200 で返す' do
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['id']).to eq(plate_appearance.id)
+        expect(json['runners_state']).to eq('first_second')
+        expect(json['rbi']).to eq(0)
+      end
+
+      it '公開アカウントの他ユーザーの打席も 200 で返す（load_plate_appearance 誤流用の回帰テスト）' do
+        viewer = create(:user)
+
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(viewer)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['id']).to eq(plate_appearance.id)
+      end
+
+      it '非公開ユーザーの打席は 403' do
+        private_user = create(:user, is_private: true)
+        private_game = create(:game_result, user: private_user)
+        private_pa = create(:plate_appearance, game_result: private_game, user: private_user,
+                                               plate_result_id: 7, is_new_format: true, batter_box_number: 1)
+
+        get "/api/v2/plate_appearances/#{private_pa.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it '存在しない id は 404' do
+        get '/api/v2/plate_appearances/0', headers: auth_headers_for(user)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get "/api/v2/plate_appearances/#{plate_appearance.id}"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
 end
