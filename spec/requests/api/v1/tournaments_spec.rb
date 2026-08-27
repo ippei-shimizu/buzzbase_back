@@ -126,4 +126,58 @@ RSpec.describe 'Api::V1::Tournaments', type: :request do
       expect(json.size).to eq(2)
     end
   end
+
+  describe 'POST /api/v1/tournaments' do
+    context 'when not authenticated' do
+      it 'returns unauthorized' do
+        post '/api/v1/tournaments', params: { tournament: { name: '春季大会' } }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    it '新規大会を作成して201を返す' do
+      expect do
+        post '/api/v1/tournaments', params: { tournament: { name: '春季大会' } }, headers: auth_headers_for(user)
+      end.to change(Tournament, :count).by(1)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['name']).to eq('春季大会')
+      end
+    end
+
+    it '同名の大会が既にある場合は新規作成せず既存のidを返す' do
+      existing = create(:tournament, name: '春季大会')
+
+      expect do
+        post '/api/v1/tournaments', params: { tournament: { name: '春季大会' } }, headers: auth_headers_for(user)
+      end.not_to change(Tournament, :count)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['id']).to eq(existing.id)
+      end
+    end
+
+    it '同名が複数存在する場合は最小idを返す' do
+      oldest = create(:tournament, name: '春季大会')
+      create(:tournament, name: '春季大会')
+
+      post '/api/v1/tournaments', params: { tournament: { name: '春季大会' } }, headers: auth_headers_for(user)
+
+      expect(response.parsed_body['id']).to eq(oldest.id)
+    end
+
+    it 'name が空なら422を返しレコードを作らない' do
+      expect do
+        post '/api/v1/tournaments', params: { tournament: { name: '' } }, headers: auth_headers_for(user)
+      end.not_to change(Tournament, :count)
+
+      aggregate_failures do
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('大会名 を入力してください')
+      end
+    end
+  end
 end
