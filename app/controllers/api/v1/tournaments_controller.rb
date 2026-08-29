@@ -33,12 +33,14 @@ module Api
         end
       end
 
+      # 同名の大会が既にあれば作成せず既存を返す（冪等）。
+      # 試合登録で大会名を手入力するたびに同名レコードが増えるのを防ぐ。
       def create
-        tournament = Tournament.new(tournament_params)
-        if tournament.save
+        tournament = Tournament.find_or_initialize_by_name(tournament_params[:name])
+        if tournament.persisted? || tournament.save
           render json: tournament, status: :created
         else
-          render json: tournament.errors, status: :unprocessable_entity
+          render json: { errors: tournament.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
@@ -46,7 +48,7 @@ module Api
         if @tournament.update(tournament_params)
           render json: @tournament, status: :ok
         else
-          render json: @tournament.errors, status: :unprocessable_entity
+          render json: { errors: @tournament.errors.full_messages }, status: :unprocessable_entity
         end
       end
 
