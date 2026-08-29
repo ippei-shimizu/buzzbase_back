@@ -8,6 +8,21 @@ RSpec.describe Tournament, type: :model do
   describe 'validations' do
     it { should validate_presence_of(:name) }
     it { should validate_length_of(:name).is_at_most(100) }
+
+    # 制約を後から追加したため、既に不正な name を持つ行が修復不能にならないことを担保する。
+    it 'name を変更しない更新は制約追加前の不正なレコードでも通る' do
+      invalid = described_class.new(name: 'a' * 101)
+      invalid.save!(validate: false)
+
+      expect(invalid.reload.update(updated_at: Time.current)).to be true
+    end
+
+    it 'name を変更する更新は検証される' do
+      invalid = described_class.new(name: 'a' * 101)
+      invalid.save!(validate: false)
+
+      expect(invalid.reload.update(name: 'b' * 101)).to be false
+    end
   end
 
   describe 'name の正規化' do

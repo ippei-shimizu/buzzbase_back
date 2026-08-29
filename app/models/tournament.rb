@@ -3,7 +3,9 @@ class Tournament < ApplicationRecord
   # dependent: :destroy のため destroy で消すとユーザーの試合記録ごと失われる。
   has_many :match_results, dependent: :destroy
 
-  validates :name, presence: true, length: { maximum: 100 }
+  # 制約が無い時代に作られた既存レコードがあるため、name を変更しない更新まで弾いて
+  # 修復不能にしないよう、新規作成時と name 変更時に限って検証する。
+  validates :name, presence: true, length: { maximum: 100 }, if: -> { new_record? || name_changed? }
 
   before_validation :normalize_name
 
