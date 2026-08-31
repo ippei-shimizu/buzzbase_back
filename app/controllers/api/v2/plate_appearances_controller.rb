@@ -128,7 +128,10 @@ module Api
         ::Stats::BattingAverageRecalculator.new(game_result_id:, user_id:, cleanup_orphan:).call
       rescue ActiveRecord::RecordInvalid => e
         Rails.logger.warn("BattingAverage recalculation failed for game_result_id=#{game_result_id}: #{e.message}")
-        Sentry.capture_exception(e) if Sentry.initialized?
+        if Sentry.initialized?
+          Sentry.capture_exception(e, tags: { source: 'batting_average_recalculation' },
+                                      extra: { game_result_id:, user_id: })
+        end
         nil
       end
     end
