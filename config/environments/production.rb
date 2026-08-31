@@ -43,13 +43,39 @@ Rails.application.configure do
 
   # Include generic and useful information about system operation, but avoid logging too much
   # information to avoid inadvertent exposure of personally identifiable information (PII).
-  config.log_level = :debug
+  # :debug は全 SQL とバインドパラメータがログに流れ、ログ流量・レイテンシ・PII 露出の
+  # リスクがあるため既定は :info。障害調査時は RAILS_LOG_LEVEL=debug で一時的に切り替える。
+  config.log_level = ENV.fetch('RAILS_LOG_LEVEL', 'info').to_sym
 
   # Prepend all log lines with the following tags.
   config.log_tags = [:request_id]
 
-  # Use a different cache store in production.
-  # config.cache_store = :mem_cache_store
+  # Heroku dyno のファイルシステムは ephemeral かつ dyno ごとに独立のため、既定の
+  # file_store はキャッシュとして実質機能しない。REDIS_URL（Action Cable と共用の
+  # アドオン）があれば redis_cache_store を使い、無ければ memory_store を明示する
+  # （dyno ごとに独立・再起動で消える前提を許容できる用途に限る）。
+  # Redis 側の障害でリクエストを巻き込まないよう、タイムアウトを短く明示し、
+  # エラーはキャッシュミス扱いで握り潰して Sentry に記録する。
+  config.cache_store = if ENV['REDIS_URL'].present?
+                         [:redis_cache_store, {
+                           url: ENV['REDIS_URL'],
+                           # Heroku Key-Value Store の TLS (rediss://) は自己署名証明書のため、
+                           # Heroku のドキュメントに従い検証を無効化して接続する。
+                           ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_NONE },
+                           connect_timeout: 1,
+                           read_timeout: 1,
+                           write_timeout: 1,
+                           reconnect_attempts: 1,
+                           error_handler: lambda { |method:, returning:, exception:|
+                             if Sentry.initialized?
+                               Sentry.capture_exception(exception, level: :warning,
+                                                                   tags: { cache_method: method, returning: returning.inspect })
+                             end
+                           }
+                         }]
+                       else
+                         :memory_store
+                       end
 
   # Use a real queuing backend for Active Job (and separate queues per environment).
   # queue_adapter は config/application.rb で全環境一括設定済み。
