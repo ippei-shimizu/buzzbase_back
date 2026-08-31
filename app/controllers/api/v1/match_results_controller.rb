@@ -181,11 +181,13 @@ module Api
       # 先に COMMIT された同一 game_result_id のレコードを勝者として引き直し、成功として扱う（作成の冪等化）。
       # 制約違反は外側トランザクションごと abort させ復旧クエリまで道連れにするため、
       # セーブポイント内で INSERT して影響をここに閉じ込める（Stadium.find_or_create_for! と同型）。
+      # 引き直しは認証ユーザーのスコープに限定する。ユニークインデックスは game_result_id 単独で
+      # 所有者を含まないため、スコープを外すと他ユーザーのレコードを 201 で返してしまう。
       # @return [Boolean] 保存または勝者レコードへの差し替えに成功したか
       def save_match_result_idempotently
         ActiveRecord::Base.transaction(requires_new: true) { @match_result.save }
       rescue ActiveRecord::RecordNotUnique => e
-        winner = MatchResult.find_by(game_result_id: @match_result.game_result_id)
+        winner = current_api_v1_user.match_results.find_by(game_result_id: @match_result.game_result_id)
         raise e unless winner
 
         @match_result = winner

@@ -153,13 +153,16 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
         expect(response.parsed_body['id']).to eq(winner.id)
       end
 
-      it 'returns 409 via ApplicationController rescue when the winner cannot be refetched' do
-        allow(MatchResult).to receive(:find_by).and_return(nil)
+      it 'returns 409 without exposing the winner when it belongs to another user' do
+        other_game_result = create(:game_result, user: create(:user))
 
-        post '/api/v1/match_results', params:, headers: auth_headers_for(user)
+        post '/api/v1/match_results',
+             params: { match_result: params[:match_result].merge(game_result_id: other_game_result.id) },
+             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:conflict)
         expect(response.parsed_body['error']).to eq('record_not_unique')
+        expect(response.parsed_body).not_to have_key('id')
       end
     end
 
