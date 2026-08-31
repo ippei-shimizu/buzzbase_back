@@ -73,7 +73,8 @@ module Api
       def update
         was_private = current_api_v1_user.is_private?
         if current_api_v1_user.update(user_params)
-          current_api_v1_user.approve_all_pending_requests! if was_private && !current_api_v1_user.is_private?
+          # 承認待ちが多いユーザーで更新リクエストを遅くしないよう一括承認は非同期に行う。
+          ApprovePendingFollowRequestsJob.perform_later(current_api_v1_user.id) if was_private && !current_api_v1_user.is_private?
           render json: { success: true }
         else
           render json: { errors: current_api_v1_user.errors.full_messages }, status: :unprocessable_entity

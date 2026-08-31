@@ -12,7 +12,10 @@ CarrierWave.configure do |config|
       region: 'ap-northeast-1'
     }
     config.fog_directory = ENV.fetch('AWS_BUCKET_NAME', nil)
-    config.cache_storage = :fog
+    # cache も :fog にすると 1 回のアップロードで cache / store の 2 往復が S3 に発生する。
+    # cache → store は同一リクエスト内（同一プロセス）で完結するため、cache はローカルの
+    # ephemeral filesystem で十分。S3 への転送を store の 1 往復に減らす。
+    config.cache_storage = :file
   else
     config.storage = :file
   end

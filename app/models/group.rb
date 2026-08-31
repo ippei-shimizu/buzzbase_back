@@ -1,5 +1,8 @@
 class Group < ApplicationRecord
   mount_uploader :icon, GroupIconUploader
+  # User#image と同様、S3 への転送をトランザクションの外（COMMIT 後）で行う。
+  skip_callback :save, :after, :store_icon!
+  after_commit :store_icon!, on: %i[create update]
   has_many :group_users, dependent: :destroy
   has_many :users, through: :group_users
   has_many :group_invitations, dependent: :destroy
