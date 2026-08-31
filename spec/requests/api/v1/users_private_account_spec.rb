@@ -172,6 +172,14 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
         expect(Relationship.pending.where(followed_id: private_account.id).count).to eq(0)
         expect(Relationship.accepted.where(followed_id: private_account.id).count).to eq(2)
       end
+
+      it 'enqueues the approval job with the account id' do
+        expect do
+          put '/api/v1/user',
+              params: { user: { is_private: false, name: private_account.name } },
+              headers: auth_headers_for(private_account)
+        end.to have_enqueued_job(ApprovePendingFollowRequestsJob).with(private_account.id)
+      end
     end
 
     context 'when switching from public to private' do
