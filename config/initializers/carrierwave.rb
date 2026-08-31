@@ -3,6 +3,10 @@ require 'carrierwave/storage/file'
 require 'carrierwave/storage/fog'
 
 CarrierWave.configure do |config|
+  # 既定の cache_dir は CarrierWave.root（= public/）配下のため、RAILS_SERVE_STATIC_FILES が
+  # 有効だとリサイズ前の原本が静的配信されうる。public の外に逃がす。
+  config.cache_dir = Rails.root.join('tmp/uploads').to_s
+
   if Rails.env.production?
     config.fog_provider = 'fog/aws'
     config.fog_credentials = {
