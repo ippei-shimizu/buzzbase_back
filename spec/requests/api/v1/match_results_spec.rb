@@ -141,7 +141,7 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
       before do
         # 並行リクエストでは相手の行が uniqueness の SELECT にまだ見えないため通過する。
         # バリデーションをスキップして DB ユニークインデックス違反を再現する。
-        allow_any_instance_of(MatchResult).to receive(:perform_validations).and_return(true) # rubocop:disable RSpec/AnyInstance
+        allow_any_instance_of(MatchResult).to receive(:valid?).and_return(true) # rubocop:disable RSpec/AnyInstance
       end
 
       it 'returns 201 with the winner record instead of 500' do
