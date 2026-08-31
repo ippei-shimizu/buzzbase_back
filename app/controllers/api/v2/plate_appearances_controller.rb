@@ -11,13 +11,13 @@ module Api
       before_action :load_plate_appearance, only: %i[update destroy]
 
       def show
-        # by_game と同じ公開ポリシーにする。current_api_v1_user.plate_appearances.find だと
-        # 他人の公開打席が 404 になり、試合詳細では見えるのに打席詳細だけ見えない非対称が生まれる。
+        # 球種・コース・対戦投手まで含む詳細情報のため、試合詳細（by_game）より狭い
+        # 「本人 or 相互フォロー」に限定する。
         plate_appearance = PlateAppearance.includes(:user, :contact_quality, :timing, :pitch_type,
                                                     :appearance_situation,
                                                     pitcher: %i[arm_angle velocity_zone pitcher_style])
                                           .find(params[:id])
-        return if render_forbidden_if_private!(plate_appearance.user)
+        return if render_forbidden_unless_mutual_follow!(plate_appearance.user)
 
         render json: plate_appearance, serializer: ::V2::PlateAppearanceSerializer
       end

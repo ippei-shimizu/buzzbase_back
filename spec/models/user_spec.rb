@@ -269,6 +269,31 @@ RSpec.describe User, type: :model do
       end
     end
 
+    describe '#mutually_following?' do
+      it 'returns true when both users follow each other' do
+        Relationship.create!(follower: private_user, followed: follower, status: :accepted)
+
+        expect(private_user.mutually_following?(follower)).to be true
+      end
+
+      it 'returns false when only one side follows' do
+        expect(private_user.mutually_following?(follower)).to be false
+      end
+
+      it 'returns false for the user themselves and for nil' do
+        expect(public_user.mutually_following?(public_user)).to be false
+        expect(public_user.mutually_following?(nil)).to be false
+      end
+
+      it 'returns false while the follow request is still pending' do
+        pending_user = create(:user, is_private: true)
+        Relationship.create!(follower: pending_user, followed: non_follower, status: :accepted)
+        Relationship.create!(follower: non_follower, followed: pending_user, status: :pending)
+
+        expect(pending_user.mutually_following?(non_follower)).to be false
+      end
+    end
+
     describe '#follow_status' do
       it 'returns "self" for the user themselves' do
         expect(public_user.follow_status(public_user)).to eq('self')

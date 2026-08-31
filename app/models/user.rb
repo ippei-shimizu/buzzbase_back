@@ -205,6 +205,18 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
     followers.include?(viewer)
   end
 
+  # 相互フォロー（双方の Relationship が accepted）かどうか。
+  # 打席詳細のように、公開アカウントでも相互フォロー相手にだけ見せたい情報の判定に使う。
+  #
+  # @param other_user [User, nil] 判定相手
+  # @return [Boolean] 双方がフォローし合っていれば true
+  def mutually_following?(other_user)
+    return false unless other_user
+    return false if other_user == self
+
+    followers.exists?(other_user.id) && following.exists?(other_user.id)
+  end
+
   def incoming_follow_request_id_from(other_user)
     return nil unless other_user
 

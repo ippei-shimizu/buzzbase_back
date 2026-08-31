@@ -296,13 +296,39 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(json['rbi']).to eq(0)
       end
 
-      it '公開アカウントの他ユーザーの打席も 200 で返す（load_plate_appearance 誤流用の回帰テスト）' do
+      it '相互フォローの他ユーザーの打席は 200 で返す' do
         viewer = create(:user)
+        Relationship.create!(follower: viewer, followed: user, status: :accepted)
+        Relationship.create!(follower: user, followed: viewer, status: :accepted)
 
         get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(viewer)
 
         expect(response).to have_http_status(:ok)
         expect(response.parsed_body['id']).to eq(plate_appearance.id)
+      end
+
+      it '公開アカウントでも相互フォローでなければ 403' do
+        viewer = create(:user)
+        Relationship.create!(follower: viewer, followed: user, status: :accepted)
+
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(viewer)
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq('mutual_follow_required')
+      end
+
+      it '非公開ユーザーでも相互フォローなら 200 で返す' do
+        private_user = create(:user, is_private: true)
+        private_game = create(:game_result, user: private_user)
+        private_pa = create(:plate_appearance, game_result: private_game, user: private_user,
+                                               plate_result_id: 7, is_new_format: true, batter_box_number: 1)
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+        Relationship.create!(follower: private_user, followed: user, status: :accepted)
+
+        get "/api/v2/plate_appearances/#{private_pa.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['id']).to eq(private_pa.id)
       end
 
       it '非公開ユーザーの打席は 403' do
