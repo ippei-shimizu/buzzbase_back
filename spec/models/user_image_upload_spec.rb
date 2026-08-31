@@ -24,13 +24,13 @@ RSpec.describe User, type: :model do
     # store が after_save に戻ってしまう回帰（skip_callback の失効）を検知するため、
     # トランザクション内では未 store であることまで確認する。
     it 'COMMIT 前は store されていない' do
-      User.transaction do
+      described_class.transaction do
         user.update!(image: image_file)
 
-        expect(User.find(user.id).image.file&.exists?).to be_falsey
+        expect(described_class.find(user.id).image.file&.exists?).to be_falsey
       end
 
-      expect(User.find(user.id).image.file.exists?).to be true
+      expect(described_class.find(user.id).image.file.exists?).to be true
     end
 
     it 'identifier が保存されカラムに反映される' do
