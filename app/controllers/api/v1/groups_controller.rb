@@ -1,7 +1,8 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[show create update destroy invite_link]
+      # 全アクションが current_api_v1_user 前提のため only: で絞らない
+      before_action :authenticate_api_v1_user!
 
       def index
         accepted_group_ids = GroupInvitation.where(user_id: current_api_v1_user.id, state: 'accepted').pluck(:group_id)

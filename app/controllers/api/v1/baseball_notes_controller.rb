@@ -1,7 +1,8 @@
 module Api
   module V1
     class BaseballNotesController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[index show update destroy]
+      # create も current_api_v1_user 前提のため only: で絞らない
+      before_action :authenticate_api_v1_user!
       before_action :set_baseball_note, only: %i[show update destroy]
 
       def index
