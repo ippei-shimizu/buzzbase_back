@@ -13,7 +13,7 @@ module V2
                :rbi, :run_scored, :stolen_bases, :caught_stealing,
                :final_balls, :final_strikes, :final_outs,
                :first_pitch_swing, :runners_state, :inning,
-               :pitch_course,
+               :pitch_course, :pitch_course_x, :pitch_course_y,
                :self_analysis_memo, :opponent_memo,
                :is_new_format, :has_detail_data,
                :created_at, :updated_at

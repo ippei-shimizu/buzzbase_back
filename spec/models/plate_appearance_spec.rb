@@ -204,6 +204,32 @@ RSpec.describe PlateAppearance, type: :model do
     end
   end
 
+  describe 'pitch_course_x / pitch_course_y の範囲バリデーション' do
+    let(:plate_appearance) { build(:plate_appearance) }
+
+    it '0.0〜1.0 の範囲内は valid' do
+      plate_appearance.assign_attributes(pitch_course: 13, pitch_course_x: 0.5, pitch_course_y: 0.0)
+      expect(plate_appearance).to be_valid
+    end
+
+    it '範囲外（負値）は invalid' do
+      plate_appearance.assign_attributes(pitch_course_x: -0.1, pitch_course_y: 0.5)
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:pitch_course_x]).to be_present
+    end
+
+    it '範囲外（1超過）は invalid' do
+      plate_appearance.assign_attributes(pitch_course_x: 0.5, pitch_course_y: 1.5)
+      expect(plate_appearance).not_to be_valid
+      expect(plate_appearance.errors[:pitch_course_y]).to be_present
+    end
+
+    it 'nil は valid（座標なしでコースだけ記録された既存レコード互換）' do
+      plate_appearance.assign_attributes(pitch_course: 13, pitch_course_x: nil, pitch_course_y: nil)
+      expect(plate_appearance).to be_valid
+    end
+  end
+
   describe 'PITCH_COURSES / STRIKE_ZONE_COURSES 定数' do
     it 'コースは 25 マスある' do
       expect(described_class::PITCH_COURSES).to eq((1..25).to_a)

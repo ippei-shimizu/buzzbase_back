@@ -103,7 +103,8 @@ module Api
           :rbi, :run_scored, :stolen_bases, :caught_stealing,
           :final_balls, :final_strikes, :final_outs,
           :first_pitch_swing, :runners_state, :inning,
-          :contact_quality_id, :timing_id, :pitch_type_id, :pitch_course,
+          :contact_quality_id, :timing_id, :pitch_type_id,
+          :pitch_course, :pitch_course_x, :pitch_course_y,
           :self_analysis_memo, :opponent_memo,
           :pitcher_id, :appearance_situation_id
         )

@@ -108,6 +108,34 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['errors'].join).to include('三振')
       end
+
+      it 'コースはタップ座標とセットで保存され、レスポンスにも含まれる' do
+        course_params = base_params.deep_merge(
+          plate_appearance: { pitch_course: 13, pitch_course_x: 0.512, pitch_course_y: 0.436 }
+        )
+
+        post '/api/v2/plate_appearances', params: course_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        json = response.parsed_body
+        expect(json['pitch_course']).to eq(13)
+        expect(json['pitch_course_x'].to_f).to eq(0.512)
+        expect(json['pitch_course_y'].to_f).to eq(0.436)
+
+        created = PlateAppearance.find(json['id'])
+        expect(created.pitch_course_x).to eq(0.512)
+        expect(created.pitch_course_y).to eq(0.436)
+      end
+
+      it 'コース座標が範囲外だと 422' do
+        bad_params = base_params.deep_merge(
+          plate_appearance: { pitch_course: 13, pitch_course_x: 1.5, pitch_course_y: 0.4 }
+        )
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
     end
 
     context 'when not authenticated' do

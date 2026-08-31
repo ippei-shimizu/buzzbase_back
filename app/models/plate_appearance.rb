@@ -56,6 +56,10 @@ class PlateAppearance < ApplicationRecord
   # hit_direction_id と同じ流儀で定数 + inclusion で範囲を保証する。
   validates :pitch_course, inclusion: { in: PITCH_COURSES }, allow_nil: true
 
+  # コース図上のタップ位置。pitch_course の導出元で、hit_location_x/y と同じ正規化座標。
+  validates :pitch_course_x, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
+  validates :pitch_course_y, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
+
   validate :swing_type_only_for_strikeout
 
   private

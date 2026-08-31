@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_31_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -622,6 +622,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
     t.bigint "appearance_situation_id"
     t.integer "swing_type"
     t.integer "pitch_course"
+    t.decimal "pitch_course_x", precision: 4, scale: 3
+    t.decimal "pitch_course_y", precision: 4, scale: 3
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
