@@ -44,6 +44,14 @@ RSpec.describe 'Api::V1::Teams', type: :request do
       end
     end
 
+    context 'with non-scalar params' do
+      it 'ignores array q and limit instead of raising' do
+        get '/api/v1/teams', params: { q: %w[青葉 ライオンズ], limit: ['10'] }
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
     context 'without params (deployed-client compatibility)' do
       it 'returns all teams as before' do
         get '/api/v1/teams'

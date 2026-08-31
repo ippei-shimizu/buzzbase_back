@@ -12,7 +12,7 @@ module Api
       def index
         if params[:q].present? || params[:limit].present?
           teams = Team.order(:name, :id)
-          teams = teams.search_by_name(params[:q]) if params[:q].present?
+          teams = teams.search_by_name(search_query) if search_query.present?
           render json: teams.limit(limit_param)
         else
           # パラメータ無しの全件返却は、配信済みクライアント（旧 mobile アプリの
@@ -65,8 +65,13 @@ module Api
 
       private
 
+      # 未認証で叩けるエンドポイントのため、配列やハッシュを渡されても 500 にせず無視する。
+      def search_query
+        params[:q].is_a?(String) ? params[:q] : nil
+      end
+
       def limit_param
-        limit = params[:limit].to_i
+        limit = Integer(params[:limit].to_s, exception: false).to_i
         return DEFAULT_LIMIT unless limit.positive?
 
         [limit, MAX_LIMIT].min
