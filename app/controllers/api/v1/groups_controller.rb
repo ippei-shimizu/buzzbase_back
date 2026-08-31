@@ -139,7 +139,7 @@ module Api
         users.each do |user|
           notification = Notification.create!(actor: current_api_v1_user, event_type: 'group_invitation', event_id: group.id)
           UserNotification.create!(user_id: user.id, notification_id: notification.id)
-          PushNotificationService.send_to_user(user, title: 'BUZZ BASE', body: "#{current_api_v1_user.name}さんからグループに招待されました")
+          PushNotificationJob.perform_later(user.id, title: 'BUZZ BASE', body: "#{current_api_v1_user.name}さんからグループに招待されました")
         end
       end
 
@@ -166,8 +166,8 @@ module Api
             user_id: user.id,
             notification_id: notification.id
           )
-          PushNotificationService.send_to_user(
-            user,
+          PushNotificationJob.perform_later(
+            user.id,
             title: 'BUZZ BASE',
             body: "#{current_api_v1_user.name}さんからグループに招待されました"
           )
