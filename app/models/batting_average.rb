@@ -195,7 +195,11 @@ class BattingAverage < ApplicationRecord
   private
 
   def must_have_any_stats
+    # plate_appearances（総打席数）も判定に含める。打撃妨害・走塁妨害のみ、または
+    # 結果未確定の打席だけの試合は他の全項目が 0 になるが、打席が 1 件でもあれば
+    # 「未入力」ではない（v2 再集計がこの状態で保存に失敗しないようにする）。
     stat_fields = [
+      plate_appearances,
       times_at_bat, at_bats, hit, two_base_hit, three_base_hit, home_run,
       total_bases, runs_batted_in, run, strike_out, base_on_balls,
       hit_by_pitch, sacrifice_hit, sacrifice_fly, stealing_base,
