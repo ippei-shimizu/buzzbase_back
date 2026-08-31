@@ -2,11 +2,16 @@ require 'rails_helper'
 
 RSpec.describe 'Rack::Attack throttling', type: :request do
   # Rack::Attack は test 環境では既定で無効なので、このスペック内でのみ有効化する。
+  # カウンタは period 単位の固定ウィンドウで、境界をまたぐとリセットされる。実時刻のまま
+  # 走らせると境界を踏んだ実行だけ throttle されず CI が不定期に落ちるため、どの period
+  # でも境界直後になる時刻に固定する。
   around do |example|
     Rack::Attack.enabled = true
     Rack::Attack.cache.store.clear
+    travel_to(Time.current.beginning_of_hour)
     example.run
   ensure
+    travel_back
     Rack::Attack.enabled = false
     Rack::Attack.cache.store.clear
   end
@@ -112,11 +117,11 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
       post_sign_in(email: 'expiry30@example.com', ip: '203.0.113.70')
       expect(response).to have_http_status(:too_many_requests)
 
-      travel 6.minutes do
-        post_sign_in(email: 'expiry31@example.com', ip: '203.0.113.70')
+      # around で時刻を固定済みのため、ブロック形式ではなく相対移動で period を跨がせる。
+      travel 6.minutes
+      post_sign_in(email: 'expiry31@example.com', ip: '203.0.113.70')
 
-        expect(response).to have_http_status(:unauthorized)
-      end
+      expect(response).to have_http_status(:unauthorized)
     end
   end
 
