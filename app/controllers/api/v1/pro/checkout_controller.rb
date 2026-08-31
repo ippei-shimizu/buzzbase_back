@@ -4,13 +4,10 @@ module Api
       # POST /api/v1/pro/checkout
       # Web 加入用の Stripe Checkout Session を生成して checkout_url を返す。
       # 実際の状態遷移は Stripe → RevenueCat → Webhook 経由で行われるため、ここでは local 状態を触らない。
-      # Flipper :pro_features は新規販売の kill switch。無効時は Stripe を呼ばずに 403 で止める。
       class CheckoutController < ApplicationController
         before_action :authenticate_api_v1_user!
 
         def create
-          return render json: { error: 'feature_disabled' }, status: :forbidden unless Flipper.enabled?(:pro_features, current_api_v1_user)
-
           session = App::Stripe::CheckoutSessionBuilder.new(
             user: current_api_v1_user,
             plan: params[:plan],
