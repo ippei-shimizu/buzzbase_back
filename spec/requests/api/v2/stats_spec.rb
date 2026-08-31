@@ -347,6 +347,56 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
   end
 
+  describe 'GET /api/v2/stats/pitch_courses' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_courses'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_courses', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with 25 zones + strike/ball zone summaries + min_at_bats for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitch_courses', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('zones', 'strike_zone', 'ball_zone', 'total_target_pa', 'min_at_bats')
+      expect(json['zones'].length).to eq(25)
+      expect(json['zones'].first).to include(
+        'course', 'row', 'col', 'is_strike_zone',
+        'plate_appearances', 'at_bats', 'hits', 'batting_average', 'is_reliable'
+      )
+      expect(json['min_at_bats']).to eq(3)
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitch_course_pitch_types' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_course_pitch_types'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_course_pitch_types', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows of 25 zones per master pitch type for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitch_course_pitch_types', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa', 'min_at_bats')
+      expect(json['rows'].length).to eq(10)
+      expect(json['rows'].first['zones'].length).to eq(25)
+    end
+  end
+
   describe 'GET /api/v2/stats/batting_trend' do
     it 'returns 401 when not authenticated' do
       get '/api/v2/stats/batting_trend'

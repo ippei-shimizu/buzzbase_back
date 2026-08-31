@@ -160,14 +160,25 @@ RSpec.describe 'Api::V1::Users - Private Account', type: :request do
         Relationship.create!(follower: requester2, followed: private_account, status: :pending)
       end
 
-      it 'auto-approves all pending follow requests' do
-        put '/api/v1/user',
-            params: { user: { is_private: false, name: private_account.name } },
-            headers: auth_headers_for(private_account)
+      it 'auto-approves all pending follow requests via the async job' do
+        # 一括承認は非同期ジョブで行うため、enqueue されたジョブを実行してから検証する
+        perform_enqueued_jobs do
+          put '/api/v1/user',
+              params: { user: { is_private: false, name: private_account.name } },
+              headers: auth_headers_for(private_account)
+        end
 
         expect(response).to have_http_status(:ok)
         expect(Relationship.pending.where(followed_id: private_account.id).count).to eq(0)
         expect(Relationship.accepted.where(followed_id: private_account.id).count).to eq(2)
+      end
+
+      it 'enqueues the approval job with the account id' do
+        expect do
+          put '/api/v1/user',
+              params: { user: { is_private: false, name: private_account.name } },
+              headers: auth_headers_for(private_account)
+        end.to have_enqueued_job(ApprovePendingFollowRequestsJob).with(private_account.id)
       end
     end
 

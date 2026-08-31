@@ -595,10 +595,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
     t.bigint "pitcher_id"
     t.bigint "appearance_situation_id"
     t.integer "swing_type"
+    t.integer "pitch_course"
+    t.decimal "pitch_course_x", precision: 4, scale: 3
+    t.decimal "pitch_course_y", precision: 4, scale: 3
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
     t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
+    t.index ["pitch_course"], name: "index_plate_appearances_on_pitch_course", where: "(pitch_course IS NOT NULL)"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
     t.index ["plate_result_id"], name: "index_plate_appearances_on_plate_result_id"
@@ -1044,6 +1048,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
     t.string "suspended_reason"
     t.boolean "is_private", default: false, null: false
     t.datetime "last_management_notice_read_at"
+    t.integer "throw_hand"
+    t.integer "batting_side"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

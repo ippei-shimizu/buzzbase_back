@@ -245,13 +245,15 @@ Rails.application.routes.draw do
         get :contact_qualities, on: :member
         get :pitch_types, on: :member
         get :pitcher_faceoffs, on: :member
+        get :pitch_courses, on: :member
+        get :pitch_course_pitch_types, on: :member
         get :pitcher_attribute_summary, on: :member
         get :batting_trend, on: :member
         get :additional_stats, on: :member
         get :timing_breakdown, on: :member
       end
 
-      resources :plate_appearances, only: %i[create update destroy] do
+      resources :plate_appearances, only: %i[show create update destroy] do
         collection do
           get 'by_game/:game_result_id', action: :by_game
         end
