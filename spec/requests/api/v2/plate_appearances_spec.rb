@@ -65,6 +65,15 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response.parsed_body['errors']).to include('指定された投手は存在しません')
       end
 
+      it 'integer カラムに int4 範囲外の値を送ると 500 ではなく 422' do
+        bad_params = base_params.deep_merge(plate_appearance: { rbi: 2_929_594_959 })
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('入力値が大きすぎます')
+      end
+
       it '自分が作成した pitcher_id を指定すると作成できる' do
         own_pitcher = Pitcher.create!(name: '自分の投手', throw_hand: :left, created_by_user: user)
         good_params = base_params.deep_merge(plate_appearance: { pitcher_id: own_pitcher.id })

@@ -19,13 +19,14 @@ module Api
         render json: seasons.map { |s| s.as_json.merge(game_results_count: s.game_results_count) }
       end
 
+      # 同名シーズンが既にあれば作成せず既存を返す（冪等）。
+      # 試合登録でシーズン名を手入力したときに一意性違反で登録フロー全体が落ちるのを防ぐ。
       def create
-        season = current_api_v1_user.seasons.build(season_params)
-        if season.save
-          render json: season, status: :created
-        else
-          render json: { errors: season.errors.full_messages }, status: :unprocessable_entity
-        end
+        season = Season.find_or_create_for!(current_api_v1_user, season_params[:name])
+        render json: season, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        # ApplicationController の rescue_from に任せると空入力のたびに Sentry へ送られるため、ここで返す。
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       def update
