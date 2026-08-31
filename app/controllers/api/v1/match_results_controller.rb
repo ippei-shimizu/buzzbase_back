@@ -21,7 +21,7 @@ module Api
 
       def create
         @match_result = MatchResult.new(match_results_params.merge(user_id: current_api_v1_user.id))
-        if @match_result.save
+        if save_match_result_idempotently
           render json: @match_result, status: :created
         else
           render json: { errors: @match_result.errors.full_messages }, status: :unprocessable_entity
@@ -175,6 +175,21 @@ module Api
       # 「他人のもの」と「存在しない」を区別しないことで、id 列挙によるリソース存在性の漏洩を防ぐ。
       def set_owned_match_result
         @match_result = current_api_v1_user.match_results.find_by(id: params[:id])
+      end
+
+      # 一意性バリデーションと DB ユニークインデックスの間の TOCTOU レースで INSERT が負けた場合、
+      # 先に COMMIT された同一 game_result_id のレコードを勝者として引き直し、成功として扱う（作成の冪等化）。
+      # 制約違反は外側トランザクションごと abort させ復旧クエリまで道連れにするため、
+      # セーブポイント内で INSERT して影響をここに閉じ込める（Stadium.find_or_create_for! と同型）。
+      # @return [Boolean] 保存または勝者レコードへの差し替えに成功したか
+      def save_match_result_idempotently
+        ActiveRecord::Base.transaction(requires_new: true) { @match_result.save }
+      rescue ActiveRecord::RecordNotUnique => e
+        winner = MatchResult.find_by(game_result_id: @match_result.game_result_id)
+        raise e unless winner
+
+        @match_result = winner
+        true
       end
 
       def normalize_match_type
