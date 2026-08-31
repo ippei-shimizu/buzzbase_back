@@ -55,6 +55,14 @@ class ApplicationController < ActionController::API
     render json: { errors: ['入力値が大きすぎます'] }, status: :unprocessable_entity unless performed?
   end
 
+  # 一意性バリデーションと DB ユニーク制約の間の並行レースはバリデーションでは捕まえられない。
+  # 個別に冪等化していない箇所で発生しても 500 ではなく重複エラーとして返す。
+  rescue_from ActiveRecord::RecordNotUnique do |exception|
+    Rails.logger.warn("RecordNotUnique: #{exception.message}")
+    Sentry.capture_exception(exception) if Sentry.initialized?
+    render json: { error: 'record_not_unique', message: '既に登録されています' }, status: :conflict unless performed?
+  end
+
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name user_id])
   end
