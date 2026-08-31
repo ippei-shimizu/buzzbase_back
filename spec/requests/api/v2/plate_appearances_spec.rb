@@ -177,6 +177,23 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
       end
     end
 
+    # 再集計は打席保存の後処理なので、失敗しても打席の保存結果を成功として返す。
+    context 'when the batting average recalculation fails' do
+      let(:recalculator) { instance_double(Stats::BattingAverageRecalculator) }
+
+      before do
+        allow(Stats::BattingAverageRecalculator).to receive(:new).and_return(recalculator)
+        allow(recalculator).to receive(:call).and_raise(ActiveRecord::RecordInvalid.new(BattingAverage.new))
+      end
+
+      it '打席は保存され 201 を返す' do
+        post '/api/v2/plate_appearances', params: base_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(PlateAppearance.where(game_result_id: game_result.id).count).to eq(1)
+      end
+    end
+
     context 'when not authenticated' do
       it 'returns 401' do
         post '/api/v2/plate_appearances', params: base_params
