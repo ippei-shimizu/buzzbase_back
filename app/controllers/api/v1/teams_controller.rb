@@ -5,9 +5,22 @@ module Api
       before_action :set_team, only: %i[update team_name]
       before_action :set_team_by_user, only: %i[my_team]
 
+      # サジェスト用途では十分な件数で、全件シリアライズによるレスポンス遅延を防ぐ。
+      DEFAULT_LIMIT = 50
+      MAX_LIMIT = 100
+
       def index
-        @teams = Team.all
-        render json: @teams
+        if params[:q].present? || params[:limit].present?
+          teams = Team.order(:name, :id)
+          teams = teams.search_by_name(params[:q]) if params[:q].present?
+          render json: teams.limit(limit_param)
+        else
+          # パラメータ無しの全件返却は、配信済みクライアント（旧 mobile アプリの
+          # チーム名解決・サジェスト）との互換のために当面残す。teams は単調増加する
+          # マスタでレスポンスが肥大し続けるため、クライアントの q / limit 移行が
+          # 浸透したらこの分岐を削除して常に limit を適用する。
+          render json: Team.all
+        end
       end
 
       def create
@@ -51,6 +64,13 @@ module Api
       end
 
       private
+
+      def limit_param
+        limit = params[:limit].to_i
+        return DEFAULT_LIMIT unless limit.positive?
+
+        [limit, MAX_LIMIT].min
+      end
 
       def set_team
         @team = Team.find(params[:id])

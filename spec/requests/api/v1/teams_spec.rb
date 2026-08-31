@@ -5,6 +5,54 @@ RSpec.describe 'Api::V1::Teams', type: :request do
   let(:prefecture) { Prefecture.create!(name: '東京都') }
   let(:category) { BaseballCategory.create!(name: '高校生') }
 
+  describe 'GET /api/v1/teams' do
+    before do
+      Team.create!(name: '青葉イーグルス')
+      Team.create!(name: '青葉中学校')
+      Team.create!(name: 'ライオンズ')
+    end
+
+    context 'with q param' do
+      it 'returns only teams whose name partially matches' do
+        get '/api/v1/teams', params: { q: '青葉' }
+
+        expect(response).to have_http_status(:ok)
+        names = response.parsed_body.pluck('name')
+        expect(names).to contain_exactly('青葉イーグルス', '青葉中学校')
+      end
+
+      it 'treats LIKE metacharacters as literals' do
+        Team.create!(name: '100%クラブ')
+        get '/api/v1/teams', params: { q: '%' }
+
+        names = response.parsed_body.pluck('name')
+        expect(names).to contain_exactly('100%クラブ')
+      end
+    end
+
+    context 'with limit param' do
+      it 'caps the number of returned teams' do
+        get '/api/v1/teams', params: { limit: 2 }
+
+        expect(response.parsed_body.size).to eq(2)
+      end
+
+      it 'clamps limit to MAX_LIMIT' do
+        get '/api/v1/teams', params: { q: '青葉', limit: 10_000 }
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'without params (deployed-client compatibility)' do
+      it 'returns all teams as before' do
+        get '/api/v1/teams'
+
+        expect(response.parsed_body.size).to eq(3)
+      end
+    end
+  end
+
   describe 'POST /api/v1/teams' do
     context 'when not authenticated' do
       it 'returns 401' do
