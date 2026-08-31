@@ -4,6 +4,15 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   include SubscriptionCallbacks
 
   mount_uploader :image, AvatarUploader
+  # CarrierWave の mount が仕掛ける store は after_save（トランザクション内）で実行されるため、
+  # users の行ロックと DB コネクションを保持したまま S3 へ転送してしまう。
+  # COMMIT 後（after_commit）へ移し、転送中に同一ユーザーへの他の更新をブロックしないようにする。
+  skip_callback :save, :after, :store_image!
+  before_validation :normalize_user_id
+  # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
+  before_create :initialize_last_management_notice_read_at
+  after_commit :store_image_after_commit, on: %i[create update]
+
   has_one :subscription, dependent: :destroy
   has_many :user_subscription_events, dependent: :destroy
   has_many :cancellation_feedbacks, dependent: :destroy
@@ -112,9 +121,6 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   enum throw_hand: { right: 0, left: 1 }, _prefix: true
   enum batting_side: { right: 0, left: 1, both: 2 }, _prefix: true
 
-  before_validation :normalize_user_id
-  # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
-  before_create :initialize_last_management_notice_read_at
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -247,6 +253,15 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   delegate :in_trial?, to: :subscription_or_default
 
   private
+
+  # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
+  # 直前の識別子へ戻してから例外を再送出する。
+  def store_image_after_commit
+    store_image!
+  rescue StandardError
+    update_column(:image, saved_changes['image']&.first) if saved_changes.key?('image') # rubocop:disable Rails/SkipsModelValidations
+    raise
+  end
 
   def normalize_user_id
     self.user_id = nil if user_id.blank?
