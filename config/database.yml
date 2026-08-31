@@ -98,4 +98,5 @@ production:
   # 共有しないが、Postgres サーバー側の接続数は別途消費する（supervisor / dispatcher /
   # scheduler / worker で概算 8〜10 本）。引き上げ時は Web プール + Solid Queue 分の
   # 合計が Heroku Postgres プランの最大接続数を超えないことを確認する。
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 }.to_i + 3 %>
+  # 空文字や非数値が入っていると to_i が 0 になり、引き上げるはずのプールが逆に縮む。
+  pool: <%= (Integer(ENV["RAILS_MAX_THREADS"], exception: false) || 5) + 3 %>
