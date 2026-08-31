@@ -26,5 +26,14 @@ RSpec.describe User, type: :model do
 
       expect(user.reload[:image]).to eq('avatar.png')
     end
+
+    it 'store に失敗した場合は識別子を元に戻して例外を伝播する' do
+      # store! は画像の有無に関わらず保存時に呼ばれるため、ユーザー作成後にスタブする。
+      user
+      allow_any_instance_of(AvatarUploader).to receive(:store!).and_raise('S3 unreachable') # rubocop:disable RSpec/AnyInstance
+
+      expect { user.update!(image: image_file) }.to raise_error('S3 unreachable')
+      expect(user.reload[:image]).to be_nil
+    end
   end
 end

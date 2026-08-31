@@ -11,7 +11,7 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   before_validation :normalize_user_id
   # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
   before_create :initialize_last_management_notice_read_at
-  after_commit :store_image!, on: %i[create update]
+  after_commit :store_image_after_commit, on: %i[create update]
 
   has_one :subscription, dependent: :destroy
   has_many :user_subscription_events, dependent: :destroy
@@ -253,6 +253,15 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   delegate :in_trial?, to: :subscription_or_default
 
   private
+
+  # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
+  # 直前の識別子へ戻してから例外を再送出する。
+  def store_image_after_commit
+    store_image!
+  rescue StandardError
+    update_column(:image, saved_changes['image']&.first) if saved_changes.key?('image') # rubocop:disable Rails/SkipsModelValidations
+    raise
+  end
 
   def normalize_user_id
     self.user_id = nil if user_id.blank?
