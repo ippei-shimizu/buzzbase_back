@@ -80,6 +80,10 @@ module Api
         end
       rescue ActiveRecord::RecordNotUnique
         render json: { errors: ['このユーザーIDは既に使われています'] }, status: :unprocessable_entity
+      rescue ArgumentError
+        # enum カラム（throw_hand / batting_side）への不正値代入は ArgumentError を raise し
+        # 500 になってしまうため、422 に変換する。
+        render json: { errors: ['利き腕・打席の指定が不正です'] }, status: :unprocessable_entity
       end
 
       def following_users
@@ -153,7 +157,14 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id, :is_private)
+        permitted = params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id, :is_private,
+                                                 :throw_hand, :batting_side)
+        # front / mobile は FormData 送信のため「未選択に戻す」と空文字が飛んでくる。
+        # enum への空文字代入は ArgumentError で 500 になるので nil へ正規化する。
+        %i[throw_hand batting_side].each do |key|
+          permitted[key] = permitted[key].presence if permitted.key?(key)
+        end
+        permitted
       end
     end
   end

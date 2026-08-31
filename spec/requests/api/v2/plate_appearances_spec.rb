@@ -108,6 +108,34 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['errors'].join).to include('三振')
       end
+
+      it 'コースはタップ座標とセットで保存され、レスポンスにも含まれる' do
+        course_params = base_params.deep_merge(
+          plate_appearance: { pitch_course: 13, pitch_course_x: 0.512, pitch_course_y: 0.436 }
+        )
+
+        post '/api/v2/plate_appearances', params: course_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        json = response.parsed_body
+        expect(json['pitch_course']).to eq(13)
+        expect(json['pitch_course_x'].to_f).to eq(0.512)
+        expect(json['pitch_course_y'].to_f).to eq(0.436)
+
+        created = PlateAppearance.find(json['id'])
+        expect(created.pitch_course_x).to eq(0.512)
+        expect(created.pitch_course_y).to eq(0.436)
+      end
+
+      it 'コース座標が範囲外だと 422' do
+        bad_params = base_params.deep_merge(
+          plate_appearance: { pitch_course: 13, pitch_course_x: 1.5, pitch_course_y: 0.4 }
+        )
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
     end
 
     context 'when not authenticated' do
@@ -245,6 +273,84 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
     context 'when not authenticated' do
       it 'returns 401' do
         get "/api/v2/plate_appearances/by_game/#{game_result.id}"
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe 'GET /api/v2/plate_appearances/:id' do
+    let!(:plate_appearance) do
+      create(:plate_appearance, game_result:, user:, plate_result_id: 7,
+                                hit_direction_id: 10, is_new_format: true, batter_box_number: 1,
+                                rbi: 0, runners_state: :first_second)
+    end
+
+    context 'when authenticated' do
+      it '自分の打席を 200 で返す' do
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['id']).to eq(plate_appearance.id)
+        expect(json['runners_state']).to eq('first_second')
+        expect(json['rbi']).to eq(0)
+      end
+
+      it '相互フォローの他ユーザーの打席は 200 で返す' do
+        viewer = create(:user)
+        Relationship.create!(follower: viewer, followed: user, status: :accepted)
+        Relationship.create!(follower: user, followed: viewer, status: :accepted)
+
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(viewer)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['id']).to eq(plate_appearance.id)
+      end
+
+      it '公開アカウントでも相互フォローでなければ 403' do
+        viewer = create(:user)
+        Relationship.create!(follower: viewer, followed: user, status: :accepted)
+
+        get "/api/v2/plate_appearances/#{plate_appearance.id}", headers: auth_headers_for(viewer)
+
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).to eq('mutual_follow_required')
+      end
+
+      it '非公開ユーザーでも相互フォローなら 200 で返す' do
+        private_user = create(:user, is_private: true)
+        private_game = create(:game_result, user: private_user)
+        private_pa = create(:plate_appearance, game_result: private_game, user: private_user,
+                                               plate_result_id: 7, is_new_format: true, batter_box_number: 1)
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+        Relationship.create!(follower: private_user, followed: user, status: :accepted)
+
+        get "/api/v2/plate_appearances/#{private_pa.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['id']).to eq(private_pa.id)
+      end
+
+      it '非公開ユーザーの打席は 403' do
+        private_user = create(:user, is_private: true)
+        private_game = create(:game_result, user: private_user)
+        private_pa = create(:plate_appearance, game_result: private_game, user: private_user,
+                                               plate_result_id: 7, is_new_format: true, batter_box_number: 1)
+
+        get "/api/v2/plate_appearances/#{private_pa.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it '存在しない id は 404' do
+        get '/api/v2/plate_appearances/0', headers: auth_headers_for(user)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get "/api/v2/plate_appearances/#{plate_appearance.id}"
         expect(response).to have_http_status(:unauthorized)
       end
     end
