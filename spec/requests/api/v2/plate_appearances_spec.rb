@@ -138,6 +138,62 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
       end
     end
 
+    # 打撃妨害(17)・走塁妨害(18)・結果未設定は集計 SQL のどのカテゴリにも計上されないため、
+    # これらだけで構成される試合は plate_appearances 以外の全項目が 0 になる。
+    # かつて must_have_any_stats に引っかかり、打席は保存済みなのに 422 が返っていた。
+    context 'when the game consists only of plate appearances that count toward no stat category' do
+      def interference_params(plate_result_id)
+        {
+          plate_appearance: {
+            game_result_id: game_result.id,
+            batter_box_number: 1,
+            plate_result_id:
+          }
+        }
+      end
+
+      it '打撃妨害のみでも 201 を返し、batting_average は打席数のみ計上される' do
+        post '/api/v2/plate_appearances', params: interference_params(17), headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        batting_average = BattingAverage.find_by(game_result_id: game_result.id)
+        expect(batting_average.plate_appearances).to eq(1)
+        expect(batting_average.at_bats).to eq(0)
+      end
+
+      it '走塁妨害のみでも 201 を返す' do
+        post '/api/v2/plate_appearances', params: interference_params(18), headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(BattingAverage.find_by(game_result_id: game_result.id).plate_appearances).to eq(1)
+      end
+
+      it '結果未設定 (plate_result_id なし) のみでも 201 を返す' do
+        params = { plate_appearance: { game_result_id: game_result.id, batter_box_number: 1 } }
+        post '/api/v2/plate_appearances', params:, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(BattingAverage.find_by(game_result_id: game_result.id).plate_appearances).to eq(1)
+      end
+    end
+
+    # 再集計は打席保存の後処理なので、失敗しても打席の保存結果を成功として返す。
+    context 'when the batting average recalculation fails' do
+      let(:recalculator) { instance_double(Stats::BattingAverageRecalculator) }
+
+      before do
+        allow(Stats::BattingAverageRecalculator).to receive(:new).and_return(recalculator)
+        allow(recalculator).to receive(:call).and_raise(ActiveRecord::RecordInvalid.new(BattingAverage.new))
+      end
+
+      it '打席は保存され 201 を返す' do
+        post '/api/v2/plate_appearances', params: base_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        expect(PlateAppearance.where(game_result_id: game_result.id).count).to eq(1)
+      end
+    end
+
     context 'when not authenticated' do
       it 'returns 401' do
         post '/api/v2/plate_appearances', params: base_params

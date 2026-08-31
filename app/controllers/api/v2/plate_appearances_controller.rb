@@ -121,8 +121,20 @@ module Api
         true
       end
 
+      # 再集計は打席保存の後処理。打席自体は既に COMMIT 済みのため、集計側のバリデーション
+      # エラーでリクエスト全体を落とすと「保存に失敗した」ように見えて再送→打席重複を招く。
+      # 失敗しても打席の保存結果は成功として返し、調査用に Sentry へ記録するに留める。
+      # 既知の原因（打席数のみの試合）以外のバリデーション失敗もここで握るため、
+      # 打撃成績が古いまま残りうる。検知は Sentry 通知に依存する。
       def recalculate_batting_average(game_result_id, user_id:, cleanup_orphan: false)
         ::Stats::BattingAverageRecalculator.new(game_result_id:, user_id:, cleanup_orphan:).call
+      rescue ActiveRecord::RecordInvalid => e
+        Rails.logger.warn("BattingAverage recalculation failed for game_result_id=#{game_result_id}: #{e.message}")
+        if Sentry.initialized?
+          Sentry.capture_exception(e, tags: { source: 'batting_average_recalculation' },
+                                      extra: { game_result_id:, user_id: })
+        end
+        nil
       end
     end
   end
