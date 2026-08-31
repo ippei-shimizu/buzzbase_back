@@ -38,9 +38,11 @@ RSpec.describe 'Api::V1::Teams', type: :request do
       end
 
       it 'clamps limit to MAX_LIMIT' do
-        get '/api/v1/teams', params: { q: '青葉', limit: 10_000 }
+        101.times { |i| Team.create!(name: "上限検証#{i}") }
 
-        expect(response).to have_http_status(:ok)
+        get '/api/v1/teams', params: { limit: 10_000 }
+
+        expect(response.parsed_body.size).to eq(100)
       end
     end
 
