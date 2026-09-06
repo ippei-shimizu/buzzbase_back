@@ -376,5 +376,14 @@ RSpec.describe 'Api::V1::Groups', type: :request do
 
       expect(response).to have_http_status(:unauthorized)
     end
+
+    # 認証を通過したあとはメンバーシップ判定に落ちる。401 への変更で 403 が消えていないことを担保する。
+    it 'returns forbidden for PUT update_group_info when authenticated but not a member' do
+      put "/api/v1/groups/#{group.id}/update_group_info",
+          params: { group: { name: '新しい名前' } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:forbidden)
+    end
   end
 end
