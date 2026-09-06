@@ -59,29 +59,32 @@ Rails.application.configure do
   # （dyno ごとに独立・再起動で消える前提を許容できる用途に限る）。
   # Redis 側の障害でリクエストを巻き込まないよう、タイムアウトを短く明示し、
   # エラーはキャッシュミス扱いで握り潰して Sentry に記録する。
-  config.cache_store = if ENV['REDIS_URL'].present?
-                         [:redis_cache_store, {
-                           url: ENV['REDIS_URL'],
-                           # Heroku Key-Value Store の TLS (rediss://) は自己署名証明書のため、
-                           # Heroku のドキュメントに従い検証を無効化して接続する。
-                           ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_NONE },
-                           connect_timeout: 1,
-                           read_timeout: 1,
-                           write_timeout: 1,
-                           reconnect_attempts: 1,
-                           # returning にはキャッシュ対象の値そのものが入りうる。Sentry の tag は
-                           # 検索用の短い文字列を前提とした領域なので、値ではなく型だけを載せる。
-                           error_handler: lambda { |method:, returning:, exception:|
-                             if Sentry.initialized?
-                               Sentry.capture_exception(exception, level: :warning,
-                                                                   tags: { cache_method: method },
-                                                                   extra: { returning_class: returning.class.name })
-                             end
-                           }
-                         }]
-                       else
-                         :memory_store
-                       end
+  if ENV['REDIS_URL'].present?
+    redis_cache_options = {
+      url: ENV['REDIS_URL'],
+      connect_timeout: 1,
+      read_timeout: 1,
+      write_timeout: 1,
+      reconnect_attempts: 1,
+      # returning にはキャッシュ対象の値そのものが入りうる。Sentry の tag は
+      # 検索用の短い文字列を前提とした領域なので、値ではなく型だけを載せる。
+      error_handler: lambda { |method:, returning:, exception:|
+        if Sentry.initialized?
+          Sentry.capture_exception(exception, level: :warning,
+                                              tags: { cache_method: method },
+                                              extra: { returning_class: returning.class.name })
+        end
+      }
+    }
+    # Heroku Key-Value Store の TLS (rediss://) は自己署名証明書のため、Heroku の
+    # ドキュメントに従い検証を無効化する。検証可能な Redis に差し替えたときに無効化が
+    # 残り続けないよう、TLS で接続するときだけ付与する。
+    redis_cache_options[:ssl_params] = { verify_mode: OpenSSL::SSL::VERIFY_NONE } if ENV['REDIS_URL'].start_with?('rediss://')
+
+    config.cache_store = [:redis_cache_store, redis_cache_options]
+  else
+    config.cache_store = :memory_store
+  end
 
   # Use a real queuing backend for Active Job (and separate queues per environment).
   # queue_adapter は config/application.rb で全環境一括設定済み。
