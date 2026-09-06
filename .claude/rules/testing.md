@@ -41,6 +41,7 @@ end
 
 ## FactoryBot
 
+- **新規テストでは `Model.create!` を直接使わず factory を使う**（既存ファイルが直接生成でも、追加分は factory に寄せる）
 - `sequence`でユニーク値生成
 - `trait`で変形パターン定義
 - `association`で関連オブジェクト自動生成

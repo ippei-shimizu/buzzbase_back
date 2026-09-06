@@ -8,7 +8,9 @@
 
 ## 認証とリソース取得
 
-- `before_action :authenticate_api_v1_user!, only: %i[create update destroy]`
+- **認証必須が原則のコントローラでは `only:` で絞らず、全アクションに `before_action :authenticate_api_v1_user!` を掛ける**
+  - `only:` の allowlist はアクション追加時に更新漏れが起き、`current_api_v1_user` が nil のまま参照されて 500 になる
+  - 未認証でも見せるアクションがある場合のみ `except:` で明示的に外す
 - リソース取得はスコープを絞る: `current_api_v1_user.game_results.find(params[:id])`
 - **非公開アカウントガード必須**: 他ユーザーのデータを返す前に `user.profile_visible_to?(current_api_v1_user)` をチェック
 
