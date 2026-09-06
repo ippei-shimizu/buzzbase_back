@@ -58,8 +58,10 @@ module AuthThrottle
   end
 end
 
-# Rails.cache は production が file_store（Heroku の ephemeral FS）、test が null_store のため使えない。
+# Rails.cache は test が null_store でカウントを保持できないため共用しない。
 # dyno 単位のカウントで十分なので専用のメモリストアを割り当てる。
+# dyno を水平スケールさせるとカウントが dyno ごとに独立し、実効的なスロットル上限が
+# dyno 数ぶん緩むため、そのときは Rails.cache 側の Redis に寄せること。
 Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new(size: 4.megabytes)
 
 # 既存の認証リクエストスペックが sign_in を連投するため、test では既定で無効にし専用スペック内でのみ有効化する。
