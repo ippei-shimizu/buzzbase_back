@@ -357,7 +357,7 @@ RSpec.describe 'Api::V1::Groups', type: :request do
   end
 
   describe 'authentication guard for member-only actions' do
-    let(:group) { Group.create!(name: 'テストグループ') }
+    let(:group) { create(:group) }
 
     it 'returns unauthorized for GET show_group_user without auth' do
       get "/api/v1/groups/#{group.id}/show_group_user"
