@@ -1,7 +1,9 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[show create update destroy invite_link]
+      # 過去に only: の指定漏れで未認証リクエストが 500 や誤った 403 になったため、
+      # 全アクションを認証必須にする。公開アクションを追加する場合のみ個別に検討する。
+      before_action :authenticate_api_v1_user!
 
       def index
         accepted_group_ids = GroupInvitation.where(user_id: current_api_v1_user.id, state: 'accepted').pluck(:group_id)

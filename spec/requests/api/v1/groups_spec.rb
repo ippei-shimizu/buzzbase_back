@@ -16,11 +16,10 @@ RSpec.describe 'Api::V1::Groups', type: :request do
     end
 
     context 'when not authenticated' do
-      it 'returns 500 (index uses current_api_v1_user without auth guard)' do
+      it 'returns unauthorized' do
         get '/api/v1/groups'
 
-        # index is not in authenticate_api_v1_user! but accesses current_api_v1_user
-        expect(response).to have_http_status(:internal_server_error)
+        expect(response).to have_http_status(:unauthorized)
       end
     end
   end
@@ -354,6 +353,37 @@ RSpec.describe 'Api::V1::Groups', type: :request do
 
         expect(response).to have_http_status(:forbidden)
       end
+    end
+  end
+
+  describe 'authentication guard for member-only actions' do
+    let(:group) { create(:group) }
+
+    it 'returns unauthorized for GET show_group_user without auth' do
+      get "/api/v1/groups/#{group.id}/show_group_user"
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns unauthorized for PUT update_group_info without auth' do
+      put "/api/v1/groups/#{group.id}/update_group_info", params: { group: { name: '新しい名前' } }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns unauthorized for POST invite_members without auth' do
+      post "/api/v1/groups/#{group.id}/invite_members", params: { invite_user_ids: [] }
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    # 認証を通過したあとはメンバーシップ判定に落ちる。401 への変更で 403 が消えていないことを担保する。
+    it 'returns forbidden for PUT update_group_info when authenticated but not a member' do
+      put "/api/v1/groups/#{group.id}/update_group_info",
+          params: { group: { name: '新しい名前' } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:forbidden)
     end
   end
 end
