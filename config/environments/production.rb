@@ -69,10 +69,13 @@ Rails.application.configure do
                            read_timeout: 1,
                            write_timeout: 1,
                            reconnect_attempts: 1,
+                           # returning にはキャッシュ対象の値そのものが入りうる。Sentry の tag は
+                           # 検索用の短い文字列を前提とした領域なので、値ではなく型だけを載せる。
                            error_handler: lambda { |method:, returning:, exception:|
                              if Sentry.initialized?
                                Sentry.capture_exception(exception, level: :warning,
-                                                                   tags: { cache_method: method, returning: returning.inspect })
+                                                                   tags: { cache_method: method },
+                                                                   extra: { returning_class: returning.class.name })
                              end
                            }
                          }]
