@@ -223,6 +223,17 @@ RSpec.describe 'Api::V1::Groups', type: :request do
         json = response.parsed_body
         expect(json['message']).to eq('招待を送信しました')
       end
+
+      it 'enqueues a push notification job for each invited user instead of sending synchronously' do
+        user.follow(other_user)
+
+        expect do
+          post "/api/v1/groups/#{group.id}/invite_members",
+               params: { invite_user_ids: [other_user.id] },
+               headers: auth_headers_for(user)
+        end.to have_enqueued_job(PushNotificationJob)
+          .with(other_user.id, title: 'BUZZ BASE', body: "#{user.name}さんからグループに招待されました")
+      end
     end
 
     context 'when authenticated but user is not a member' do

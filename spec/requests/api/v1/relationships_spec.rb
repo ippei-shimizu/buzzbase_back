@@ -39,6 +39,15 @@ RSpec.describe 'Api::V1::Relationships', type: :request do
         expect(notification.event_type).to eq('followed')
         expect(notification.actor_id).to eq(user.id)
       end
+
+      it 'enqueues a push notification job instead of sending synchronously' do
+        expect do
+          post '/api/v1/relationships',
+               params: { followed_id: public_user.id },
+               headers: auth_headers_for(user)
+        end.to have_enqueued_job(PushNotificationJob)
+          .with(public_user.id, title: 'BUZZ BASE', body: "#{user.name}さんにフォローされました")
+      end
     end
 
     context 'when following a private user' do
