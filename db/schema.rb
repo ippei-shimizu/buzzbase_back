@@ -10,8 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
+ActiveRecord::Schema[7.1].define(version: 2026_08_31_120001) do
   # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_trgm"
   enable_extension "plpgsql"
 
   create_table "activity_logs", force: :cascade do |t|
@@ -621,10 +622,14 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
     t.bigint "pitcher_id"
     t.bigint "appearance_situation_id"
     t.integer "swing_type"
+    t.integer "pitch_course"
+    t.decimal "pitch_course_x", precision: 4, scale: 3
+    t.decimal "pitch_course_y", precision: 4, scale: 3
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
     t.index ["is_new_format"], name: "index_plate_appearances_on_is_new_format"
+    t.index ["pitch_course"], name: "index_plate_appearances_on_pitch_course", where: "(pitch_course IS NOT NULL)"
     t.index ["pitch_type_id"], name: "index_plate_appearances_on_pitch_type_id"
     t.index ["pitcher_id"], name: "index_plate_appearances_on_pitcher_id"
     t.index ["plate_result_id"], name: "index_plate_appearances_on_plate_result_id"
@@ -976,6 +981,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["category_id"], name: "index_teams_on_category_id"
+    t.index ["name"], name: "index_teams_on_name_trgm", opclass: :gin_trgm_ops, using: :gin
     t.index ["prefecture_id"], name: "index_teams_on_prefecture_id"
   end
 
@@ -1069,6 +1075,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_27_010001) do
     t.string "suspended_reason"
     t.boolean "is_private", default: false, null: false
     t.datetime "last_management_notice_read_at"
+    t.integer "throw_hand"
+    t.integer "batting_side"
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

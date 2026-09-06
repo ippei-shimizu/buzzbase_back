@@ -13,6 +13,7 @@ module V2
                :rbi, :run_scored, :stolen_bases, :caught_stealing,
                :final_balls, :final_strikes, :final_outs,
                :first_pitch_swing, :runners_state, :inning,
+               :pitch_course, :pitch_course_x, :pitch_course_y,
                :self_analysis_memo, :opponent_memo,
                :is_new_format, :has_detail_data,
                :created_at, :updated_at
@@ -36,7 +37,7 @@ module V2
     # 任意入力の「詳細データ」とは別扱いにする（has_detail_data に含めない）。
     # 三振 PA で swing_type だけ入っていても「詳細未入力」バッジを出す意図。
     def detail_attributes
-      %i[contact_quality_id timing_id pitch_type_id
+      %i[contact_quality_id timing_id pitch_type_id pitch_course
          final_balls final_strikes final_outs first_pitch_swing
          runners_state inning self_analysis_memo opponent_memo
          pitcher_id appearance_situation_id]

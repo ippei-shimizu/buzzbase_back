@@ -153,6 +153,17 @@ RSpec.describe BattingAverage, type: :model do
       expect(ba.errors[:base]).to include('打撃成績が未入力です')
     end
 
+    it 'is valid when only plate_appearances is non-zero (interference-only or undecided-only games)' do
+      ba = described_class.new(
+        game_result:, user:, plate_appearances: 1,
+        times_at_bat: 0, at_bats: 0, hit: 0, two_base_hit: 0, three_base_hit: 0,
+        home_run: 0, total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 0,
+        base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+        stealing_base: 0, caught_stealing: 0, error: 0
+      )
+      expect(ba).to be_valid
+    end
+
     it 'is valid when at least one stat field is non-zero' do
       ba = described_class.new(
         game_result:, user:,
