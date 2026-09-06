@@ -62,6 +62,12 @@ Rails.application.configure do
   if ENV['REDIS_URL'].present?
     redis_cache_options = {
       url: ENV['REDIS_URL'],
+      # Action Cable (cable.yml) と同一インスタンスを共有するため、キー空間を分ける。
+      namespace: 'cache',
+      # Heroku Key-Value Store はプランによって maxmemory-policy が noeviction で、
+      # TTL 無しのキーが増え続けると Action Cable の pub/sub ごと書き込み不能になる。
+      # 個別に expires_in を渡さない呼び出しのための既定の上限。
+      expires_in: 1.hour,
       connect_timeout: 1,
       read_timeout: 1,
       write_timeout: 1,
