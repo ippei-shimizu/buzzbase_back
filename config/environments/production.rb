@@ -45,7 +45,10 @@ Rails.application.configure do
   # information to avoid inadvertent exposure of personally identifiable information (PII).
   # :debug は全 SQL とバインドパラメータがログに流れ、ログ流量・レイテンシ・PII 露出の
   # リスクがあるため既定は :info。障害調査時は RAILS_LOG_LEVEL=debug で一時的に切り替える。
-  config.log_level = ENV.fetch('RAILS_LOG_LEVEL', 'info').to_sym
+  # 不正な値をそのまま to_sym すると Logger が boot 時に例外を投げ、config var の打ち間違い
+  # ひとつで全 dyno がクラッシュループに入るため、許可リスト外は既定値へ倒す。
+  valid_log_levels = %w[debug info warn error fatal unknown]
+  config.log_level = valid_log_levels.include?(ENV['RAILS_LOG_LEVEL']) ? ENV['RAILS_LOG_LEVEL'].to_sym : :info
 
   # Prepend all log lines with the following tags.
   config.log_tags = [:request_id]
