@@ -1,7 +1,8 @@
 module Api
   module V1
     class BaseballNotesController < ApplicationController
-      # create も current_api_v1_user 前提のため only: で絞らない
+      # 過去に only: の指定漏れで未認証の create が 500 になったため、全アクションを
+      # 認証必須にする。公開アクションを追加する場合のみ個別に検討する。
       before_action :authenticate_api_v1_user!
       before_action :set_baseball_note, only: %i[show update destroy]
 

@@ -1,7 +1,8 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      # 全アクションが current_api_v1_user 前提のため only: で絞らない
+      # 過去に only: の指定漏れで未認証リクエストが 500 や誤った 403 になったため、
+      # 全アクションを認証必須にする。公開アクションを追加する場合のみ個別に検討する。
       before_action :authenticate_api_v1_user!
 
       def index
