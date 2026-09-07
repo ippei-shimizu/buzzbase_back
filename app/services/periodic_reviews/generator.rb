@@ -125,6 +125,8 @@ module PeriodicReviews
     # 期間に重なる進行中の目標を締切の近い順に上限件数だけ載せる。
     # ProgressCalculator は目標ごとに集計クエリを発行するため、
     # バッチ全体の実行時間を抑える目的で上限は必須。
+    # season / tournament の目標は month_start を持たず開始日が試合から動的に決まるが、
+    # 開始日の判定に試合クエリを足すとバッチのクエリ数が増えるため、締切だけで拾う。
     def goals_summary
       goals = @user.goals.active
                    .where(deadline: @period_start..)
