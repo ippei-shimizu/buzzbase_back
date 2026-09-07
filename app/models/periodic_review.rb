@@ -1,9 +1,10 @@
 class PeriodicReview < ApplicationRecord
   belongs_to :user
 
-  # summary 内で Pro 限定として出し分ける詳細キー（課題別内訳・コンディション・相関）。
+  # summary 内で Pro 限定として出し分ける詳細キー（課題別内訳・コンディション・
+  # 練習メニュー別内訳・ノート記録日数・目標進捗・相関）。
   # 成績（batting / pitching）は全ユーザーに表示する。
-  ADVANCED_SUMMARY_KEYS = %w[theme_breakdown condition insight].freeze
+  ADVANCED_SUMMARY_KEYS = %w[theme_breakdown condition practice_menus note_days goals insight].freeze
 
   enum period_type: { weekly: 'weekly', monthly: 'monthly' }
 
