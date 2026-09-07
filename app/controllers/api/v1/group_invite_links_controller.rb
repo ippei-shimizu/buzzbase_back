@@ -46,8 +46,8 @@ module Api
           create_notification(invite_link.inviter, user, group)
         end
 
-        PushNotificationService.send_to_user(
-          invite_link.inviter,
+        PushNotificationJob.perform_later(
+          invite_link.inviter.id,
           title: 'BUZZ BASE',
           body: "#{user.name}さんが招待コードでグループに参加しました"
         )

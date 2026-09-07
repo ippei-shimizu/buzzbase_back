@@ -10,6 +10,18 @@ module Api
       before_action :authenticate_api_v1_user!
       before_action :load_plate_appearance, only: %i[update destroy]
 
+      def show
+        # 球種・コース・対戦投手まで含む詳細情報のため、試合詳細（by_game）より狭い
+        # 「本人 or 相互フォロー」に限定する。
+        plate_appearance = PlateAppearance.includes(:user, :contact_quality, :timing, :pitch_type,
+                                                    :appearance_situation,
+                                                    pitcher: %i[arm_angle velocity_zone pitcher_style])
+                                          .find(params[:id])
+        return if render_forbidden_unless_mutual_follow!(plate_appearance.user)
+
+        render json: plate_appearance, serializer: ::V2::PlateAppearanceSerializer
+      end
+
       def create
         # game_result_id を current_api_v1_user 所有のものに限定し、IDOR を防ぐ。
         game_result = current_api_v1_user.game_results.find(plate_appearance_params[:game_result_id])
@@ -92,6 +104,7 @@ module Api
           :final_balls, :final_strikes, :final_outs,
           :first_pitch_swing, :runners_state, :inning,
           :contact_quality_id, :timing_id, :pitch_type_id,
+          :pitch_course, :pitch_course_x, :pitch_course_y,
           :self_analysis_memo, :opponent_memo,
           :pitcher_id, :appearance_situation_id
         )
@@ -108,8 +121,20 @@ module Api
         true
       end
 
+      # 再集計は打席保存の後処理。打席自体は既に COMMIT 済みのため、集計側のバリデーション
+      # エラーでリクエスト全体を落とすと「保存に失敗した」ように見えて再送→打席重複を招く。
+      # 失敗しても打席の保存結果は成功として返し、調査用に Sentry へ記録するに留める。
+      # 既知の原因（打席数のみの試合）以外のバリデーション失敗もここで握るため、
+      # 打撃成績が古いまま残りうる。検知は Sentry 通知に依存する。
       def recalculate_batting_average(game_result_id, user_id:, cleanup_orphan: false)
         ::Stats::BattingAverageRecalculator.new(game_result_id:, user_id:, cleanup_orphan:).call
+      rescue ActiveRecord::RecordInvalid => e
+        Rails.logger.warn("BattingAverage recalculation failed for game_result_id=#{game_result_id}: #{e.message}")
+        if Sentry.initialized?
+          Sentry.capture_exception(e, tags: { source: 'batting_average_recalculation' },
+                                      extra: { game_result_id:, user_id: })
+        end
+        nil
       end
     end
   end

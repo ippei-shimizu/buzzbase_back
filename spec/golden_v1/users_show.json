@@ -1,5 +1,6 @@
 {
   "allow_password_change": "Boolean",
+  "batting_side": "null",
   "created_at": "String",
   "deleted_at": "null",
   "email": "String",
@@ -24,6 +25,7 @@
   "suspended_at": "null",
   "suspended_reason": "null",
   "team_id": "null",
+  "throw_hand": "null",
   "uid": "String",
   "updated_at": "String",
   "user_id": "null"

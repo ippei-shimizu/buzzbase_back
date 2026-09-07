@@ -14,6 +14,11 @@ module MediaAttachments
 
     # 壊れた・想定外の構造のファイルで無限に Range GET を繰り返さないための保険。
     MAX_TOP_LEVEL_BOXES = 32
+    # クライアント側のタイムアウト（open 3秒 / read 5秒）は1往復あたりの上限でしかなく、
+    # MAX_TOP_LEVEL_BOXES 回ぶん積み上がると1リクエストが数分ブロックしうるため、
+    # 解析全体にも締め切りを設ける。超過時は nil を返し、呼び出し元がアップロードを
+    # 失敗させる（検証できないまま素通しさせない）。
+    MAX_TOTAL_FETCH_SECONDS = 15
     # moov は長尺・多トラックでも通常は数百KB。極端に大きい値は解析対象外にする。
     MAX_MOOV_BYTES = 16 * 1024 * 1024
     # duration が未定義のとき全ビット 1 が入る仕様のため、非現実的な長さは解析失敗として扱う。
@@ -26,6 +31,7 @@ module MediaAttachments
 
     # @return [Metadata, nil] 解析できなかった場合は nil
     def call
+      @deadline_at = Process.clock_gettime(Process::CLOCK_MONOTONIC) + MAX_TOTAL_FETCH_SECONDS
       moov = fetch_moov
       return nil if moov.nil?
 
@@ -47,6 +53,8 @@ module MediaAttachments
     def fetch_moov
       offset = 0
       MAX_TOP_LEVEL_BOXES.times do
+        return nil if deadline_exceeded?
+
         header = read_range(offset, offset + BOX_HEADER_BYTES - 1)
         size, header_size = box_size(header)
         return nil if size.nil?
@@ -74,10 +82,14 @@ module MediaAttachments
     end
 
     def read_moov(offset, length)
-      return nil if length <= 0 || length > MAX_MOOV_BYTES
+      return nil if length <= 0 || length > MAX_MOOV_BYTES || deadline_exceeded?
 
       body = read_range(offset, offset + length - 1)
       body.bytesize == length ? body : nil
+    end
+
+    def deadline_exceeded?
+      Process.clock_gettime(Process::CLOCK_MONOTONIC) >= @deadline_at
     end
 
     def read_range(from, to)

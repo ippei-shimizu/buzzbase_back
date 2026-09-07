@@ -7,10 +7,14 @@ module Api
       # 成績内訳の詳細のうちPro限定の3項目（カウント別・球種別・対戦投手別）に必要なentitlement。
       # hit_directions は無料機能のSprayChart（打球方向散布図）も同じレスポンスを使うため
       # エンドポイント自体は無料開放のままにし、詳細テーブル表示のみmobile側でPro判定する。
+      # コース別はユーザーから見て同一カードの2タブ（コース別/球種別）= 1機能のため、
+      # 2アクションで entitlement key を pitch_course_average の1つに共有する。
       ENTITLEMENT_BY_ACTION = {
         count_situations: 'count_situation_average',
         pitch_types: 'pitch_type_average',
-        pitcher_faceoffs: 'pitcher_faceoff_average'
+        pitcher_faceoffs: 'pitcher_faceoff_average',
+        pitch_courses: 'pitch_course_average',
+        pitch_course_pitch_types: 'pitch_course_average'
       }.freeze
       before_action :require_entitlement!, only: ENTITLEMENT_BY_ACTION.keys
 
@@ -94,6 +98,14 @@ module Api
 
       def pitcher_faceoffs
         render json: Stats::PitcherFaceoffAggregator.new(**aggregator_params).call
+      end
+
+      def pitch_courses
+        render json: Stats::PitchCourseAggregator.new(**aggregator_params).call
+      end
+
+      def pitch_course_pitch_types
+        render json: Stats::PitchCoursePitchTypeAggregator.new(**aggregator_params).call
       end
 
       def pitcher_attribute_summary

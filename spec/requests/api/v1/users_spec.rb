@@ -73,6 +73,39 @@ RSpec.describe 'Api::V1::Users', type: :request do
         expect(response.parsed_body['errors']).to include('このユーザーIDは既に使われています')
       end
     end
+
+    context 'with throw_hand / batting_side' do
+      it 'updates handedness' do
+        put '/api/v1/user',
+            params: { user: { throw_hand: 'right', batting_side: 'both' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.throw_hand).to eq('right')
+        expect(user.batting_side).to eq('both')
+      end
+
+      it 'normalizes empty strings (FormDataの未選択送信) to nil instead of 500' do
+        user.update!(throw_hand: :left, batting_side: :left)
+
+        put '/api/v1/user',
+            params: { user: { throw_hand: '', batting_side: '' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.throw_hand).to be_nil
+        expect(user.batting_side).to be_nil
+      end
+
+      it 'returns 422 for an invalid enum value instead of 500' do
+        put '/api/v1/user',
+            params: { user: { throw_hand: 'ambidextrous' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('利き腕・打席の指定が不正です')
+      end
+    end
   end
 
   describe 'DELETE /api/v1/user' do
