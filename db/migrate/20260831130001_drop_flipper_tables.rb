@@ -1,5 +1,6 @@
 class DropFlipperTables < ActiveRecord::Migration[7.1]
   # Flipper 機構ごと撤去したため永続化テーブルも削除する。
+  # flag の設定値は Git 管理外のため、down でスキーマを戻しても内容は復元できない。
   def up
     drop_table :flipper_gates, if_exists: true
     drop_table :flipper_features, if_exists: true
