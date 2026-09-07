@@ -102,7 +102,8 @@ module PeriodicReviews
 
     # 練習メニュー別の実施内訳。削除・アーカイブ済みメニューでも practice_logs.menu_name に
     # スナップショットが残るため、practice_menu_id ではなく名前で名寄せする。
-    # 上限を超えた分は件数（other_count）だけ持つ。
+    # 上限を超えた分は other_count（実施回数ではなくメニュー種類数）だけ持ち、
+    # クライアントは「他 N 件のメニュー」として出す。
     def practice_menu_breakdown
       rows = @user.practice_logs.where(logged_on: range)
                   .group(:menu_name)
