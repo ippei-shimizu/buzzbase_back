@@ -42,6 +42,26 @@ RSpec.describe 'Api::V1::FeatureFlags', type: :request do
       end
     end
 
+    context 'keys に配列以外を渡したとき' do
+      it 'ハッシュを渡しても 500 にならず空オブジェクトを返す' do
+        get '/api/v1/feature_flags',
+            params: { keys: { pro_features: 'true' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq({})
+      end
+
+      it 'スカラー値を渡しても 500 にならず空オブジェクトを返す' do
+        get '/api/v1/feature_flags',
+            params: { keys: 'pro_features' },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq({})
+      end
+    end
+
     context '同一 key を重複して指定したとき' do
       it '重複は 1 件に集約されて返る' do
         get '/api/v1/feature_flags',
