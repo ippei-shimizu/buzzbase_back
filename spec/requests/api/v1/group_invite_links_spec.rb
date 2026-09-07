@@ -61,8 +61,10 @@ RSpec.describe 'Api::V1::GroupInviteLinks', type: :request do
     end
 
     context 'when code is valid' do
-      before do
-        allow(PushNotificationService).to receive(:send_to_user)
+      it 'enqueues a push notification job instead of sending synchronously' do
+        expect do
+          post "/api/v1/invite_links/#{invite_link.code}/accept", headers: auth_headers_for(user)
+        end.to have_enqueued_job(PushNotificationJob).with(inviter.id, title: 'BUZZ BASE', body: "#{user.name}さんが招待コードでグループに参加しました")
       end
 
       it 'creates group invitation with accepted state' do

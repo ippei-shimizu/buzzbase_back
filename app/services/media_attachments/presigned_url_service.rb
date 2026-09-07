@@ -30,7 +30,14 @@ module MediaAttachments
           region: 'auto',
           access_key_id: ENV.fetch('R2_ACCESS_KEY_ID'),
           secret_access_key: ENV.fetch('R2_SECRET_ACCESS_KEY'),
-          force_path_style: true
+          force_path_style: true,
+          # このクライアントは動画メタデータ検証（Range GET / HEAD、1リクエストで最大34往復）
+          # にも使われ、リクエスト経路で同期実行される。SDK 既定（open 15秒 / read 60秒 /
+          # リトライ3回）では R2 が詰まったとき1リクエストが数分ブロックし、Puma スレッドと
+          # DB コネクションを占有するため短く明示する。Range GET は数KB単位なので read 5秒で十分。
+          http_open_timeout: 3,
+          http_read_timeout: 5,
+          retry_limit: 1
         )
       end
     end

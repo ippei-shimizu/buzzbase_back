@@ -216,6 +216,19 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
     end
   end
 
+  describe 'PUT /api/v1/game_results/:id/update_pitching_result_id' do
+    let!(:game_result) { create(:game_result, user:) }
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        put "/api/v1/game_results/#{game_result.id}/update_pitching_result_id",
+            params: { game_result: { pitching_result_id: nil } }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
   describe 'DELETE /api/v1/game_results/:id' do
     let!(:game_result) { create(:game_result, user:) }
 
