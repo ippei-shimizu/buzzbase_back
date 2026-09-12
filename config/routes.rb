@@ -161,7 +161,6 @@ Rails.application.routes.draw do
         resources :entitlements, only: %i[index]
         resource :checkout, only: %i[create], controller: 'checkout'
         resource :subscription, only: %i[destroy update], controller: 'subscription'
-        resources :cancellation_feedbacks, only: %i[create]
       end
 
       namespace :webhooks do
