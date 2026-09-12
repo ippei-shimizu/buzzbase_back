@@ -1,4 +1,6 @@
 class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
+  include RedirectUrlWhitelistable
+
   def show
     @resource = resource_class.confirm_by_token(params[:confirmation_token])
 
@@ -24,48 +26,5 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
     redirect_url = params[:redirect_url] || default_redirect_url
 
     validate_redirect_url(redirect_url)
-  end
-
-  def default_redirect_url
-    ENV['CONFIRM_SUCCESS_URL'].presence || '/signin'
-  end
-
-  def validate_redirect_url(redirect_url)
-    return default_redirect_url if redirect_url.blank?
-
-    uri = URI.parse(redirect_url)
-
-    # モバイルアプリのカスタムスキームを許可
-    allowed_schemes = [ENV.fetch('MOBILE_APP_SCHEME', 'buzzbase')]
-    return redirect_url if allowed_schemes.include?(uri.scheme)
-
-    # ホワイトリスト: 環境変数で指定されたホストのみ許可
-    allowed_hosts = [
-      ENV.fetch('FRONTEND_URL', nil),
-      ENV.fetch('CONFIRM_SUCCESS_URL', nil)
-    ].compact.map { |url| URI.parse(url).host }
-
-    if allowed_hosts.include?(uri.host)
-      redirect_url
-    else
-      # 不正なリダイレクト先をブロック
-      Rails.logger.warn("Blocked redirect to unauthorized host: #{uri.host}. Allowed: #{allowed_hosts.inspect}")
-      default_redirect_url
-    end
-  rescue URI::InvalidURIError => e
-    Rails.logger.error("Invalid redirect URL: #{redirect_url} - #{e.message}")
-    default_redirect_url
-  end
-
-  def add_query_param(url, key, value)
-    return default_redirect_url if url.blank?
-
-    uri = URI.parse(url)
-    params = URI.decode_www_form(uri.query || '') << [key, value]
-    uri.query = URI.encode_www_form(params)
-    uri.to_s
-  rescue URI::InvalidURIError => e
-    Rails.logger.error("Invalid URL in add_query_param: #{url} - #{e.message}")
-    default_redirect_url
   end
 end

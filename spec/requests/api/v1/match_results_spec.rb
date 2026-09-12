@@ -120,6 +120,119 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'POST /api/v1/match_results (同一 game_result_id の並行作成レース)' do
+    let(:game_result) { create(:game_result, user:) }
+    let!(:winner) { game_result.match_result }
+    let(:params) do
+      { match_result: { game_result_id: game_result.id,
+                        date_and_time: Time.current.iso8601,
+                        match_type: '公式戦',
+                        my_team_id: winner.my_team_id,
+                        opponent_team_id: winner.opponent_team_id,
+                        my_team_score: 1,
+                        opponent_team_score: 0,
+                        inning_format: 9,
+                        appearance_type: 'starter',
+                        batting_order: '4',
+                        defensive_position: 'ショート' } }
+    end
+
+    context 'when the uniqueness validation passes before the rival commit (race simulated)' do
+      before do
+        # 並行リクエストでは相手の行が uniqueness の SELECT にまだ見えないため通過する。
+        # バリデーションをスキップして DB ユニークインデックス違反を再現する。
+        allow_any_instance_of(MatchResult).to receive(:valid?).and_return(true) # rubocop:disable RSpec/AnyInstance
+      end
+
+      it 'returns 201 with the winner record instead of 500' do
+        expect do
+          post '/api/v1/match_results', params:, headers: auth_headers_for(user)
+        end.not_to change(MatchResult, :count)
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['id']).to eq(winner.id)
+      end
+
+      it 'returns 409 without exposing the winner when it belongs to another user' do
+        other_game_result = create(:game_result, user: create(:user))
+
+        post '/api/v1/match_results',
+             params: { match_result: params[:match_result].merge(game_result_id: other_game_result.id) },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:conflict)
+        expect(response.parsed_body['error']).to eq('record_not_unique')
+        expect(response.parsed_body).not_to have_key('id')
+      end
+    end
+
+    context 'when the duplicate is sequential (not a race)' do
+      it 'returns 422 from the uniqueness validation as before' do
+        post '/api/v1/match_results', params:, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
+
+  describe 'stadium_id 保存サポート' do
+    let(:stadium) { create(:stadium) }
+    let(:match_result) do
+      game_result = create(:game_result, user:)
+      game_result.match_result
+    end
+
+    it 'PUT 時に stadium_id を更新できる（permit 経路を担保）' do
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: stadium.id } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to eq(stadium.id)
+    end
+
+    it 'PUT で stadium_id を nil に戻せる（球場を未指定に変更）' do
+      match_result.update!(stadium_id: stadium.id)
+      put "/api/v1/match_results/#{match_result.id}",
+          params: { match_result: { stadium_id: nil } },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(match_result.reload.stadium_id).to be_nil
+    end
+  end
+
+  describe 'GET /api/v1/existing_search' do
+    let(:stadium) { create(:stadium, name: '神宮球場') }
+    let(:match_result) do
+      game_result = create(:game_result, user:)
+      game_result.match_result
+    end
+
+    it 'stadium_id がある場合は stadium_name を含めて返す' do
+      match_result.update!(stadium_id: stadium.id)
+      get '/api/v1/existing_search',
+          params: { game_result_id: match_result.game_result_id, user_id: user.id },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['stadium_id']).to eq(stadium.id)
+      expect(json['stadium_name']).to eq('神宮球場')
+    end
+
+    it 'stadium_id が NULL の場合は stadium_name が nil になる' do
+      match_result.update!(stadium_id: nil)
+      get '/api/v1/existing_search',
+          params: { game_result_id: match_result.game_result_id, user_id: user.id },
+          headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['stadium_name']).to be_nil
+    end
+  end
+
   describe 'GET /api/v1/match_results/available_years' do
     # game_result factory が after(:create) で match_result を自動生成するため、
     # game_result を作成 → 自動生成された match_result の date_and_time を更新
@@ -195,6 +308,57 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
             headers: auth_headers_for(user)
 
         expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
+
+  describe 'GET /api/v1/match_results/available_months' do
+    def create_match_for(user_record, at:)
+      gr = create(:game_result, user: user_record)
+      gr.match_result.update!(date_and_time: Time.zone.parse(at))
+      gr.match_result
+    end
+
+    context 'when authenticated (current user)' do
+      it 'returns distinct "YYYY-MM" months in descending order' do
+        create_match_for(user, at: '2026-06-15 12:00')
+        create_match_for(user, at: '2026-06-20 12:00')
+        create_match_for(user, at: '2026-05-01 12:00')
+
+        get '/api/v1/match_results/available_months', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq(%w[2026-06 2026-05])
+      end
+    end
+
+    context 'when the user has no match results' do
+      let(:no_match_user) { create(:user) }
+
+      it 'returns an empty array' do
+        get '/api/v1/match_results/available_months',
+            params: { user_id: no_match_user.id }, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body).to eq([])
+      end
+    end
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        get '/api/v1/match_results/available_months'
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when target user is private and viewer is not a follower' do
+      let(:private_user) { create(:user, is_private: true) }
+
+      it 'returns 403' do
+        get '/api/v1/match_results/available_months',
+            params: { user_id: private_user.id }, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:forbidden)
       end
     end
   end
@@ -368,7 +532,7 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
 
     context 'when appearance_type = starter and batting_order is missing' do
-      it 'returns 422 because starter requires batting_order' do
+      it 'returns 200 because batting_order is optional even for starter (DH-rule pitcher case)' do
         match_result = game_result.match_result
 
         put "/api/v1/match_results/#{match_result.id}",
@@ -378,7 +542,8 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
             } },
             headers: auth_headers_for(user)
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:ok)
+        expect(match_result.reload.batting_order).to eq('')
       end
     end
 

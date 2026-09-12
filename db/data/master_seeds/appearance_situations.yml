@@ -1,0 +1,9 @@
+- id: 1
+  name: 先発
+  display_order: 1
+- id: 2
+  name: 中継ぎ
+  display_order: 2
+- id: 3
+  name: 抑え
+  display_order: 3

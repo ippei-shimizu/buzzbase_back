@@ -1,0 +1,9 @@
+- id: 1
+  name: ドンピシャ
+  display_order: 1
+- id: 2
+  name: 泳ぎ気味
+  display_order: 2
+- id: 3
+  name: 遅れ気味
+  display_order: 3

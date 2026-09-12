@@ -14,12 +14,14 @@ module Stats
 
     # mode: :yearly, :monthly, :daily
     # year: required for :monthly and :daily
-    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil)
+    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @mode = mode.to_sym
       @year = year
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     def call
@@ -38,13 +40,13 @@ module Stats
                             .where(batting_averages: { user_id: @user_id })
       scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?
       scope = scope.where(match_results: { tournament_id: @tournament_id }) if @tournament_id.present?
-      scope
+      PeriodRange.apply(scope, @start_month, @end_month)
     end
 
     # --- yearly ---
     def yearly_rows
       scope = base_scope
-      years = scope.select(Arel.sql('DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr'))
+      years = scope.select(Arel.sql("DISTINCT #{Stats::JstDateSql::YEAR_JST_INT_SQL} AS yr"))
                    .filter_map(&:yr).sort
 
       rows = years.map { |year| build_row(label: year.to_s, scope: scope_for_year(scope, year)) }
@@ -55,10 +57,7 @@ module Stats
     # --- monthly ---
     def monthly_rows
       scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
-      months = scope.select(Arel.sql('DISTINCT EXTRACT(MONTH FROM match_results.date_and_time)::int AS mon'))
-                    .filter_map(&:mon).sort
-
-      rows = months.map { |mon| build_row(label: "#{mon}月", scope: scope_for_month(scope, mon)) }
+      rows = monthly_buckets(scope).map { |label, month_scope| build_row(label:, scope: month_scope) }
       rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
@@ -97,30 +96,33 @@ module Stats
     end
 
     def calculate_rate_stats(vals)
-      hit = vals['hit'] + vals['two_base_hit'] + vals['three_base_hit'] + vals['home_run']
-      tb = vals['hit'] + (vals['two_base_hit'] * 2) + (vals['three_base_hit'] * 3) + (vals['home_run'] * 4)
+      hit = BattingFormulas.total_hits(
+        singles: vals['hit'], doubles: vals['two_base_hit'],
+        triples: vals['three_base_hit'], home_runs: vals['home_run']
+      )
+      tb = BattingFormulas.total_bases(
+        singles: vals['hit'], doubles: vals['two_base_hit'],
+        triples: vals['three_base_hit'], home_runs: vals['home_run']
+      )
 
       calculate_batting_rates(hit, tb, vals)
     end
 
     def calculate_batting_rates(hit, total_bases, vals)
-      ab = vals['at_bats']
-      bb = vals['base_on_balls']
-
-      avg = safe_divide(hit.to_f, ab)
-      slg = safe_divide(total_bases.to_f, ab)
-      obp = calculate_obp(hit, vals)
+      at_bats = vals['at_bats']
+      avg = BattingFormulas.batting_average(total_hits: hit, at_bats:)
+      slg = BattingFormulas.slugging_percentage(total_bases:, at_bats:)
+      obp = BattingFormulas.on_base_percentage(
+        total_hits: hit, base_on_balls: vals['base_on_balls'],
+        hit_by_pitch: vals['hit_by_pitch'], at_bats:,
+        sacrifice_fly: vals['sacrifice_fly']
+      )
 
       { hit:, total_bases:, batting_average: avg, slugging_percentage: slg,
-        ops: (obp + slg).round(3), iso: safe_divide((total_bases - hit).to_f, ab),
-        bb_per_k: safe_divide(bb.to_f, vals['strike_out']) }
+        ops: BattingFormulas.ops(obp:, slg:),
+        iso: BattingFormulas.iso(total_bases:, total_hits: hit, at_bats:),
+        bb_per_k: BattingFormulas.safe_divide(vals['base_on_balls'], vals['strike_out']) }
         .merge(babip: calculate_babip(hit, vals))
-    end
-
-    def calculate_obp(hit, vals)
-      on_base = hit + vals['base_on_balls'] + vals['hit_by_pitch']
-      denom = vals['at_bats'] + vals['base_on_balls'] + vals['hit_by_pitch'] + vals['sacrifice_fly']
-      safe_divide(on_base.to_f, denom)
     end
 
     def calculate_babip(hit, vals)

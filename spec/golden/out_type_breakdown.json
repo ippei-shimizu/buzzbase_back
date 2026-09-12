@@ -1,0 +1,30 @@
+{
+  "breakdown": [
+    {
+      "category": "ゴロ",
+      "count": 1,
+      "percentage": 33.3
+    },
+    {
+      "category": "ファールフライ",
+      "count": 0,
+      "percentage": 0.0
+    },
+    {
+      "category": "フライ",
+      "count": 2,
+      "percentage": 66.7
+    },
+    {
+      "category": "ライナー",
+      "count": 0,
+      "percentage": 0.0
+    },
+    {
+      "category": "併殺打",
+      "count": 0,
+      "percentage": 0.0
+    }
+  ],
+  "total": 3
+}

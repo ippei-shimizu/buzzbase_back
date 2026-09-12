@@ -4,7 +4,8 @@ class PitchingResult < ApplicationRecord
 
   validate :must_have_any_stats
 
-  ZERO = 0
+  # 分母 0 のフォールバック値。正常時は round が Float を返すため、型を安定させるよう Float にする。
+  ZERO = 0.0
 
   # 投手集計クエリは ERA / K/9 / BB/9 を「試合のイニング制（match_results.inning_format）で加重平均」する。
   # 従来の `× 9 / 投球回` 固定ではなく、各試合のイニング制（7 or 9）を係数として掛けることで、
@@ -41,20 +42,21 @@ class PitchingResult < ApplicationRecord
      'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
      'SUM(pitching_results.run_allowed) AS run_allowed',
      'SUM(pitching_results.earned_run) AS earned_run',
+     'SUM(pitching_results.number_of_pitches) AS number_of_pitches',
      'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
      'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
      'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls']
   end
 
-  def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+  def self.filtered_pitching_aggregate_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
     scope = joins(game_result: :match_result).select(*pitching_aggregate_columns)
-    scope = apply_filters(scope, year, match_type, season_id:, tournament_id:)
+    scope = apply_filters(scope, year, match_type, season_id:, tournament_id:, start_month:, end_month:)
     scope.where(pitching_results: { user_id: }).group('pitching_results.user_id')
   end
 
-  def self.pitching_stats_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
-    if year.present? || match_type.present? || season_id.present? || tournament_id.present?
-      scope = apply_filters(joins(game_result: :match_result), year, match_type, season_id:, tournament_id:)
+  def self.pitching_stats_for_user(user_id, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
+    if year.present? || match_type.present? || season_id.present? || tournament_id.present? || start_month.present? || end_month.present?
+      scope = apply_filters(joins(game_result: :match_result), year, match_type, season_id:, tournament_id:, start_month:, end_month:)
       result = scope.select(*pitching_aggregate_columns)
                     .where(pitching_results: { user_id: })
                     .group('pitching_results.user_id').take
@@ -80,12 +82,17 @@ class PitchingResult < ApplicationRecord
     alias filtered_pitching_stats_for_user pitching_stats_for_user
   end
 
-  def self.apply_filters(scope, year, match_type, season_id: nil, tournament_id: nil)
-    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
+  def self.apply_filters(scope, year, match_type, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
+    if year.present? && year.to_s != '通算'
+      # Date レンジは default_timezone(:local) 下では JST 変換されず UTC 値と素で比較されるため、
+      # JST 早朝(0:00-8:59)の試合が年フィルタから漏れる。Time.zone.local で明示的に JST 境界を作る。
+      year_range = Time.zone.local(year.to_i, 1, 1).beginning_of_day..Time.zone.local(year.to_i, 12, 31).end_of_day
+      scope = scope.where(match_results: { date_and_time: year_range })
+    end
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
     scope = scope.where(game_results: { season_id: }) if season_id.present?
     scope = scope.where(match_results: { tournament_id: }) if tournament_id.present?
-    scope
+    PeriodRange.apply(scope, start_month, end_month)
   end
 
   # @param user_id [Integer]
@@ -106,7 +113,8 @@ class PitchingResult < ApplicationRecord
       k_per_nine: safe_divide_round(stats['weighted_strikeouts'].to_f, ip, 3),
       whip: safe_divide_round(stats['base_on_balls'].to_f + stats['hits_allowed'].to_f, ip, 3),
       bb_per_nine: safe_divide_round(stats['weighted_base_on_balls'].to_f, ip, 3),
-      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3)
+      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3),
+      number_of_pitches: stats['number_of_pitches'].to_i
     }
   end
 

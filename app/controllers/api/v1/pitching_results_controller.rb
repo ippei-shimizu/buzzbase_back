@@ -73,8 +73,15 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        pitching_aggregated_data = if year.present? || match_type.present? || season_id.present?
-                                     PitchingResult.filtered_pitching_aggregate_for_user(user_id, year:, match_type:, season_id:)
+        tournament_id = params[:tournament_id]
+        start_month = params[:start_month]
+        end_month = params[:end_month]
+        any_filter = year.present? || match_type.present? || season_id.present? ||
+                     tournament_id.present? || start_month.present? || end_month.present?
+        pitching_aggregated_data = if any_filter
+                                     PitchingResult.filtered_pitching_aggregate_for_user(
+                                       user_id, year:, match_type:, season_id:, tournament_id:, start_month:, end_month:
+                                     )
                                    else
                                      PitchingResult.pitching_aggregate_for_user(user_id)
                                    end
@@ -82,11 +89,15 @@ module Api
       end
 
       def personal_pitching_stats
-        user_id = params[:user_id]
+        # params は常に String。レスポンスへ user_id を埋め込むため Integer に揃える（DB 由来の他経路と型を一致させる）。
+        user_id = params[:user_id].to_i
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        pitching_stats = PitchingResult.pitching_stats_for_user(user_id, year:, match_type:, season_id:)
+        pitching_stats = PitchingResult.pitching_stats_for_user(
+          user_id, year:, match_type:, season_id:, tournament_id: params[:tournament_id],
+                   start_month: params[:start_month], end_month: params[:end_month]
+        )
         if pitching_stats.present?
           render json: pitching_stats
         else

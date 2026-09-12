@@ -22,6 +22,24 @@ docker compose exec back bundle exec rails db:seed  # シードデータ投入
 docker compose exec back bundle exec rails routes  # ルーティング確認
 ```
 
+### バックグラウンドジョブ（Solid Queue）
+
+- ジョブは`docker compose up`のbackサービス（`rails s`）だけで自動的に処理される。`config/puma.rb`の`plugin :solid_queue`により、Pumaプロセス内でSolid Queueのsupervisorが同時に起動するため、別途workerサービスを起動する必要はない
+- test環境以外はデフォルトで有効化するfail-safeな設計。無効化したい場合のみ`SOLID_QUEUE_IN_PUMA=false`を設定する（設定漏れでジョブが誰にも処理されない状態を防ぐため、明示的なopt-inではなくopt-out方式にしている）
+- 本番（Heroku）も同一Web dyno内でジョブを処理する構成。`Procfile`から`worker: bin/jobs`は削除済みだが、既存のworker dyno formationが残っている場合は`heroku ps:scale worker=0`等で別途スケールダウンする必要がある
+
+### マイグレーションを戻すとき
+
+- **`rails db:schema:load` は開発環境のデータを全て削除する**（`schema.rb` の `force: :cascade` で全テーブルがdrop&再作成される）。マイグレーションを1つ戻したいだけの場合には絶対に使わない
+- 特定のマイグレーションだけを戻したい場合は `rails db:rollback` または `rails db:migrate:down VERSION=xxxxx` を使う。これなら他のテーブル・データには影響しない
+- データを削除しうるDB操作（`schema:load`、`db:reset`、`db:drop` 等）を実行する前は、必ず内容を説明してユーザーに確認する
+
+## Heroku本番環境
+
+- **ユーザーの明示的な指示がない限り、Heroku CLI・Herokuダッシュボードへのアクセスや操作を一切行わない**（`heroku config`, `heroku run`, `heroku ps`, `heroku logs` 等のコマンドも含む）
+- 本番環境変数の確認・設定、`rails console`の実行、dyno操作等、Heroku側の操作はすべてユーザー自身が行う
+- 本番の状態を確認したい場合は、ユーザーに確認を依頼するか、リストアップして issue に残す
+
 ## テスト
 
 ```bash
@@ -37,6 +55,16 @@ docker compose exec back bundle exec rspec <ファイルパス>  # 特定ファ�
 docker compose exec back bundle exec rubocop  # チェック
 docker compose exec back bundle exec rubocop -A  # 自動修正
 ```
+
+## コメント規約
+
+- **コードを読めばわかること（WHAT）は書かない**。識別子・型・処理の流れはコード自身が語る。コメントが繰り返すと冗長になり、コード変更時に陳腐化する
+- **コードからは読み取れない意図・前提・制約（WHY）だけを書く**。例: 性能上の理由で `pluck` を使っている / 仕様で空配列を許容しない / フロントの期待形式に合わせて〜している、など
+- **issue 番号 / PR 番号 / ticket URL をコメントに書かない**。時間と共に陳腐化し、リーダーにとってノイズになる。経緯や参照リンクは PR description やコミットメッセージに残す
+  - NG: `# 二重作成を防ぐ（issue #341）`
+  - NG: `# ユーザーを取得する`（コードを見れば明らか）
+  - OK: `# devise_token_auth の挙動上、create 時に session を残すと次回ログインで衝突する`
+- yardoc (`@param` / `@return` / `@example`) は「責務」「引数・返り値の意味」を簡潔に書いてよい（保守性向上の資産として残す）
 
 ## ディレクトリ構造
 

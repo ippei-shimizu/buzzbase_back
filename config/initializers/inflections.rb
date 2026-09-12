@@ -14,3 +14,9 @@
 # ActiveSupport::Inflector.inflections(:en) do |inflect|
 #   inflect.acronym "RESTful"
 # end
+
+# Rails のデフォルト inflection では stadium の複数形が "stadia" になるが、
+# テーブル名・URL は "stadiums" で統一するため上書きする。
+ActiveSupport::Inflector.inflections(:en) do |inflect|
+  inflect.irregular 'stadium', 'stadiums'
+end

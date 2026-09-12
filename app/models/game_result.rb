@@ -7,6 +7,10 @@ class GameResult < ApplicationRecord
   has_many :plate_appearances, dependent: :destroy
   has_one :batting_average, dependent: :destroy
   has_one :pitching_result, dependent: :destroy
+  # 試合削除時にノート紐付け（note_game_links）も消す（ノート本体は独立レコードなので残る）。
+  # match_result 側の ON DELETE CASCADE が game_results 行を先に消すため、
+  # 中間リンクは DB 側の on_delete: :cascade で確実に除去する（本 dependent は直接削除経路の保険）。
+  has_many :note_game_links, dependent: :destroy
 
   def self.all_game_associated_data
     includes(:user, :match_result, :plate_appearances, :pitching_result)
@@ -38,18 +42,19 @@ class GameResult < ApplicationRecord
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
   end
 
-  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
+  def self.filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil, start_month: nil, end_month: nil)
     game_results = base_query(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
     game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
+    game_results = filter_by_date_range(game_results, start_month, end_month)
 
     map_game_results(game_results)
   end
@@ -85,12 +90,21 @@ class GameResult < ApplicationRecord
     game_results.where(match_results: { tournament_id: })
   end
 
+  # 期間（年月レンジ "YYYY-MM"）で試合を絞る。start/end いずれか一方のみでも可（開放端）。
+  # filter_by_year と同じ hash 条件方式で match_results を auto-reference する。
+  def self.filter_by_date_range(game_results, start_month, end_month)
+    range = PeriodRange.range(start_month, end_month)
+    return game_results unless range
+
+    game_results.where(match_results: { date_and_time: range })
+  end
+
   def self.map_game_results(game_results)
     game_results.map do |game_result|
       {
         game_result_id: game_result.id,
         match_result: game_result.match_result,
-        batting_average: game_result.batting_average,
+        batting_average: game_result.batting_average&.display_attributes,
         pitching_result: game_result.pitching_result
       }
     end
@@ -123,14 +137,14 @@ class GameResult < ApplicationRecord
   # opponent_team_name, tournament_name, plate_appearances を1リクエストで返却可能にする。
 
   # 特定ユーザーの試合一覧を関連データ付きで取得する（認証ユーザー向け）
-  # match_result -> opponent_team, tournament と plate_appearances, batting_average, pitching_result を eager-load し、
+  # match_result -> opponent_team, tournament, stadium と plate_appearances, batting_average, pitching_result を eager-load し、
   # N+1クエリを防止する
   # @param user [User, Integer] Userオブジェクトまたはuser_id
   # @return [ActiveRecord::Relation<GameResult>] 日付降順の試合結果リレーション
   def self.v2_game_associated_data_user(user)
     includes(
       :season,
-      match_result: %i[my_team opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament stadium],
       plate_appearances: [],
       batting_average: [],
       pitching_result: []
@@ -142,14 +156,17 @@ class GameResult < ApplicationRecord
   # @param user [User, Integer] Userオブジェクトまたはuser_id
   # @param year [String, nil] フィルタ対象の年度（"通算"の場合はフィルタなし）
   # @param match_type [String, nil] フィルタ対象の試合種別（"全て"の場合はフィルタなし）
+  # @param start_month [String, nil] 期間フィルタの開始年月 "YYYY-MM"（開放端可）
+  # @param end_month [String, nil] 期間フィルタの終了年月 "YYYY-MM"（開放端可）
   # @return [ActiveRecord::Relation<GameResult>] フィルタ済みの試合結果リレーション
-  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil)
+  def self.v2_filtered_game_associated_data_user(user, year, match_type, season_id = nil, tournament_id: nil,
+                                                 start_month: nil, end_month: nil)
     game_results = v2_game_associated_data_user(user)
     game_results = filter_by_year(game_results, year) if year_filter_applicable?(year)
     game_results = filter_by_match_type(game_results, match_type) if match_type_filter_applicable?(match_type)
     game_results = filter_by_season(game_results, season_id) if season_id.present?
     game_results = filter_by_tournament(game_results, tournament_id) if tournament_id.present?
-    game_results
+    filter_by_date_range(game_results, start_month, end_month)
   end
 
   # 全ユーザーの試合一覧を関連データ付きで取得する（タイムライン表示向け）
@@ -158,7 +175,7 @@ class GameResult < ApplicationRecord
   def self.v2_all_game_associated_data
     includes(
       :user,
-      match_result: %i[my_team opponent_team tournament],
+      match_result: %i[my_team opponent_team tournament stadium],
       plate_appearances: [],
       pitching_result: []
     ).where.not(match_result_id: nil)

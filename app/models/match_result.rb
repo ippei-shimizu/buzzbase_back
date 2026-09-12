@@ -4,6 +4,7 @@ class MatchResult < ApplicationRecord
   belongs_to :opponent_team, class_name: 'Team'
   belongs_to :tournament, optional: true
   belongs_to :game_result
+  belongs_to :stadium, optional: true
 
   # Rails 7.0 enum は不正値で ArgumentError になるため inclusion バリデーション方式を採用。
   APPEARANCE_TYPES = %w[starter substitute pinch_hitter pinch_runner no_play].freeze
@@ -17,18 +18,52 @@ class MatchResult < ApplicationRecord
   validates :match_type, presence: true
   validates :my_team_score, presence: true
   validates :opponent_team_score, presence: true
-  validates :batting_order, presence: true, if: :appearance_type_starter?
   validates :defensive_position, presence: true, if: :appearance_type_starter?
   validates :inning_format, presence: true, inclusion: { in: [7, 9] }
   validates :appearance_type, presence: true, inclusion: { in: APPEARANCE_TYPES }
 
+  # 試合の有無は草・Streak の強度に効くため、当日の activity_logs を再計算する。
+  after_commit :recalculate_activity, on: %i[create update destroy]
+
   # 指定ユーザーの試合データに紐づく年度を新しい順で返す
+  # date_and_time は UTC 保存のため JST に揃えて抽出し、元日早朝の試合が前年に流れないようにする。
   # @param user [User]
   # @return [Array<Integer>]
   def self.available_years_for(user)
     where(user_id: user.id)
-      .pluck(Arel.sql('DISTINCT EXTRACT(YEAR FROM date_and_time)::int'))
+      .pluck(Arel.sql("DISTINCT #{Stats::JstDateSql::YEAR_JST_INT_SQL}"))
       .sort
       .reverse
+  end
+
+  # 試合データに紐づく年月を "YYYY-MM" で新しい順に返す（期間フィルタの候補用）。
+  # date_and_time は UTC 保存のため JST に揃えて抽出し、早朝の試合が前月に流れないようにする。
+  # @param user_ids [Array<Integer>, Integer] 単一ユーザーまたはグループメンバーの user_id 群
+  # @return [Array<String>] 例: ["2026-06", "2026-05", ...]
+  def self.available_months_for(user_ids)
+    where(user_id: user_ids)
+      .pluck(Arel.sql("DISTINCT TO_CHAR(#{Stats::JstDateSql::DATE_AND_TIME_JST_SQL}, 'YYYY-MM')"))
+      .sort
+      .reverse
+  end
+
+  private
+
+  # 更新後の日付に加え、date_and_time を変更した場合は変更前の日付も再計算する。
+  # 旧日付の activity_log（試合ありの強度）が古いまま残るのを防ぐ。
+  # after_commit の同期実行のため、再計算の失敗が試合結果の保存レスポンス自体を
+  # 失敗させないよう rescue で分離し、Sentry への記録に留める。
+  def recalculate_activity
+    [date_and_time, previous_date_and_time].compact.uniq.each do |time|
+      Activities::DailyActivityRecalculator.new(user_id:, date: time.in_time_zone('Asia/Tokyo').to_date).call
+    end
+  rescue StandardError => e
+    Sentry.capture_exception(e, tags: { source: 'match_result_recalculate_activity' })
+  end
+
+  def previous_date_and_time
+    return nil unless date_and_time_previously_changed?
+
+    date_and_time_previously_was
   end
 end

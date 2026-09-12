@@ -7,9 +7,9 @@ module Api
     # - フロントエンド側でN+1 HTTPリクエスト（チーム名・大会名・打席結果を個別取得）を不要にする
     # - シリアライザー(V2::GameResultSerializer)を使用してレスポンス形式を制御する
     # - ページネーション対応（kaminari）
-    class GameResultsController < ApplicationController
+    class GameResultsController < Api::V2::ApplicationController
       include MatchTypeConvertible
-      before_action :authenticate_api_v1_user!, only: %i[index filtered_index show_user filtered_show_user]
+      before_action :authenticate_api_v1_user!, only: %i[index show filtered_index show_user filtered_show_user]
 
       # GET /api/v2/game_results
       # 認証ユーザー自身の試合一覧を取得する
@@ -17,6 +17,13 @@ module Api
         game_results = GameResult.v2_game_associated_data_user(current_api_v1_user)
                                  .page(params[:page]).per(params[:per_page])
         render json: paginated_response(game_results, ::V2::GameResultSerializer)
+      end
+
+      # GET /api/v2/game_results/:id
+      # 認証ユーザー自身の試合1件を取得する（野球ノートの紐付け表示などに利用）
+      def show
+        game_result = GameResult.v2_game_associated_data_user(current_api_v1_user).find(params[:id])
+        render json: game_result, serializer: ::V2::GameResultSerializer, status: :ok
       end
 
       # GET /api/v2/game_results/all
@@ -36,7 +43,10 @@ module Api
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
         tournament_id = params[:tournament_id]
-        game_results = GameResult.v2_filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id, tournament_id:)
+        game_results = GameResult.v2_filtered_game_associated_data_user(
+          current_api_v1_user, year, match_type, season_id, tournament_id:,
+                                                            start_month: params[:start_month], end_month: params[:end_month]
+        )
         game_results = game_results.search_by_opponent(params[:search]) if params[:search].present?
         game_results = game_results.reorder(nil).apply_sort(params[:sort_by], params[:sort_order]) if params[:sort_by].present?
         game_results = game_results.page(params[:page]).per(params[:per_page])
@@ -68,25 +78,14 @@ module Api
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
         tournament_id = params[:tournament_id]
-        game_results = GameResult.v2_filtered_game_associated_data_user(user, year, match_type, season_id, tournament_id:)
+        game_results = GameResult.v2_filtered_game_associated_data_user(
+          user, year, match_type, season_id, tournament_id:,
+                                             start_month: params[:start_month], end_month: params[:end_month]
+        )
         game_results = game_results.search_by_opponent(params[:search]) if params[:search].present?
         game_results = game_results.reorder(nil).apply_sort(params[:sort_by], params[:sort_order]) if params[:sort_by].present?
         game_results = game_results.page(params[:page]).per(params[:per_page])
         render json: paginated_response(game_results, ::V2::GameResultSerializer)
-      end
-
-      private
-
-      def paginated_response(game_results, serializer)
-        {
-          data: ActiveModelSerializers::SerializableResource.new(game_results, each_serializer: serializer),
-          pagination: {
-            current_page: game_results.current_page,
-            per_page: game_results.limit_value,
-            total_count: game_results.total_count,
-            total_pages: game_results.total_pages
-          }
-        }
       end
     end
   end

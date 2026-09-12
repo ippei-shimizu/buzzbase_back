@@ -1,0 +1,11 @@
+{
+  "batting_average": "Float",
+  "bb_per_k": "Float",
+  "iso": "Float",
+  "isod": "Float",
+  "on_base_percentage": "Float",
+  "ops": "Float",
+  "slugging_percentage": "Float",
+  "total_hits": "Integer",
+  "user_id": "Integer"
+}

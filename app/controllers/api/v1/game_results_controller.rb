@@ -3,8 +3,8 @@ module Api
     class GameResultsController < ApplicationController
       include MatchTypeConvertible
       before_action :authenticate_api_v1_user!,
-                    only: %i[create update update_batting_average_id game_associated_data_index destroy game_associated_data_index_user_id
-                             filtered_game_associated_data filtered_game_associated_data_user_id]
+                    only: %i[create update update_batting_average_id update_pitching_result_id game_associated_data_index destroy
+                             game_associated_data_index_user_id filtered_game_associated_data filtered_game_associated_data_user_id]
       before_action :set_game_result, only: %i[update update_batting_average_id update_pitching_result_id]
 
       def all_game_associated_data
@@ -63,7 +63,10 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        game_results = GameResult.filtered_game_associated_data_user(current_api_v1_user, year, match_type, season_id)
+        game_results = GameResult.filtered_game_associated_data_user(
+          current_api_v1_user, year, match_type, season_id,
+          start_month: params[:start_month], end_month: params[:end_month]
+        )
         render json: game_results
       end
 
@@ -74,7 +77,10 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        game_results = GameResult.filtered_game_associated_data_user(user, year, match_type, season_id)
+        game_results = GameResult.filtered_game_associated_data_user(
+          user, year, match_type, season_id,
+          start_month: params[:start_month], end_month: params[:end_month]
+        )
         render json: game_results
       end
 

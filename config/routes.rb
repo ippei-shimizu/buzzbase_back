@@ -5,7 +5,8 @@ Rails.application.routes.draw do
     namespace :v1 do
       mount_devise_token_auth_for 'User', at: 'auth', controllers: {
         registrations: 'api/v1/auth/registrations',
-        confirmations: 'custom_confirmations'
+        confirmations: 'custom_confirmations',
+        passwords: 'custom_passwords'
       }
       namespace :admin do
         post 'sign_in', to: 'sessions#create'
@@ -66,6 +67,7 @@ Rails.application.routes.draw do
         collection do
           get :current_user_match_index
           get :available_years
+          get :available_months
           get :form_defaults
         end
       end
@@ -151,6 +153,21 @@ Rails.application.routes.draw do
 
       resources :management_notices, only: %i[index show]
 
+      resources :feature_flags, only: %i[index]
+
+      namespace :pro do
+        resource :status, only: %i[show], controller: 'status'
+        resource :sync, only: %i[create], controller: 'sync'
+        resources :entitlements, only: %i[index]
+        resource :checkout, only: %i[create], controller: 'checkout'
+        resource :subscription, only: %i[destroy update], controller: 'subscription'
+      end
+
+      namespace :webhooks do
+        resource :revenuecat, only: %i[create], controller: 'revenuecat'
+        resource :stripe, only: %i[create], controller: 'stripe'
+      end
+
       namespace :admin do
         resources :analytics, only: [] do
           collection do
@@ -204,7 +221,7 @@ Rails.application.routes.draw do
         get :pitching_stats, on: :member
       end
 
-      resources :game_results, only: [:index] do
+      resources :game_results, only: %i[index show] do
         collection do
           get :all
           get :filtered_index
@@ -220,7 +237,74 @@ Rails.application.routes.draw do
         get :pitching, on: :member
         get :era_trend, on: :member
         get :game_summary, on: :member
+        get :headline_stats, on: :member
+        get :runners_situation, on: :member
+        get :hit_locations, on: :member
+        get :out_type_breakdown, on: :member
+        get :count_situations, on: :member
+        get :contact_qualities, on: :member
+        get :pitch_types, on: :member
+        get :pitcher_faceoffs, on: :member
+        get :pitch_courses, on: :member
+        get :pitch_course_pitch_types, on: :member
+        get :pitcher_attribute_summary, on: :member
+        get :batting_trend, on: :member
+        get :additional_stats, on: :member
+        get :timing_breakdown, on: :member
       end
+
+      resources :plate_appearances, only: %i[show create update destroy] do
+        collection do
+          get 'by_game/:game_result_id', action: :by_game
+        end
+      end
+      resources :stadiums, only: %i[index create]
+      resources :pitchers, only: %i[index create update]
+      resources :pitch_types, only: :index
+      resources :contact_qualities, only: :index
+      resources :timings, only: :index
+      resources :arm_angles, only: :index
+      resources :velocity_zones, only: :index
+      resources :pitcher_styles, only: :index
+      resources :appearance_situations, only: :index
+
+      resources :practice_menus, only: %i[index create update destroy]
+      resources :practice_logs, only: %i[index create destroy]
+      resources :practice_sessions, only: %i[index show create destroy] do
+        collection { get :by_date }
+      end
+      resources :practice_menu_summaries, only: %i[index]
+      resources :practice_menu_trends, only: %i[show]
+      resource :practice_overview, only: %i[show], controller: 'practice_overview'
+      resources :shadow_swing_sessions, only: %i[create] do
+        member { post :complete }
+        collection do
+          get :stats
+          get :trend
+        end
+      end
+      resources :activity_logs, only: %i[index] do
+        collection { get :streak }
+      end
+      resources :schedules, only: %i[index create update destroy]
+      post 'schedules/week_copy', to: 'schedules/week_copies#create'
+      resources :menu_sets, only: %i[index show create update destroy]
+      get 'plans/by_date', to: 'plans#by_date'
+      get 'plans/calendar', to: 'plans#calendar'
+      resources :goals, only: %i[index create update destroy] do
+        collection { get :history }
+        resource :achievement, only: %i[create destroy], controller: 'goals/achievements'
+      end
+      resources :goal_badges, only: %i[index]
+      resources :baseball_notes, only: %i[index show create update destroy]
+      resources :improvement_themes, only: %i[index create update destroy]
+      resources :reflection_templates, only: %i[index create update destroy]
+      resources :note_tags, only: %i[index create]
+      resources :periodic_reviews, only: %i[index update]
+      resource :correlation_insights, only: %i[show], controller: 'correlation_insights'
+      resources :insight_combinations, only: %i[create destroy]
+      resources :media_attachments, only: %i[update destroy]
+      post 'media_attachments/presign', to: 'media_attachments/presigns#create'
     end
   end
 

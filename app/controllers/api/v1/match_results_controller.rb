@@ -3,7 +3,7 @@ module Api
     class MatchResultsController < ApplicationController
       include MatchTypeConvertible
 
-      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years form_defaults]
+      before_action :authenticate_api_v1_user!, only: %i[create update destroy existing_search current_game_result_search current_user_match_index match_index_user_id user_game_result_search available_years available_months form_defaults]
       before_action :set_match_result, only: %i[show]
       before_action :set_owned_match_result, only: %i[update destroy]
       before_action :normalize_match_type, only: %i[create update]
@@ -21,7 +21,7 @@ module Api
 
       def create
         @match_result = MatchResult.new(match_results_params.merge(user_id: current_api_v1_user.id))
-        if @match_result.save
+        if save_match_result_idempotently
           render json: @match_result, status: :created
         else
           render json: { errors: @match_result.errors.full_messages }, status: :unprocessable_entity
@@ -72,12 +72,26 @@ module Api
         render json: years.map(&:to_s)
       end
 
+      # GET /api/v1/match_results/available_months
+      # 指定ユーザー（またはログインユーザー）の試合データに紐づく年月一覧を "YYYY-MM" で返す
+      def available_months
+        user = params[:user_id].present? ? User.find_by(id: params[:user_id]) : current_api_v1_user
+        return render json: { error: 'ユーザーが存在しません' }, status: :not_found unless user
+        unless user == current_api_v1_user || user.profile_visible_to?(current_api_v1_user)
+          return render json: { error: 'このアカウントは非公開です' }, status: :forbidden
+        end
+
+        render json: MatchResult.available_months_for(user.id)
+      end
+
       def existing_search
-        @match_result = MatchResult.find_by(game_result_id: params[:game_result_id], user_id: params[:user_id])
+        @match_result = MatchResult.includes(:stadium).find_by(game_result_id: params[:game_result_id], user_id: params[:user_id])
         if @match_result
           game_result = GameResult.includes(:season).find_by(id: params[:game_result_id])
           season_id = game_result&.season_id
-          render json: @match_result.as_json.merge(season_id:)
+          # 編集画面が球場名表示のために stadium 一覧を追加取得しなくて済むよう、
+          # stadium_id だけでなく解決済みの stadium_name も返す。
+          render json: @match_result.as_json.merge(season_id:, stadium_name: @match_result.stadium&.name)
         else
           render json: { message: 'No matching record found' }, status: :not_found
         end
@@ -163,6 +177,23 @@ module Api
         @match_result = current_api_v1_user.match_results.find_by(id: params[:id])
       end
 
+      # 一意性バリデーションと DB ユニークインデックスの間の TOCTOU レースで INSERT が負けた場合、
+      # 先に COMMIT された同一 game_result_id のレコードを勝者として引き直し、成功として扱う（作成の冪等化）。
+      # 制約違反は外側トランザクションごと abort させ復旧クエリまで道連れにするため、
+      # セーブポイント内で INSERT して影響をここに閉じ込める（Stadium.find_or_create_for! と同型）。
+      # 引き直しは認証ユーザーのスコープに限定する。ユニークインデックスは game_result_id 単独で
+      # 所有者を含まないため、スコープを外すと他ユーザーのレコードを 201 で返してしまう。
+      # @return [Boolean] 保存または勝者レコードへの差し替えに成功したか
+      def save_match_result_idempotently
+        ActiveRecord::Base.transaction(requires_new: true) { @match_result.save }
+      rescue ActiveRecord::RecordNotUnique => e
+        winner = current_api_v1_user.match_results.find_by(game_result_id: @match_result.game_result_id)
+        raise e unless winner
+
+        @match_result = winner
+        true
+      end
+
       def normalize_match_type
         return unless params.dig(:match_result, :match_type)
 
@@ -172,7 +203,7 @@ module Api
       def match_results_params
         params.require(:match_result).permit(:user_id, :game_result_id, :date_and_time, :match_type, :my_team_id, :opponent_team_id, :my_team_score,
                                              :opponent_team_score, :batting_order, :defensive_position, :tournament_id, :memo, :inning_format,
-                                             :appearance_type)
+                                             :appearance_type, :stadium_id)
       end
     end
   end

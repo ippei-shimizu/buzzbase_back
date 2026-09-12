@@ -9,7 +9,7 @@ RSpec.describe PitchingResult, type: :model do
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), match_type: 'regular')
       create(:pitching_result, game_result: gr, user:,
                                win: 1, loss: 0, innings_pitched: 7.0, earned_run: 2, strikeouts: 8,
-                               base_on_balls: 1, hits_allowed: 4)
+                               base_on_balls: 1, hits_allowed: 4, number_of_pitches: 90)
       gr
     end
 
@@ -18,7 +18,7 @@ RSpec.describe PitchingResult, type: :model do
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 8, 20), match_type: 'open')
       create(:pitching_result, game_result: gr, user:,
                                win: 0, loss: 1, innings_pitched: 5.0, earned_run: 4, strikeouts: 3,
-                               base_on_balls: 3, hits_allowed: 6)
+                               base_on_balls: 3, hits_allowed: 6, number_of_pitches: 80)
       gr
     end
 
@@ -27,7 +27,7 @@ RSpec.describe PitchingResult, type: :model do
       gr.match_result.update!(date_and_time: Time.zone.local(2023, 9, 1), match_type: 'regular')
       create(:pitching_result, game_result: gr, user:,
                                win: 1, loss: 0, innings_pitched: 9.0, earned_run: 0, strikeouts: 10,
-                               base_on_balls: 2, hits_allowed: 3)
+                               base_on_balls: 2, hits_allowed: 3, number_of_pitches: 120)
       gr
     end
 
@@ -37,6 +37,7 @@ RSpec.describe PitchingResult, type: :model do
       expect(result.loss.to_i).to eq(1)
       expect(result.strikeouts.to_i).to eq(21) # 8+3+10
       expect(result.innings_pitched.to_f).to eq(21.0) # 7+5+9
+      expect(result.number_of_pitches.to_i).to eq(290) # 90+80+120
     end
 
     it 'filters by year' do
@@ -74,6 +75,26 @@ RSpec.describe PitchingResult, type: :model do
       result = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2022').take
       expect(result).to be_nil
     end
+
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      let!(:game_jst_new_year) do
+        gr = create(:game_result, user:)
+        # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままだと年フィルタから漏れる
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        create(:pitching_result, game_result: gr, user:,
+                                 win: 1, loss: 0, innings_pitched: 6.0, earned_run: 1, strikeouts: 5,
+                                 base_on_balls: 0, hits_allowed: 2, number_of_pitches: 70)
+        gr
+      end
+
+      it 'includes it in the JST year (2026), not the UTC year (2025)' do
+        result_jst_year = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2026').take
+        result_utc_year = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2025').take
+
+        expect(result_jst_year.strikeouts.to_i).to eq(5)
+        expect(result_utc_year).to be_nil
+      end
+    end
   end
 
   describe '.filtered_pitching_stats_for_user' do
@@ -82,12 +103,17 @@ RSpec.describe PitchingResult, type: :model do
       gr.match_result.update!(date_and_time: Time.zone.local(2024, 6, 15), match_type: 'regular')
       create(:pitching_result, game_result: gr, user:,
                                win: 1, loss: 0, innings_pitched: 9.0, earned_run: 2, strikeouts: 10,
-                               base_on_balls: 2, hits_allowed: 5)
+                               base_on_balls: 2, hits_allowed: 5, number_of_pitches: 110)
     end
 
     it 'returns calculated stats hash with expected keys' do
       result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
-      expect(result).to include(:era, :win_percentage, :whip, :k_per_nine, :bb_per_nine, :k_bb)
+      expect(result).to include(:era, :win_percentage, :whip, :k_per_nine, :bb_per_nine, :k_bb, :number_of_pitches)
+    end
+
+    it 'includes summed number_of_pitches in the returned hash' do
+      result = described_class.filtered_pitching_stats_for_user(user.id, year: '2024')
+      expect(result[:number_of_pitches]).to eq(110)
     end
 
     it 'calculates ERA correctly' do

@@ -72,8 +72,15 @@ module Api
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        aggregated_data = if year.present? || match_type.present? || season_id.present?
-                            BattingAverage.filtered_aggregate_for_user(user_id, year:, match_type:, season_id:)
+        tournament_id = params[:tournament_id]
+        start_month = params[:start_month]
+        end_month = params[:end_month]
+        any_filter = year.present? || match_type.present? || season_id.present? ||
+                     tournament_id.present? || start_month.present? || end_month.present?
+        aggregated_data = if any_filter
+                            BattingAverage.filtered_aggregate_for_user(
+                              user_id, year:, match_type:, season_id:, tournament_id:, start_month:, end_month:
+                            )
                           else
                             BattingAverage.aggregate_for_user(user_id)
                           end
@@ -81,11 +88,15 @@ module Api
       end
 
       def personal_batting_stats
-        user_id = params[:user_id]
+        # params は常に String。レスポンスへ user_id を埋め込むため Integer に揃える（DB 由来の他経路と型を一致させる）。
+        user_id = params[:user_id].to_i
         year = params[:year]
         match_type = convert_match_type(params[:match_type])
         season_id = params[:season_id]
-        batting_stats = BattingAverage.stats_for_user(user_id, year:, match_type:, season_id:)
+        batting_stats = BattingAverage.stats_for_user(
+          user_id, year:, match_type:, season_id:, tournament_id: params[:tournament_id],
+                   start_month: params[:start_month], end_month: params[:end_month]
+        )
         if batting_stats.present?
           render json: batting_stats
         else

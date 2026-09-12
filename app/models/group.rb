@@ -1,5 +1,8 @@
 class Group < ApplicationRecord
   mount_uploader :icon, GroupIconUploader
+  # User#image と同様、S3 への転送をトランザクションの外（COMMIT 後）で行う。
+  skip_callback :save, :after, :store_icon!
+  after_commit :store_icon_after_commit, on: %i[create update]
   has_many :group_users, dependent: :destroy
   has_many :users, through: :group_users
   has_many :group_invitations, dependent: :destroy
@@ -35,6 +38,15 @@ class Group < ApplicationRecord
   end
 
   private
+
+  # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
+  # 直前の識別子へ戻してから例外を再送出する。
+  def store_icon_after_commit
+    store_icon!
+  rescue StandardError
+    update_column(:icon, saved_changes['icon']&.first) if saved_changes.key?('icon') # rubocop:disable Rails/SkipsModelValidations
+    raise
+  end
 
   def invite_user(user)
     invitation = group_invitations.find_or_initialize_by(user_id: user.id)

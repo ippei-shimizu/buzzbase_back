@@ -1,0 +1,15 @@
+- id: 1
+  name: 120km/h未満
+  display_order: 1
+- id: 2
+  name: 120-130km/h
+  display_order: 2
+- id: 3
+  name: 130-140km/h
+  display_order: 3
+- id: 4
+  name: 140-150km/h
+  display_order: 4
+- id: 5
+  name: 150km/h以上
+  display_order: 5

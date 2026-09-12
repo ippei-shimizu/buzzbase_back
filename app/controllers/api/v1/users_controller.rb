@@ -73,13 +73,18 @@ module Api
       def update
         was_private = current_api_v1_user.is_private?
         if current_api_v1_user.update(user_params)
-          current_api_v1_user.approve_all_pending_requests! if was_private && !current_api_v1_user.is_private?
+          # 承認待ちが多いユーザーで更新リクエストを遅くしないよう一括承認は非同期に行う。
+          ApprovePendingFollowRequestsJob.perform_later(current_api_v1_user.id) if was_private && !current_api_v1_user.is_private?
           render json: { success: true }
         else
           render json: { errors: current_api_v1_user.errors.full_messages }, status: :unprocessable_entity
         end
       rescue ActiveRecord::RecordNotUnique
         render json: { errors: ['このユーザーIDは既に使われています'] }, status: :unprocessable_entity
+      rescue ArgumentError
+        # enum カラム（throw_hand / batting_side）への不正値代入は ArgumentError を raise し
+        # 500 になってしまうため、422 に変換する。
+        render json: { errors: ['利き腕・打席の指定が不正です'] }, status: :unprocessable_entity
       end
 
       def following_users
@@ -126,6 +131,15 @@ module Api
       end
 
       def destroy
+        # Pro 加入中ユーザーは Apple/Stripe 側の自動課金が続いてしまうため、削除前に解約を促す。
+        if current_api_v1_user.subscription&.pro_active?
+          return render json: {
+            success: false,
+            error: 'pro_active',
+            message: 'Pro 加入中のため、先に解約してください'
+          }, status: :unprocessable_entity
+        end
+
         current_api_v1_user.destroy!
         render json: { success: true, message: 'アカウントが削除されました' }
       rescue StandardError => e
@@ -144,7 +158,14 @@ module Api
       end
 
       def user_params
-        params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id, :is_private)
+        permitted = params.require(:user).permit(:name, :user_id, :introduction, :image, :team_id, :is_private,
+                                                 :throw_hand, :batting_side)
+        # front / mobile は FormData 送信のため「未選択に戻す」と空文字が飛んでくる。
+        # enum への空文字代入は ArgumentError で 500 になるので nil へ正規化する。
+        %i[throw_hand batting_side].each do |key|
+          permitted[key] = permitted[key].presence if permitted.key?(key)
+        end
+        permitted
       end
     end
   end

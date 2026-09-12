@@ -20,7 +20,7 @@ RSpec.describe V2::MatchResultSerializer, type: :serializer do
     %i[id date_and_time match_type my_team_id opponent_team_id
        my_team_score opponent_team_score batting_order
        defensive_position tournament_id memo inning_format
-       appearance_type].each do |attr|
+       appearance_type stadium_id].each do |attr|
       expect(serialization).to have_key(attr)
     end
   end
@@ -52,6 +52,32 @@ RSpec.describe V2::MatchResultSerializer, type: :serializer do
 
     it 'returns nil for tournament_name' do
       expect(serialization[:tournament_name]).to be_nil
+    end
+  end
+
+  context 'when stadium is present' do
+    let(:stadium) { create(:stadium, name: '東京ドーム') }
+
+    before do
+      game_result.match_result.update!(stadium:)
+    end
+
+    it 'includes stadium_id' do
+      expect(serialization[:stadium_id]).to eq(stadium.id)
+    end
+
+    it 'includes stadium_name' do
+      expect(serialization[:stadium_name]).to eq('東京ドーム')
+    end
+  end
+
+  context 'when stadium is nil' do
+    it 'returns nil for stadium_id' do
+      expect(serialization[:stadium_id]).to be_nil
+    end
+
+    it 'returns nil for stadium_name' do
+      expect(serialization[:stadium_name]).to be_nil
     end
   end
 end

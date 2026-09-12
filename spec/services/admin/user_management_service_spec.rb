@@ -42,6 +42,44 @@ RSpec.describe Admin::UserManagementService do
 
         expect(result[:users]).to include(user_a, user_b, user_c)
       end
+
+      it 'does not match users.id by the keyword search (id is a dedicated filter)' do
+        # name / email に数字を含めないユーザーを id 文字列で検索しても、
+        # search は ILIKE のみで id 完全一致を持たないためヒットしない。
+        target = create(:user, name: 'Zeta', email: 'zeta@example.com')
+
+        result = described_class.new(search: target.id.to_s).call
+
+        expect(result[:users]).not_to include(target)
+      end
+    end
+
+    context 'with id filter' do
+      it 'filters users by exact users.id' do
+        result = described_class.new(id: user_b.id.to_s).call
+
+        expect(result[:users]).to contain_exactly(user_b)
+      end
+
+      it 'returns no users when id matches nothing' do
+        result = described_class.new(id: '999999999').call
+
+        expect(result[:users]).to be_empty
+      end
+
+      it 'returns no users and does not raise for a non-numeric id' do
+        expect do
+          result = described_class.new(id: 'abc').call
+          expect(result[:users]).to be_empty
+        end.not_to raise_error
+      end
+
+      it 'returns no users and does not raise for a huge numeric id out of bigint range' do
+        expect do
+          result = described_class.new(id: '9' * 25).call
+          expect(result[:users]).to be_empty
+        end.not_to raise_error
+      end
     end
 
     context 'with status filter' do

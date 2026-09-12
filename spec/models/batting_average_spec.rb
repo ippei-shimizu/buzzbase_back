@@ -25,44 +25,66 @@ RSpec.describe BattingAverage, type: :model do
       gr
     end
 
+    # `hit` カラムは「単打のみ」を保持するが、aggregate_for_user では NPB 標準の
+    # 全安打 (単打 + 2B + 3B + HR) を返すよう SQL 側で集計済みのため、
+    # game_2024_regular: 単打3 + HR1 = 全安打 4 / game_2024_open: 単打1 = 全安打 1 /
+    # game_2023_regular: 単打2 = 全安打 2 が期待値となる。
     it 'returns aggregated stats for all games when no filter is given' do
       result = described_class.filtered_aggregate_for_user(user.id).take
-      expect(result.hit.to_i).to eq(6) # 3+1+2
+      expect(result.hit.to_i).to eq(7) # (3+1) + 1 + 2
       expect(result.at_bats.to_i).to eq(12) # 4+3+5
       expect(result.home_run.to_i).to eq(1)
     end
 
     it 'filters by year' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2024').take
-      expect(result.hit.to_i).to eq(4) # 3+1
+      expect(result.hit.to_i).to eq(5) # (3+1) + 1 = 全安打 4 + 1
       expect(result.at_bats.to_i).to eq(7) # 4+3
     end
 
     it 'filters by match_type' do
       result = described_class.filtered_aggregate_for_user(user.id, match_type: 'regular').take
-      expect(result.hit.to_i).to eq(5) # 3+2
+      expect(result.hit.to_i).to eq(6) # (3+1) + 2 = 全安打 4 + 2
       expect(result.at_bats.to_i).to eq(9) # 4+5
     end
 
     it 'filters by both year and match_type' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2024', match_type: 'regular').take
-      expect(result.hit.to_i).to eq(3)
+      expect(result.hit.to_i).to eq(4) # 単打3 + HR1
       expect(result.at_bats.to_i).to eq(4)
     end
 
     it 'skips year filter when year is "通算"' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '通算').take
-      expect(result.hit.to_i).to eq(6)
+      expect(result.hit.to_i).to eq(7)
     end
 
     it 'skips match_type filter when match_type is "全て"' do
       result = described_class.filtered_aggregate_for_user(user.id, match_type: '全て').take
-      expect(result.hit.to_i).to eq(6)
+      expect(result.hit.to_i).to eq(7)
     end
 
     it 'returns nil when no games match the filter' do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2022').take
       expect(result).to be_nil
+    end
+
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      let!(:game_jst_new_year) do
+        gr = create(:game_result, user:)
+        # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままだと年フィルタから漏れる
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        create(:batting_average, game_result: gr, user:, hit: 1, at_bats: 3, home_run: 0, times_at_bat: 4)
+        gr
+      end
+
+      it 'includes it in the JST year (2026), not the UTC year (2025)' do
+        result_jst_year = described_class.filtered_aggregate_for_user(user.id, year: '2026').take
+        result_utc_year = described_class.filtered_aggregate_for_user(user.id, year: '2025').take
+
+        expect(result_jst_year.hit.to_i).to eq(1)
+        expect(result_utc_year).to be_nil
+      end
     end
   end
 
@@ -129,6 +151,17 @@ RSpec.describe BattingAverage, type: :model do
       ba = described_class.new(game_result:, user:)
       expect(ba).not_to be_valid
       expect(ba.errors[:base]).to include('打撃成績が未入力です')
+    end
+
+    it 'is valid when only plate_appearances is non-zero (interference-only or undecided-only games)' do
+      ba = described_class.new(
+        game_result:, user:, plate_appearances: 1,
+        times_at_bat: 0, at_bats: 0, hit: 0, two_base_hit: 0, three_base_hit: 0,
+        home_run: 0, total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 0,
+        base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+        stealing_base: 0, caught_stealing: 0, error: 0
+      )
+      expect(ba).to be_valid
     end
 
     it 'is valid when at least one stat field is non-zero' do

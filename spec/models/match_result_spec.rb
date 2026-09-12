@@ -7,6 +7,7 @@ RSpec.describe MatchResult, type: :model do
     it { should belong_to(:opponent_team).class_name('Team') }
     it { should belong_to(:tournament).optional }
     it { should belong_to(:game_result) }
+    it { should belong_to(:stadium).optional }
   end
 
   describe 'validations' do
@@ -16,6 +17,15 @@ RSpec.describe MatchResult, type: :model do
     it { should validate_presence_of(:opponent_team_score) }
     it { should validate_presence_of(:inning_format) }
 
+    it 'does not allow a second match_result for the same game_result_id' do
+      # game_result factory の after(:create) が match_result を自動作成するため、
+      # create(:match_result) を直接呼ぶと二重作成になり別のバリデーションエラーが先に発生する。
+      existing_game_result = create(:game_result)
+      duplicate = build(:match_result, game_result: existing_game_result, user: existing_game_result.user)
+      expect(duplicate).not_to be_valid
+      expect(duplicate.errors[:game_result_id]).to be_present
+    end
+
     it 'validates inning_format inclusion with the Japanese locale message' do
       expect(described_class.new).to validate_inclusion_of(:inning_format)
         .in_array([7, 9])
@@ -23,12 +33,12 @@ RSpec.describe MatchResult, type: :model do
     end
 
     # appearance_type に応じた条件付きバリデーション。
-    # starter は打順／守備位置必須、代打のみ・代走のみは任意。
+    # starter は守備位置のみ必須。打順は DH 制で投手として出場する場合「なし」を許容するため任意。
+    # batting_order カラムは DB 上 null: false のため、保存実態は空文字 '' を渡す（リクエストスペックと統一）。
     context 'when appearance_type is starter' do
-      it 'requires batting_order' do
-        mr = build(:match_result, appearance_type: 'starter', batting_order: nil)
-        expect(mr).not_to be_valid
-        expect(mr.errors[:batting_order]).to be_present
+      it 'allows empty batting_order' do
+        mr = build(:match_result, appearance_type: 'starter', batting_order: '')
+        expect(mr).to be_valid
       end
 
       it 'requires defensive_position' do
@@ -87,10 +97,65 @@ RSpec.describe MatchResult, type: :model do
     end
   end
 
+  describe '.available_years_for' do
+    it 'returns years based on JST, not UTC' do
+      user = create(:user)
+      game_result = create(:game_result, user:)
+      # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままEXTRACTすると前年(2025)にずれる
+      game_result.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+
+      years = described_class.available_years_for(user)
+
+      expect(years).to include(2026)
+      expect(years).not_to include(2025)
+    end
+  end
+
   describe 'APPEARANCE_TYPES' do
     # 値ごとの挙動はバリデーション spec で網羅しているので、ここでは件数だけ守る。
     it 'has 5 entries' do
       expect(described_class::APPEARANCE_TYPES.size).to eq(5)
+    end
+  end
+
+  describe '#recalculate_activity' do
+    let(:user) { create(:user) }
+
+    it '試合日を変更すると旧日付・新日付の両方の活動集計を再計算する' do
+      game_result = create(:game_result, user:)
+      match_result = game_result.match_result
+      old_date = Time.zone.local(2026, 7, 1, 10, 0)
+      new_date = Time.zone.local(2026, 7, 5, 10, 0)
+      match_result.update!(date_and_time: old_date)
+
+      expect(user.activity_logs.find_by(activity_date: old_date.to_date)).to be_present
+
+      match_result.update!(date_and_time: new_date)
+
+      aggregate_failures do
+        expect(user.activity_logs.find_by(activity_date: old_date.to_date)).to be_nil
+        expect(user.activity_logs.find_by(activity_date: new_date.to_date)).to be_present
+      end
+    end
+
+    context '活動集計の再計算が例外を投げたとき' do
+      before do
+        allow(Activities::DailyActivityRecalculator).to receive(:new).and_raise(StandardError, 'recalc boom')
+        allow(Sentry).to receive(:capture_exception)
+      end
+
+      it '試合結果の保存自体は成功し、例外は Sentry に記録される' do
+        game_result = create(:game_result, user:)
+        match_result = game_result.match_result
+
+        expect { match_result.update!(date_and_time: Time.zone.local(2026, 7, 10, 10, 0)) }.not_to raise_error
+
+        expect(match_result.reload.date_and_time).to eq(Time.zone.local(2026, 7, 10, 10, 0))
+        expect(Sentry).to have_received(:capture_exception).with(
+          instance_of(StandardError),
+          hash_including(tags: hash_including(source: 'match_result_recalculate_activity'))
+        ).at_least(:once)
+      end
     end
   end
 end

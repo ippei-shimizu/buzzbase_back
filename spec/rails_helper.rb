@@ -6,6 +6,7 @@ require_relative '../config/environment'
 abort('The Rails environment is running in production mode!') if Rails.env.production?
 require 'rspec/rails'
 require 'shoulda/matchers'
+require 'super_diff/rspec'
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories.
@@ -26,9 +27,11 @@ RSpec.configure do |config|
 
   config.include FactoryBot::Syntax::Methods
   config.include AuthHelpers, type: :request
+  config.include SubscriptionHelpers, type: :request
   config.include ActiveJob::TestHelper, type: :job
   config.include ActiveJob::TestHelper, type: :model
   config.include ActiveJob::TestHelper, type: :request
+  config.include ActiveSupport::Testing::TimeHelpers
 end
 
 Shoulda::Matchers.configure do |config|

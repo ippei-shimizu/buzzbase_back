@@ -38,3 +38,4 @@
 
 # Ruby LSP cache
 .ruby-lsp/
+tmp/db_dumps/

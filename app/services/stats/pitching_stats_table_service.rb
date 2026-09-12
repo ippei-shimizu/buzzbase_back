@@ -1,24 +1,26 @@
 # frozen_string_literal: true
 
 module Stats
-  class PitchingStatsTableService
+  class PitchingStatsTableService # rubocop:disable Metrics/ClassLength
     include Concerns::TableServiceConcern
 
     PITCHING_FIELDS = %w[
       win loss hold saves complete_games shutouts innings_pitched
-      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run
+      hits_allowed home_runs_hit strikeouts base_on_balls hit_by_pitch run_allowed earned_run number_of_pitches
     ].freeze
 
     PITCHING_SYMBOLS = PITCHING_FIELDS.map(&:to_sym).freeze
 
     # mode: :yearly, :monthly, :daily
     # year: required for :monthly and :daily
-    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil)
+    def initialize(user_id:, mode: :yearly, year: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @mode = mode.to_sym
       @year = year
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     def call
@@ -38,13 +40,13 @@ module Stats
                             .where('pitching_results.innings_pitched > 0')
       scope = scope.where(game_results: { season_id: @season_id }) if @season_id.present?
       scope = scope.where(match_results: { tournament_id: @tournament_id }) if @tournament_id.present?
-      scope
+      PeriodRange.apply(scope, @start_month, @end_month)
     end
 
     # --- yearly ---
     def yearly_rows
       scope = base_scope
-      years = scope.select(Arel.sql('DISTINCT EXTRACT(YEAR FROM match_results.date_and_time)::int AS yr'))
+      years = scope.select(Arel.sql("DISTINCT #{Stats::JstDateSql::YEAR_JST_INT_SQL} AS yr"))
                    .filter_map(&:yr).sort
 
       rows = years.map { |year| build_row(label: year.to_s, scope: scope_for_year(scope, year)) }
@@ -55,10 +57,7 @@ module Stats
     # --- monthly ---
     def monthly_rows
       scope = @year.present? ? scope_for_year(base_scope, @year.to_i) : base_scope
-      months = scope.select(Arel.sql('DISTINCT EXTRACT(MONTH FROM match_results.date_and_time)::int AS mon'))
-                    .filter_map(&:mon).sort
-
-      rows = months.map { |mon| build_row(label: "#{mon}月", scope: scope_for_month(scope, mon)) }
+      rows = monthly_buckets(scope).map { |label, month_scope| build_row(label:, scope: month_scope) }
       rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
     end
@@ -97,7 +96,7 @@ module Stats
         .merge(weighted_pitching_stats(pitching_result, inning_format))
     end
 
-    def base_pitching_stats(record)
+    def base_pitching_stats(record) # rubocop:disable Metrics/AbcSize
       {
         'appearances' => 1,
         'win' => record.win.to_i,
@@ -113,7 +112,8 @@ module Stats
         'base_on_balls' => record.base_on_balls.to_i,
         'hit_by_pitch' => record.hit_by_pitch.to_i,
         'run_allowed' => record.run_allowed.to_i,
-        'earned_run' => record.earned_run.to_i
+        'earned_run' => record.earned_run.to_i,
+        'number_of_pitches' => record.number_of_pitches.to_i
       }
     end
 
@@ -185,6 +185,7 @@ module Stats
         'SUM(pitching_results.hit_by_pitch) AS hit_by_pitch',
         'SUM(pitching_results.run_allowed) AS run_allowed',
         'SUM(pitching_results.earned_run) AS earned_run',
+        'SUM(pitching_results.number_of_pitches) AS number_of_pitches',
         'SUM(pitching_results.earned_run * match_results.inning_format) AS weighted_earned_run',
         'SUM(pitching_results.strikeouts * match_results.inning_format) AS weighted_strikeouts',
         'SUM(pitching_results.base_on_balls * match_results.inning_format) AS weighted_base_on_balls'

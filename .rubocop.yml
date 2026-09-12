@@ -43,6 +43,9 @@ Metrics/BlockLength:
   AllowedMethods: ['describe', 'context', 'rails_application_routes']
   Max: 50
 
+Metrics/ParameterLists:
+  Max: 7
+
 # RSpec: 実用的な設定（過度に厳しくしない）
 RSpec/ExampleLength:
   Max: 20
@@ -61,3 +64,8 @@ RSpec/ContextWording:
 
 RSpec/IteratedExpectation:
   Enabled: false
+
+# rake task の spec は class でも module でもないため文字列 describe を許容する
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/lib/tasks/**/*'

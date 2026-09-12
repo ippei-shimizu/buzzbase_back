@@ -93,13 +93,55 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:unauthorized)
     end
 
-    it 'returns 200 with trend array' do
+    it 'returns 200 with granularity (default month) + points array' do
       get('/api/v2/stats/era_trend', headers:)
 
       expect(response).to have_http_status(:ok)
       json = response.parsed_body
+      expect(json['granularity']).to eq('month')
+      expect(json['points']).to be_an(Array)
+      expect(json['points'].first).to include('key', 'label', 'era') if json['points'].any?
+    end
+
+    it 'includes a legacy trend array (month + era) alongside points for backward compatibility' do
+      get('/api/v2/stats/era_trend', headers:)
+
+      json = response.parsed_body
       expect(json['trend']).to be_an(Array)
-      expect(json['trend'].first).to include('month', 'era') if json['trend'].any?
+      expect(json['trend'].first).to include('month' => 7, 'era' => json['points'].first['era'])
+    end
+
+    it 'returns an empty trend array for granularity=season (never requested by legacy clients)' do
+      make_pro(user)
+
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+      expect(response.parsed_body['trend']).to eq([])
+    end
+
+    it 'returns 403 for granularity=season when the user is free' do
+      get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    context 'Pro ユーザー' do
+      before { make_pro(user) }
+
+      it 'returns season-granularity points for a Pro user' do
+        season1 = create(:season, user:, name: '2026春')
+        season2 = create(:season, user:, name: '2026夏')
+        game1 = create(:game_result, user:, season: season1)
+        game2 = create(:game_result, user:, season: season2)
+        create(:pitching_result, game_result: game1, user:, innings_pitched: 6, earned_run: 2)
+        create(:pitching_result, game_result: game2, user:, innings_pitched: 6, earned_run: 3)
+
+        get('/api/v2/stats/era_trend', params: { granularity: 'season' }, headers:)
+
+        expect(response).to have_http_status(:ok)
+        json = response.parsed_body
+        expect(json['granularity']).to eq('season')
+        expect(json['points'].pluck('label')).to contain_exactly('2026春', '2026夏')
+      end
     end
   end
 
@@ -130,6 +172,374 @@ RSpec.describe 'Api::V2::Stats', type: :request do
         'game_result_id', 'date', 'match_type', 'opponent', 'result', 'my_score', 'opponent_score'
       )
       expect(json['recent_form'].first['match_type']).to eq('regular')
+    end
+  end
+
+  describe 'GET /api/v2/stats/headline_stats' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/headline_stats'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with the 7 headline indicators and at_bats' do
+      get('/api/v2/stats/headline_stats', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'batting_average', 'hit', 'home_run', 'runs_batted_in',
+        'on_base_percentage', 'slugging_percentage', 'ops', 'at_bats'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/runners_situation' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/runners_situation'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with scoring position aggregation' do
+      get('/api/v2/stats/runners_situation', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'batting_average', 'at_bats', 'hits',
+        'two_base_hit', 'three_base_hit', 'home_run'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/hit_locations' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/hit_locations'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with points array' do
+      get('/api/v2/stats/hit_locations', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('points')
+      expect(json['points']).to be_an(Array)
+    end
+  end
+
+  describe 'GET /api/v2/stats/out_type_breakdown' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/out_type_breakdown'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with breakdown of out_type enum categories' do
+      get('/api/v2/stats/out_type_breakdown', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('breakdown', 'total')
+      expect(json['breakdown']).to be_an(Array)
+      expect(json['breakdown'].first).to include('category', 'count', 'percentage')
+    end
+  end
+
+  describe 'GET /api/v2/stats/hit_directions (拡張済みフィールド)' do
+    it 'returns directions with at_bats / hits / total_bases / two_base_hit / three_base_hit / home_run' do
+      get('/api/v2/stats/hit_directions', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json['directions'].first).to include(
+        'id', 'label', 'count', 'top_category',
+        'at_bats', 'hits', 'two_base_hit', 'three_base_hit', 'home_run', 'total_bases'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/count_situations' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/count_situations'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/count_situations', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with first_pitch / favorable_count / pinch_count + total_target_pa for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/count_situations', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('first_pitch', 'favorable_count', 'pinch_count', 'total_target_pa')
+      %w[first_pitch favorable_count pinch_count].each do |key|
+        expect(json[key]).to include('at_bats', 'hits', 'batting_average')
+      end
+    end
+  end
+
+  describe 'GET /api/v2/stats/contact_qualities' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/contact_qualities'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with breakdown of all 5 master categories' do
+      get('/api/v2/stats/contact_qualities', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('breakdown', 'total')
+      expect(json['breakdown']).to be_an(Array)
+      expect(json['breakdown'].first).to include('id', 'label', 'count', 'percentage')
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitch_types' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_types'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_types', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows for all 10 master pitch types + total_target_pa for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitch_types', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa')
+      expect(json['rows']).to be_an(Array)
+      expect(json['rows'].first).to include(
+        'id', 'label', 'at_bats', 'hits', 'total_bases',
+        'batting_average', 'slugging_percentage'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitcher_faceoffs' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitcher_faceoffs'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitcher_faceoffs', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows + total_target_pa + min_plate_appearances for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitcher_faceoffs', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa', 'min_plate_appearances')
+      expect(json['rows']).to be_an(Array)
+      expect(json['min_plate_appearances']).to eq(3)
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitch_courses' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_courses'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_courses', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with 25 zones + strike/ball zone summaries + min_at_bats for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitch_courses', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('zones', 'strike_zone', 'ball_zone', 'total_target_pa', 'min_at_bats')
+      expect(json['zones'].length).to eq(25)
+      expect(json['zones'].first).to include(
+        'course', 'row', 'col', 'is_strike_zone',
+        'plate_appearances', 'at_bats', 'hits', 'batting_average', 'is_reliable'
+      )
+      expect(json['min_at_bats']).to eq(3)
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitch_course_pitch_types' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitch_course_pitch_types'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitch_course_pitch_types', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows of 25 zones per master pitch type for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitch_course_pitch_types', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('rows', 'total_target_pa', 'min_at_bats')
+      expect(json['rows'].length).to eq(10)
+      expect(json['rows'].first['zones'].length).to eq(25)
+    end
+  end
+
+  describe 'GET /api/v2/stats/batting_trend' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/batting_trend'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with granularity (default game) + points array' do
+      get('/api/v2/stats/batting_trend', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('granularity', 'points')
+      expect(json['granularity']).to eq('game')
+      expect(json['points']).to be_an(Array)
+    end
+
+    it 'returns granularity=month when granularity=month is requested' do
+      get('/api/v2/stats/batting_trend', headers:, params: { granularity: 'month' })
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body['granularity']).to eq('month')
+    end
+  end
+
+  describe 'GET /api/v2/stats/additional_stats' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/additional_stats'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with 16 additional stat indicators' do
+      get('/api/v2/stats/additional_stats', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include(
+        'games', 'plate_appearances', 'two_base_hit', 'three_base_hit',
+        'total_bases', 'run', 'strike_out', 'base_on_balls', 'hit_by_pitch',
+        'sacrifice_hit', 'sacrifice_fly', 'stealing_base', 'caught_stealing',
+        'iso', 'isod', 'bb_per_k'
+      )
+    end
+  end
+
+  describe 'GET /api/v2/stats/pitcher_attribute_summary' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitcher_attribute_summary'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with 4 attribute axes' do
+      get('/api/v2/stats/pitcher_attribute_summary', headers:)
+
+      expect(response).to have_http_status(:ok)
+      json = response.parsed_body
+      expect(json).to include('by_throw_hand', 'by_arm_angle', 'by_velocity_zone', 'by_pitcher_style')
+    end
+  end
+
+  describe '非公開アカウントの可視性ガード' do
+    let(:private_user) { create(:user, is_private: true) }
+
+    context 'when viewer is not a follower' do
+      it 'returns 403 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for batting table' do
+        get '/api/v2/stats/batting',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for era_trend' do
+        get '/api/v2/stats/era_trend',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for pitcher_attribute_summary' do
+        get '/api/v2/stats/pitcher_attribute_summary',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when viewer is an accepted follower' do
+      before do
+        Relationship.create!(follower: user, followed: private_user, status: :accepted)
+      end
+
+      it 'returns 200 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'when viewer has a pending follow request' do
+      before do
+        Relationship.create!(follower: user, followed: private_user, status: :pending)
+      end
+
+      it 'returns 403 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+    end
+
+    context 'when target is self (private)' do
+      let(:user) { create(:user, is_private: true) }
+
+      it 'returns 200 for headline_stats' do
+        get '/api/v2/stats/headline_stats',
+            params: { user_id: user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
+  describe 'entitlementは閲覧者(current_api_v1_user)基準で判定される' do
+    let(:target_user) { create(:user) }
+
+    it 'returns 403 when a free viewer requests a Pro target user stats' do
+      make_pro(target_user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 when a Pro viewer requests a free target user stats' do
+      make_pro(user)
+      get('/api/v2/stats/count_situations', params: { user_id: target_user.id }, headers:)
+      expect(response).to have_http_status(:ok)
     end
   end
 end

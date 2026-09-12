@@ -1,7 +1,9 @@
 module Api
   module V1
     class GroupsController < ApplicationController
-      before_action :authenticate_api_v1_user!, only: %i[show create update destroy invite_link]
+      # 過去に only: の指定漏れで未認証リクエストが 500 や誤った 403 になったため、
+      # 全アクションを認証必須にする。公開アクションを追加する場合のみ個別に検討する。
+      before_action :authenticate_api_v1_user!
 
       def index
         accepted_group_ids = GroupInvitation.where(user_id: current_api_v1_user.id, state: 'accepted').pluck(:group_id)
@@ -21,7 +23,9 @@ module Api
           accepted_users:,
           year: params[:year],
           match_type: params[:match_type],
-          tournament_id: params[:tournament_id]
+          tournament_id: params[:tournament_id],
+          start_month: params[:start_month],
+          end_month: params[:end_month]
         ).call
 
         render json: { group:, accepted_users:, **stats }
@@ -30,6 +34,11 @@ module Api
       end
 
       def create
+        unless current_api_v1_user.can_create_or_join_group?
+          return render json: { error: 'group_limit_exceeded',
+                                message: 'Pro プランでグループを無制限に作成・参加できます' }, status: :forbidden
+        end
+
         group = current_api_v1_user.groups.build(group_params)
         if group.save
           group.users << current_api_v1_user
@@ -132,7 +141,7 @@ module Api
         users.each do |user|
           notification = Notification.create!(actor: current_api_v1_user, event_type: 'group_invitation', event_id: group.id)
           UserNotification.create!(user_id: user.id, notification_id: notification.id)
-          PushNotificationService.send_to_user(user, title: 'BUZZ BASE', body: "#{current_api_v1_user.name}さんからグループに招待されました")
+          PushNotificationJob.perform_later(user.id, title: 'BUZZ BASE', body: "#{current_api_v1_user.name}さんからグループに招待されました")
         end
       end
 
@@ -159,8 +168,8 @@ module Api
             user_id: user.id,
             notification_id: notification.id
           )
-          PushNotificationService.send_to_user(
-            user,
+          PushNotificationJob.perform_later(
+            user.id,
             title: 'BUZZ BASE',
             body: "#{current_api_v1_user.name}さんからグループに招待されました"
           )

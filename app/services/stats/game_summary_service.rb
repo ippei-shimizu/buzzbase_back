@@ -2,12 +2,16 @@
 
 module Stats
   class GameSummaryService
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil)
+    include Concerns::FilterableConcern
+
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
       @user_id = user_id
       @year = year
       @match_type = match_type
       @season_id = season_id
       @tournament_id = tournament_id
+      @start_month = start_month
+      @end_month = end_month
     end
 
     def call
@@ -32,33 +36,8 @@ module Stats
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
-      apply_tournament_filter(scope)
-    end
-
-    def apply_year_filter(scope)
-      return scope if @year.blank? || @year.to_s == '通算'
-
-      yr = @year.to_i
-      scope.where('match_results.date_and_time >= ? AND match_results.date_and_time < ?',
-                  "#{yr}-01-01 00:00:00", "#{yr + 1}-01-01 00:00:00")
-    end
-
-    def apply_match_type_filter(scope)
-      return scope if @match_type.blank? || @match_type == '全て'
-
-      scope.where(match_results: { match_type: @match_type })
-    end
-
-    def apply_season_filter(scope)
-      return scope if @season_id.blank?
-
-      scope.where(game_results: { season_id: @season_id })
-    end
-
-    def apply_tournament_filter(scope)
-      return scope if @tournament_id.blank?
-
-      scope.where(match_results: { tournament_id: @tournament_id })
+      scope = apply_tournament_filter(scope)
+      apply_date_range_filter(scope)
     end
 
     # --- win/loss summary ---
@@ -104,7 +83,7 @@ module Stats
               .joins('INNER JOIN teams ON teams.id = match_results.opponent_team_id')
               .select(Arel.sql(
                         'game_results.id AS game_result_id, ' \
-                        'match_results.date_and_time, ' \
+                        "#{Stats::JstDateSql::DATE_AND_TIME_JST_SQL} AS date_and_time_jst, " \
                         'match_results.match_type, ' \
                         'teams.name AS opponent_name, ' \
                         'match_results.my_team_score, ' \
@@ -123,7 +102,7 @@ module Stats
                  end
         {
           game_result_id: g.game_result_id,
-          date: g.date_and_time.strftime('%m/%d'),
+          date: g.date_and_time_jst.strftime('%m/%d'),
           match_type: g.match_type,
           opponent: g.opponent_name,
           result:,
@@ -136,8 +115,8 @@ module Stats
     # --- monthly games ---
     def monthly_games
       base_scope
-        .select(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int AS month, COUNT(*) AS count'))
-        .group(Arel.sql('EXTRACT(MONTH FROM match_results.date_and_time)::int'))
+        .select(Arel.sql("#{Stats::JstDateSql::MONTH_JST_INT_SQL} AS month, COUNT(*) AS count"))
+        .group(Arel.sql(Stats::JstDateSql::MONTH_JST_INT_SQL))
         .order(Arel.sql('month'))
         .map { |r| { month: r.month, count: r.count } }
     end
