@@ -61,15 +61,33 @@ namespace :qa do
     puts "migration 前スナップショット: batting_averages #{before_snapshot[:batting_averages].size} 件 / " \
          "plate_appearances #{before_snapshot[:plate_appearance_keys].size} 件"
 
+    # release/pro-202605 の破壊的 migration はカラムを削除するため、退避先テーブルへの移行先を
+    # 検証できるよう migration 前に元カラムの値を確保しておく。
+    before_note_game_link_pairs = qa_non_nil_pairs(BaseballNote, :game_result_id)
+    before_practice_session_theme_link_pairs = qa_non_nil_pairs(PracticeSession, :improvement_theme_id)
+    before_note_theme_link_pairs = qa_non_nil_pairs(BaseballNote, :improvement_theme_id)
+    before_users_count = User.count
+
     puts 'rails db:migrate 実行中...'
     Rake::Task['db:migrate'].invoke
 
     # migration 後はスキーマキャッシュとカラム情報を破棄してから再取得する。
     ActiveRecord::Base.connection.schema_cache.clear!
-    [BattingAverage, PlateAppearance].each(&:reset_column_information)
+    [BattingAverage, PlateAppearance, BaseballNote, PracticeSession].each(&:reset_column_information)
     after_snapshot = qa_snapshot
 
     diffs = qa_compare(before_snapshot, after_snapshot)
+    diffs << qa_verify_pairs_preserved('note_game_links', before_note_game_link_pairs,
+                                       qa_all_pairs(NoteGameLink, :baseball_note_id, :game_result_id))
+    diffs << qa_verify_pairs_preserved('practice_session_theme_links', before_practice_session_theme_link_pairs,
+                                       qa_all_pairs(PracticeSessionThemeLink, :practice_session_id, :improvement_theme_id))
+    diffs << qa_verify_pairs_preserved('note_theme_links', before_note_theme_link_pairs,
+                                       qa_all_pairs(NoteThemeLink, :baseball_note_id, :improvement_theme_id))
+    diffs << qa_verify_subscriptions_backfilled(before_users_count)
+    diffs << qa_verify_preset_titles('reflection_template_presets', ReflectionTemplate, :title, ReflectionTemplate::PRESETS.pluck(:title))
+    diffs << qa_verify_preset_titles('note_tag_presets', NoteTag, :name, NOTE_TAG_PRESET_NAMES)
+    diffs.compact!
+
     if diffs.empty?
       puts '✓ migration 前後で既存の集計値・キー値に差分なし'
     else
@@ -92,6 +110,8 @@ def qa_table?(name)
 end
 
 def qa_column?(model, column)
+  return false unless qa_table?(model.table_name)
+
   model.column_names.include?(column.to_s)
 end
 
@@ -123,4 +143,56 @@ def qa_compare(before, after)
     end
   end
   diffs
+end
+
+# NoteTag には ReflectionTemplate::PRESETS のようなモデル側の正本が無いため、
+# SeedNoteTagPresets migration の PRESETS をここに複製して検証に使う。
+NOTE_TAG_PRESET_NAMES = %w[打撃 守備 走塁 投球 試合 練習].freeze
+
+# 「単一カラムから中間テーブルへの移行」migration の検証に使う、
+# migration 前の (id, column) ペアを column が非 nil の行についてのみ取得する。
+# column が既に存在しない（migration 済み DB に対する実行等）場合は nil を返す。
+def qa_non_nil_pairs(model, column)
+  return nil unless qa_column?(model, column)
+
+  model.where.not(column => nil).pluck(:id, column)
+end
+
+# 中間テーブル全件の (owner_fk, target_fk) ペアを取得する。テーブルが無ければ nil。
+def qa_all_pairs(model, owner_column, target_column)
+  return nil unless qa_table?(model.table_name)
+
+  model.pluck(owner_column, target_column)
+end
+
+# before の (id, value) ペアが after 側のペア集合に過不足なく含まれるか検証する。
+# before が nil（migration 済み DB への再実行等で元カラムが既に無い）の場合は対象外として nil を返す。
+def qa_verify_pairs_preserved(label, before_pairs, after_pairs)
+  return nil if before_pairs.nil?
+  return "#{label}: migration 後に中間テーブルが見つかりません" if after_pairs.nil?
+
+  missing = before_pairs.to_set - after_pairs.to_set
+  return nil if missing.empty?
+
+  "#{label}: #{missing.size} 件のペアが移行後に見つかりません（例: #{missing.first(5).inspect}）"
+end
+
+# 20260517100004 のバックフィルにより、全ユーザーが subscription を 1 件ずつ持つことを検証する。
+def qa_verify_subscriptions_backfilled(before_users_count)
+  return nil unless qa_table?('subscriptions')
+
+  after_subscriptions_count = Subscription.count
+  return nil if after_subscriptions_count == before_users_count
+
+  "subscriptions: 件数不一致 users=#{before_users_count} subscriptions=#{after_subscriptions_count}"
+end
+
+# シード migration で投入されるプリセットの件数・内容が期待通りか検証する。
+def qa_verify_preset_titles(label, model, title_column, expected_titles)
+  return nil unless qa_table?(model.table_name)
+
+  actual_titles = model.where(is_preset: true).pluck(title_column).to_set
+  return nil if actual_titles == expected_titles.to_set
+
+  "#{label}: プリセットの内容が想定と不一致 期待=#{expected_titles.sort} 実際=#{actual_titles.to_a.sort}"
 end

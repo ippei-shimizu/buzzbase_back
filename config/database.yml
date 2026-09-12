@@ -61,6 +61,9 @@ development:
 test:
   <<: *default
   database: app_test
+  # 同時実行テストはワーカー4スレッド + メインスレッドでデフォルトの5本を使い切るため、
+  # 他にコネクションが1本でも残っているとチェックアウト待ちでタイムアウトする。余裕を持たせる。
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
 
 # As with config/credentials.yml, you never want to store sensitive information,
 # like your database password, in your source code. If your source code is
@@ -87,3 +90,13 @@ production:
   database: app_production
   username: app
   password: <%= ENV["APP_DATABASE_PASSWORD"] %>
+  # プールサイズ = Puma スレッド数 (RAILS_MAX_THREADS, 既定5) + headroom 3。
+  # default の「プール == スレッド数」だと余裕がゼロで、初期化子や Rails 内部処理が
+  # リクエストスレッド外でコネクションを1本でも掴むと、同時リクエストがスレッド数に
+  # 達した時点で必ずチェックアウト待ちになり ConnectionTimeoutError で溢れる。
+  # なお Solid Queue の supervisor は fork した別プロセスで動くため Web のプールは
+  # 共有しないが、Postgres サーバー側の接続数は別途消費する（supervisor / dispatcher /
+  # scheduler / worker で概算 8〜10 本）。引き上げ時は Web プール + Solid Queue 分の
+  # 合計が Heroku Postgres プランの最大接続数を超えないことを確認する。
+  # 空文字や非数値が入っていると to_i が 0 になり、引き上げるはずのプールが逆に縮む。
+  pool: <%= (Integer(ENV["RAILS_MAX_THREADS"], exception: false) || 5) + 3 %>

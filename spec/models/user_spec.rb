@@ -269,6 +269,31 @@ RSpec.describe User, type: :model do
       end
     end
 
+    describe '#mutually_following?' do
+      it 'returns true when both users follow each other' do
+        Relationship.create!(follower: private_user, followed: follower, status: :accepted)
+
+        expect(private_user.mutually_following?(follower)).to be true
+      end
+
+      it 'returns false when only one side follows' do
+        expect(private_user.mutually_following?(follower)).to be false
+      end
+
+      it 'returns false for the user themselves and for nil' do
+        expect(public_user.mutually_following?(public_user)).to be false
+        expect(public_user.mutually_following?(nil)).to be false
+      end
+
+      it 'returns false while the follow request is still pending' do
+        pending_user = create(:user, is_private: true)
+        Relationship.create!(follower: pending_user, followed: non_follower, status: :accepted)
+        Relationship.create!(follower: non_follower, followed: pending_user, status: :pending)
+
+        expect(pending_user.mutually_following?(non_follower)).to be false
+      end
+    end
+
     describe '#follow_status' do
       it 'returns "self" for the user themselves' do
         expect(public_user.follow_status(public_user)).to eq('self')
@@ -369,6 +394,43 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe 'tokens カラム' do
+    # NOT NULL 制約を入れた後は本物の NULL 行を作れないため、DB から NULL が返ってきた
+    # 状態を instantiate で再現する
+    let(:persisted) { create(:user) }
+    let(:legacy) { described_class.instantiate(persisted.attributes.merge('tokens' => nil)) }
+
+    it 'DB に NULL が残っているレコードでも空ハッシュとして読める' do
+      expect(legacy.tokens).to eq({})
+    end
+
+    it 'DB に NULL が残っているレコードでもトークンを発行して永続化できる' do
+      headers = legacy.create_new_auth_token
+
+      expect(persisted.reload.tokens.keys).to include(headers['client'])
+    end
+
+    it 'NULL を読み込んだだけでは無関係な更新で tokens を書き込まない' do
+      legacy.update!(name: '新しい名前')
+
+      expect(legacy.saved_changes).not_to have_key('tokens')
+    end
+
+    it 'nil を代入しても空ハッシュに正規化される' do
+      user = build(:user)
+      user.tokens = nil
+
+      expect(user.tokens).to eq({})
+    end
+
+    it 'DB 側でも NULL を許容せず空ハッシュがデフォルトになっている' do
+      column = described_class.columns_hash['tokens']
+
+      expect(column.null).to be false
+      expect(column.default).to eq('{}')
+    end
+  end
+
   describe '#create_new_auth_token' do
     let(:user) { create(:user) }
 
@@ -422,6 +484,200 @@ RSpec.describe User, type: :model do
         user.reload
         expect(user.tokens.keys).not_to include('client_1')
       end
+    end
+  end
+
+  describe '#email_deliverable?' do
+    let(:user) { build(:user, email:) }
+
+    context '通常のメールアドレス' do
+      let(:email) { 'taro@example.com' }
+
+      it 'true を返す' do
+        expect(user.email_deliverable?).to be true
+      end
+    end
+
+    context 'Apple private relay のメールアドレス' do
+      let(:email) { 'abc123.def456@privaterelay.appleid.com' }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context 'Apple private relay のメールアドレス（大文字混在）' do
+      let(:email) { 'AbC.DeF@PrivateRelay.AppleID.com' }
+
+      it 'false を返す（大文字小文字を区別しない）' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context 'email が空文字' do
+      let(:email) { '' }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context 'email が nil' do
+      let(:email) { nil }
+
+      it 'false を返す' do
+        expect(user.email_deliverable?).to be false
+      end
+    end
+
+    context '通常の iCloud メールアドレス（Apple Sign-In で本来メールを共有したケース）' do
+      let(:email) { 'ippei@icloud.com' }
+
+      it 'true を返す（@icloud.com は relay ドメインではない）' do
+        expect(user.email_deliverable?).to be true
+      end
+    end
+  end
+
+  describe '#prevent_destroy_if_pro_active (before_destroy)' do
+    let(:user) { create(:user) }
+
+    context 'pro_active な subscription を持つとき' do
+      it 'trial 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'trial', expires_at: 7.days.from_now)
+        expect(user.destroy).to be false
+        expect(user.errors[:base]).to include('Pro 加入中のため、先に解約してください')
+        expect(described_class.exists?(user.id)).to be true
+      end
+
+      it 'active 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+        expect(user.destroy).to be false
+      end
+
+      it 'cancelled 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'cancelled', expires_at: 5.days.from_now, cancelled_at: 1.day.ago)
+        expect(user.destroy).to be false
+      end
+
+      it 'billing_issue 状態 + 期限内なら削除されない' do
+        user.subscription.update!(status: 'billing_issue', expires_at: 3.days.from_now, billing_issue_at: 1.day.ago)
+        expect(user.destroy).to be false
+      end
+    end
+
+    context 'pro_active でない subscription のとき' do
+      it 'free 状態なら削除される' do
+        expect(user.destroy).to be_truthy
+        expect(described_class.exists?(user.id)).to be false
+      end
+
+      it 'expired 状態なら削除される' do
+        user.subscription.update!(status: 'expired', expires_at: 1.day.ago)
+        expect(user.destroy).to be_truthy
+      end
+
+      it 'cancelled だが期限切れなら削除される' do
+        user.subscription.update!(status: 'cancelled', expires_at: 1.day.ago, cancelled_at: 5.days.ago)
+        expect(user.destroy).to be_truthy
+      end
+    end
+  end
+
+  describe '#sync_stripe_customer_email (after_commit on: :update)' do
+    let(:user) { create(:user, email: 'old@example.com') }
+
+    context 'Web ユーザーで stripe_customer_id が紐付き、email が変わったとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'StripeCustomerUpdateJob をenqueueする' do
+        user.skip_reconfirmation!
+        expect do
+          user.update!(email: 'new@example.com')
+        end.to have_enqueued_job(StripeCustomerUpdateJob).with(user.id)
+      end
+    end
+
+    context 'iOS ユーザーのとき' do
+      before do
+        user.subscription.update!(platform: 'ios', stripe_customer_id: 'cus_ios_abc')
+      end
+
+      it 'Stripe Customer 同期をenqueueしない（Apple ID 側で管理される）' do
+        user.skip_reconfirmation!
+        expect do
+          user.update!(email: 'new@example.com')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
+      end
+    end
+
+    context 'stripe_customer_id が未紐付のとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: nil)
+      end
+
+      it 'Stripe Customer 同期をenqueueしない' do
+        user.skip_reconfirmation!
+        expect do
+          user.update!(email: 'new@example.com')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
+      end
+    end
+
+    context 'email を変えていないとき' do
+      before do
+        user.subscription.update!(platform: 'web', stripe_customer_id: 'cus_test_abc')
+      end
+
+      it 'Stripe Customer 同期をenqueueしない' do
+        expect do
+          user.update!(name: '別名前')
+        end.not_to have_enqueued_job(StripeCustomerUpdateJob)
+      end
+    end
+  end
+
+  describe '#last_management_notice_read_at initialization' do
+    it 'sets it to the registration time on create so pre-existing notices are not treated as unread' do
+      user = create(:user)
+      expect(user.last_management_notice_read_at).to be_present
+      expect(user.last_management_notice_read_at).to be_within(5.seconds).of(user.created_at)
+    end
+
+    it 'does not overwrite an explicitly given value' do
+      given_time = 3.days.ago
+      user = create(:user, last_management_notice_read_at: given_time)
+      expect(user.last_management_notice_read_at).to be_within(1.second).of(given_time)
+    end
+  end
+
+  describe 'throw_hand / batting_side enums' do
+    it 'defaults to nil (未設定)' do
+      user = create(:user)
+      expect(user.throw_hand).to be_nil
+      expect(user.batting_side).to be_nil
+    end
+
+    it 'maps throw_hand to { right: 0, left: 1 }' do
+      expect(described_class.throw_hands).to eq('right' => 0, 'left' => 1)
+    end
+
+    it 'maps batting_side to { right: 0, left: 1, both: 2 }' do
+      expect(described_class.batting_sides).to eq('right' => 0, 'left' => 1, 'both' => 2)
+    end
+
+    it 'defines prefixed predicate methods so right/left do not collide between the two enums' do
+      user = create(:user, throw_hand: :right, batting_side: :left)
+      expect(user.throw_hand_right?).to be true
+      expect(user.batting_side_left?).to be true
+      expect(user.batting_side_right?).to be false
+    end
+
+    it 'raises ArgumentError for an invalid value (controller側で422に変換される前提)' do
+      user = create(:user)
+      expect { user.throw_hand = 'switch' }.to raise_error(ArgumentError)
     end
   end
 end

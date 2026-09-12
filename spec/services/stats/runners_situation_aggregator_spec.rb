@@ -96,6 +96,32 @@ RSpec.describe Stats::RunnersSituationAggregator, type: :service do
       end
     end
 
+    context 'with date_range filter' do
+      before do
+        in_range_game = create(:game_result, user:)
+        # JST 深夜0時台（UTC では前日15時台）。UTC のまま日付比較すると前日に漏れる境界。
+        in_range_game.match_result.update!(date_and_time: Time.utc(2026, 4, 6, 15, 30))
+        create(:plate_appearance, game_result: in_range_game, user:, batter_box_number: 1,
+                                  plate_result_id: 7, runners_state: :second, is_new_format: true)
+
+        out_of_range_game = create(:game_result, user:)
+        out_of_range_game.match_result.update!(date_and_time: Time.utc(2026, 4, 14, 3, 0))
+        create(:plate_appearance, game_result: out_of_range_game, user:, batter_box_number: 1,
+                                  plate_result_id: 8, runners_state: :third, is_new_format: true)
+      end
+
+      it 'counts only plate_appearances whose JST date falls within the range' do
+        result = described_class.new(user_id: user.id,
+                                     date_range: Date.new(2026, 4, 7)..Date.new(2026, 4, 13)).call
+
+        aggregate_failures do
+          expect(result[:at_bats]).to eq(1)
+          expect(result[:hits]).to eq(1)
+          expect(result[:two_base_hit]).to eq(0)
+        end
+      end
+    end
+
     context 'with match_type filter' do
       before do
         regular_game = create(:game_result, user:)

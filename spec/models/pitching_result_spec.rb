@@ -75,6 +75,26 @@ RSpec.describe PitchingResult, type: :model do
       result = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2022').take
       expect(result).to be_nil
     end
+
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      let!(:game_jst_new_year) do
+        gr = create(:game_result, user:)
+        # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままだと年フィルタから漏れる
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        create(:pitching_result, game_result: gr, user:,
+                                 win: 1, loss: 0, innings_pitched: 6.0, earned_run: 1, strikeouts: 5,
+                                 base_on_balls: 0, hits_allowed: 2, number_of_pitches: 70)
+        gr
+      end
+
+      it 'includes it in the JST year (2026), not the UTC year (2025)' do
+        result_jst_year = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2026').take
+        result_utc_year = described_class.filtered_pitching_aggregate_for_user(user.id, year: '2025').take
+
+        expect(result_jst_year.strikeouts.to_i).to eq(5)
+        expect(result_utc_year).to be_nil
+      end
+    end
   end
 
   describe '.filtered_pitching_stats_for_user' do

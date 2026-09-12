@@ -9,7 +9,7 @@ module Api
 
           google_data = GoogleAuthService.verify(params[:id_token])
 
-          user = find_or_create_user(google_data)
+          user = resolve_user(google_data)
 
           return render json: { errors: ['アカウントが停止されています'] }, status: :unauthorized if user.suspended_at.present?
           return render json: { errors: ['アカウントが削除されています'] }, status: :unauthorized if user.deleted_at.present?
@@ -23,30 +23,21 @@ module Api
           }, status: :ok
         rescue GoogleAuthService::InvalidToken => e
           render json: { errors: [e.message] }, status: :unauthorized
+        rescue ::Users::OauthResolver::EmailMissing
+          render json: { errors: ['メールアドレスが取得できませんでした'] }, status: :unauthorized
         rescue ActiveRecord::RecordInvalid => e
           render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
         end
 
         private
 
-        def find_or_create_user(google_data)
-          user = User.find_by(provider: 'google', uid: google_data[:uid])
-          return user if user
-
-          user = User.find_by(email: google_data[:email])
-          if user
-            user.update!(provider: 'google', uid: google_data[:uid])
-            user.update!(confirmed_at: Time.current) if user.confirmed_at.blank?
-            return user
-          end
-
-          User.create!(
-            email: google_data[:email],
+        def resolve_user(google_data)
+          ::Users::OauthResolver.new(
             provider: 'google',
             uid: google_data[:uid],
-            name: google_data[:name],
-            confirmed_at: Time.current
-          )
+            email: google_data[:email],
+            name: google_data[:name]
+          ).call
         end
       end
     end

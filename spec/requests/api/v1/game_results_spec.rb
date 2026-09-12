@@ -216,6 +216,19 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
     end
   end
 
+  describe 'PUT /api/v1/game_results/:id/update_pitching_result_id' do
+    let!(:game_result) { create(:game_result, user:) }
+
+    context 'when not authenticated' do
+      it 'returns 401' do
+        put "/api/v1/game_results/#{game_result.id}/update_pitching_result_id",
+            params: { game_result: { pitching_result_id: nil } }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
   describe 'DELETE /api/v1/game_results/:id' do
     let!(:game_result) { create(:game_result, user:) }
 
@@ -258,6 +271,20 @@ RSpec.describe 'Api::V1::GameResults', type: :request do
         json = response.parsed_body
         expect(json['message']).to eq('試合結果は既に削除されています')
         expect(GameResult.exists?(other_user_game_result.id)).to be true
+      end
+    end
+
+    context 'when a baseball note is linked to the game result' do
+      it 'destroys the game result and its note links, leaving the note intact' do
+        note = create(:baseball_note, user:)
+        note.game_result_ids = [game_result.id]
+
+        delete "/api/v1/game_results/#{game_result.id}", headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(GameResult.exists?(game_result.id)).to be false
+        expect(NoteGameLink.where(game_result_id: game_result.id)).to be_empty
+        expect(BaseballNote.exists?(note.id)).to be true
       end
     end
   end

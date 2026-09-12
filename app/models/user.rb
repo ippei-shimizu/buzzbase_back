@@ -1,5 +1,20 @@
-class User < ActiveRecord::Base
+class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
+  include Entitlement
+  include PlanLimits
+  include SubscriptionCallbacks
+
   mount_uploader :image, AvatarUploader
+  # CarrierWave の mount が仕掛ける store は after_save（トランザクション内）で実行されるため、
+  # users の行ロックと DB コネクションを保持したまま S3 へ転送してしまう。
+  # COMMIT 後（after_commit）へ移し、転送中に同一ユーザーへの他の更新をブロックしないようにする。
+  skip_callback :save, :after, :store_image!
+  before_validation :normalize_user_id
+  # 登録前に公開済みの運営からのお知らせを未読扱いにしないよう、登録時点を既読基準にする。
+  before_create :initialize_last_management_notice_read_at
+  after_commit :store_image_after_commit, on: %i[create update]
+
+  has_one :subscription, dependent: :destroy
+  has_many :user_subscription_events, dependent: :destroy
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
   belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
@@ -27,6 +42,7 @@ class User < ActiveRecord::Base
                                  dependent: :destroy, inverse_of: :actor
   has_many :device_tokens, dependent: :destroy
   has_many :baseball_notes, dependent: :destroy
+  has_many :media_attachments, dependent: :destroy
   has_many :match_results, dependent: :destroy
   has_many :seasons, dependent: :destroy
   has_many :game_results, dependent: :destroy
@@ -34,6 +50,21 @@ class User < ActiveRecord::Base
   has_many :pitching_results, dependent: :destroy
   has_many :plate_appearances, dependent: :destroy
   has_many :created_pitchers, class_name: 'Pitcher', foreign_key: 'created_by_user_id', dependent: :destroy, inverse_of: :created_by_user
+  has_many :practice_menus, dependent: :destroy
+  has_many :practice_sessions, dependent: :destroy
+  has_many :practice_logs, dependent: :destroy
+  has_many :condition_logs, dependent: :destroy
+  has_many :activity_logs, dependent: :destroy
+  has_many :shadow_swing_sessions, dependent: :destroy
+  has_many :schedules, dependent: :destroy
+  has_many :menu_sets, dependent: :destroy
+  has_many :goals, dependent: :destroy
+  has_many :goal_badges, dependent: :destroy
+  has_many :improvement_themes, dependent: :destroy
+  has_many :reflection_templates, dependent: :destroy
+  has_many :note_tags, dependent: :destroy
+  has_many :insight_combinations, dependent: :destroy
+  has_many :periodic_reviews, dependent: :destroy
   # 球場は match_results から共有参照される共有リソースのため、作成者削除時は破棄せず created_by_user_id を NULL にする
   has_many :created_stadiums, class_name: 'Stadium', foreign_key: 'created_by_user_id', dependent: :nullify, inverse_of: :created_by_user
 
@@ -41,11 +72,20 @@ class User < ActiveRecord::Base
          :recoverable, :rememberable, :validatable, :confirmable
   include DeviseTokenAuth::Concerns::User
 
+  # gem 側 coder が持っていた「NULL は空ハッシュ」の読み替えを型で復活させる。reader を
+  # 上書きすると gem の in-place 更新 (`tokens[client] = ...`) が attribute に戻らず
+  # トークンが永続化されないため、必ず deserialize 側で吸収する。
+  class TokensType < ActiveRecord::Type::Json
+    def deserialize(value)
+      super || {}
+    end
+  end
+
   # devise_token_auth 1.2.6 + Rails 7.1 では `serialize :tokens, coder: TokensSerialization`
   # が json 型カラムに当たって二重シリアライズになり認証が壊れるため、明示的に json 型を当てて
   # coder を打ち消す。default は devise_token_auth が `tokens.fetch(...)` を呼ぶ前提のため
   # 空ハッシュにしておく。
-  attribute :tokens, ActiveRecord::Type::Json.new, default: -> { {} }
+  attribute :tokens, TokensType.new, default: -> { {} }
 
   # devise_token_auth 1.2.6 の clean_old_tokens は (1) `self.tokens = ...to_h` で Hash を
   # 全置換して attribute tracking と衝突し直前の create_token の代入を消す、(2)
@@ -69,7 +109,17 @@ class User < ActiveRecord::Base
     end
   end
 
-  before_validation :normalize_user_id
+  # Rails 7.1 では enum がカラム未存在状態だと "Undeclared attribute type" エラーになるため、
+  # 明示的に attribute type を declare してマイグレーション前後どちらでもロードできるようにする。
+  attribute :throw_hand, :integer
+  attribute :batting_side, :integer
+
+  # 利き腕（投）と打席。NULL = 未設定。どちらも right / left を持ちメソッド名が
+  # 衝突するため _prefix が必須（throw_hand_right? / batting_side_right?）。
+  # throw_hand は対戦相手投手用の pitchers.throw_hand と同じ命名・値に揃える。
+  enum throw_hand: { right: 0, left: 1 }, _prefix: true
+  enum batting_side: { right: 0, left: 1, both: 2 }, _prefix: true
+
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
@@ -90,6 +140,13 @@ class User < ActiveRecord::Base
 
   def apple_account?
     provider == 'apple'
+  end
+
+  # Apple private relay (@privaterelay.appleid.com) はフォワード不達 + SMTP 上限浪費のため対象外とする。
+  def email_deliverable?
+    return false if email.blank?
+
+    !email.downcase.end_with?('@privaterelay.appleid.com')
   end
 
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
@@ -153,6 +210,18 @@ class User < ActiveRecord::Base
     followers.include?(viewer)
   end
 
+  # 相互フォロー（双方の Relationship が accepted）かどうか。
+  # 打席詳細のように、公開アカウントでも相互フォロー相手にだけ見せたい情報の判定に使う。
+  #
+  # @param other_user [User, nil] 判定相手
+  # @return [Boolean] 双方がフォローし合っていれば true
+  def mutually_following?(other_user)
+    return false unless other_user
+    return false if other_user == self
+
+    followers.exists?(other_user.id) && following.exists?(other_user.id)
+  end
+
   def incoming_follow_request_id_from(other_user)
     return nil unless other_user
 
@@ -167,10 +236,38 @@ class User < ActiveRecord::Base
 
   delegate :count, to: :followers, prefix: true
 
+  # subscription が未生成の場合に「無料状態」を表す未保存レコードを返す。
+  # API レスポンス時に nil チェックを避ける目的で利用する。
+  # @return [Subscription]
+  def subscription_or_default
+    subscription || Subscription.new(user: self, status: 'free')
+  end
+
+  # Pro 機能が利用可能か。
+  # @return [Boolean]
+  delegate :pro_active?, to: :subscription_or_default
+
+  # トライアル期間中か。
+  # @return [Boolean]
+  delegate :in_trial?, to: :subscription_or_default
+
   private
+
+  # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
+  # 直前の識別子へ戻してから例外を再送出する。
+  def store_image_after_commit
+    store_image!
+  rescue StandardError
+    update_column(:image, saved_changes['image']&.first) if saved_changes.key?('image') # rubocop:disable Rails/SkipsModelValidations
+    raise
+  end
 
   def normalize_user_id
     self.user_id = nil if user_id.blank?
+  end
+
+  def initialize_last_management_notice_read_at
+    self.last_management_notice_read_at ||= Time.current
   end
 
   def notify_slack_new_user

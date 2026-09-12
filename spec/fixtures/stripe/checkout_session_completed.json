@@ -1,0 +1,22 @@
+{
+  "id": "evt_test_checkout_completed_001",
+  "object": "event",
+  "api_version": "2024-06-20",
+  "type": "checkout.session.completed",
+  "created": 1748761200,
+  "data": {
+    "object": {
+      "id": "cs_test_abc123",
+      "object": "checkout.session",
+      "customer": "cus_test_abc123",
+      "subscription": "sub_test_abc123",
+      "customer_email": "user@example.com",
+      "mode": "subscription",
+      "payment_status": "paid",
+      "metadata": {
+        "user_id": "1",
+        "plan": "monthly"
+      }
+    }
+  }
+}

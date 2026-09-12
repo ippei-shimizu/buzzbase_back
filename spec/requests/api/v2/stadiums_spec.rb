@@ -75,13 +75,50 @@ RSpec.describe 'Api::V2::Stadiums', type: :request do
         expect(response.parsed_body['errors']).to be_present
       end
 
-      it '同一県内で同名の場合は 422（一意性違反）' do
-        Stadium.create!(name: '重複テスト球場', prefecture:, created_by_user: user)
+      it '同一県内で同名の場合は新規作成せず既存の球場を返す' do
+        existing = Stadium.create!(name: '重複テスト球場', prefecture:, created_by_user: user)
+
+        expect do
+          post '/api/v2/stadiums',
+               params: { stadium: { name: '重複テスト球場', prefecture_id: prefecture.id } },
+               headers: auth_headers_for(user)
+        end.not_to change(Stadium, :count)
+
+        aggregate_failures do
+          expect(response).to have_http_status(:created)
+          expect(response.parsed_body['id']).to eq(existing.id)
+        end
+      end
+
+      it '大文字小文字が違う場合も既存の球場を返す' do
+        existing = Stadium.create!(name: 'ZOZOテストスタジアム', prefecture:, created_by_user: user)
+
         post '/api/v2/stadiums',
-             params: { stadium: { name: '重複テスト球場', prefecture_id: prefecture.id } },
+             params: { stadium: { name: 'zozoテストスタジアム', prefecture_id: prefecture.id } },
              headers: auth_headers_for(user)
 
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['id']).to eq(existing.id)
+      end
+
+      it 'prefecture_id なしで同名を2回送っても1件しか作られない' do
+        expect do
+          2.times do
+            post '/api/v2/stadiums',
+                 params: { stadium: { name: '県不明テスト球場' } },
+                 headers: auth_headers_for(user)
+          end
+        end.to change(Stadium, :count).by(1)
+      end
+
+      it '既存を返すときは created_by_user_id を上書きしない' do
+        creator = create(:user)
+        existing = Stadium.create!(name: '作成者テスト球場', prefecture:, created_by_user: creator)
+
+        post '/api/v2/stadiums',
+             params: { stadium: { name: '作成者テスト球場', prefecture_id: prefecture.id } },
+             headers: auth_headers_for(user)
+
+        expect(existing.reload.created_by_user_id).to eq(creator.id)
       end
     end
 
