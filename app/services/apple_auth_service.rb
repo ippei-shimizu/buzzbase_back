@@ -67,6 +67,11 @@ class AppleAuthService
 
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = (uri.scheme == 'https')
+    # Net::HTTP 既定は open/read とも60秒で、サインイン処理が Apple 側の詰まりに
+    # 巻き込まれると Puma スレッドを長時間占有する。リダイレクト追跡（最大3回）でも
+    # 合計が十数秒に収まるよう短く明示する。
+    http.open_timeout = 5
+    http.read_timeout = 5
     request = Net::HTTP::Get.new(uri)
     response = http.request(request)
 

@@ -41,6 +41,21 @@ module Api
         render json: { error: 'このアカウントは非公開です' }, status: :forbidden
         true
       end
+
+      # 相互フォロー相手にだけ見せたいリソース用の 403 ガード。
+      # 公開アカウントでも片方向フォローだけでは拒否する点が
+      # `render_forbidden_if_private!` との違い。
+      #
+      # @param user [User] リソースの所有者
+      # @return [TrueClass, nil] 拒否して render した場合 truthy / 続行してよい場合 nil
+      def render_forbidden_unless_mutual_follow!(user)
+        return if user == current_api_v1_user
+        return if user.mutually_following?(current_api_v1_user)
+
+        render json: { error: 'mutual_follow_required', message: '相互フォローのユーザーのみ閲覧できます' },
+               status: :forbidden
+        true
+      end
     end
   end
 end

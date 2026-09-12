@@ -1,5 +1,45 @@
 require 'active_support/core_ext/integer/time'
 
+# Heroku dyno のファイルシステムは ephemeral かつ dyno ごとに独立のため、既定の
+# file_store はキャッシュとして実質機能しない。REDIS_URL（Action Cable と共用の
+# アドオン）があれば redis_cache_store を使い、無ければ memory_store を明示する
+# （dyno ごとに独立・再起動で消える前提を許容できる用途に限る）。
+# Redis 側の障害でリクエストを巻き込まないよう、タイムアウトを短く明示し、
+# エラーはキャッシュミス扱いで握り潰して Sentry に記録する。
+production_cache_store =
+  if ENV['REDIS_URL'].present?
+    redis_cache_options = {
+      url: ENV['REDIS_URL'],
+      # Action Cable (cable.yml) と同一インスタンスを共有するため、キー空間を分ける。
+      namespace: 'cache',
+      # Heroku Key-Value Store はプランによって maxmemory-policy が noeviction で、
+      # TTL 無しのキーが増え続けると Action Cable の pub/sub ごと書き込み不能になる。
+      # 個別に expires_in を渡さない呼び出しのための既定の上限。
+      expires_in: 1.hour,
+      connect_timeout: 1,
+      read_timeout: 1,
+      write_timeout: 1,
+      reconnect_attempts: 1,
+      # returning にはキャッシュ対象の値そのものが入りうる。Sentry の tag は
+      # 検索用の短い文字列を前提とした領域なので、値ではなく型だけを載せる。
+      error_handler: lambda { |method:, returning:, exception:|
+        if Sentry.initialized?
+          Sentry.capture_exception(exception, level: :warning,
+                                              tags: { cache_method: method },
+                                              extra: { returning_class: returning.class.name })
+        end
+      }
+    }
+    # Heroku Key-Value Store の TLS (rediss://) は自己署名証明書のため、Heroku の
+    # ドキュメントに従い検証を無効化する。検証可能な Redis に差し替えたときに無効化が
+    # 残り続けないよう、TLS で接続するときだけ付与する。
+    redis_cache_options[:ssl_params] = { verify_mode: OpenSSL::SSL::VERIFY_NONE } if ENV['REDIS_URL'].start_with?('rediss://')
+
+    [:redis_cache_store, redis_cache_options]
+  else
+    :memory_store
+  end
+
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
@@ -43,16 +83,21 @@ Rails.application.configure do
 
   # Include generic and useful information about system operation, but avoid logging too much
   # information to avoid inadvertent exposure of personally identifiable information (PII).
-  config.log_level = :debug
+  # :debug は全 SQL とバインドパラメータがログに流れ、ログ流量・レイテンシ・PII 露出の
+  # リスクがあるため既定は :info。障害調査時は RAILS_LOG_LEVEL=debug で一時的に切り替える。
+  # 不正な値をそのまま to_sym すると Logger が boot 時に例外を投げ、config var の打ち間違い
+  # ひとつで全 dyno がクラッシュループに入るため、許可リスト外は既定値へ倒す。
+  valid_log_levels = %w[debug info warn error fatal unknown]
+  config.log_level = valid_log_levels.include?(ENV['RAILS_LOG_LEVEL']) ? ENV['RAILS_LOG_LEVEL'].to_sym : :info
 
   # Prepend all log lines with the following tags.
   config.log_tags = [:request_id]
 
-  # Use a different cache store in production.
-  # config.cache_store = :mem_cache_store
+  config.cache_store = production_cache_store
 
   # Use a real queuing backend for Active Job (and separate queues per environment).
-  # config.active_job.queue_adapter     = :resque
+  # queue_adapter は config/application.rb で全環境一括設定済み。
+  # Solid Queue 用テーブルはアプリ DB に同居させるため connects_to は設定しない。
   # config.active_job.queue_name_prefix = "app_production"
 
   config.action_mailer.perform_caching = false

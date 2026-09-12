@@ -157,5 +157,45 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
         expect(response).to have_http_status(:ok)
       end
     end
+
+    context '同一メールのリクエストが並行して一意制約に負けた場合' do
+      let!(:winner) { create(:user, :apple, uid: apple_uid, email:, user_id: 'yamada') }
+
+      before do
+        # SELECT の後・INSERT の前に勝者がコミットした敗者側を再現する。
+        # resolver が provider+uid を2回引く前提に依存しているため、解決順序を変えたらここも直す。
+        allow(User).to receive(:find_by).and_call_original
+        allow(User).to receive(:find_by).with(provider: 'apple', uid: apple_uid).and_return(nil, winner)
+        allow(User).to receive(:find_by).with(email:).and_return(nil)
+        allow(User).to receive(:create!).and_raise(ActiveRecord::RecordNotUnique)
+      end
+
+      it '500ではなく勝者のユーザーでサインインさせる' do
+        expect do
+          post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.headers['access-token']).to be_present
+        expect(winner.reload.tokens.keys).to include(response.headers['client'])
+      end
+    end
+
+    context 'メールに大文字・前後の空白が含まれる場合' do
+      let(:apple_data) { { uid: apple_uid, email: '  Apple-User@privaterelay.appleid.com  ', name: '山田 太郎' } }
+      let!(:existing_user) do
+        create(:user, provider: 'email', uid: 'apple-user@privaterelay.appleid.com',
+                      email: 'apple-user@privaterelay.appleid.com', user_id: 'yamada')
+      end
+
+      it '正規化して既存ユーザーにリンクする' do
+        expect do
+          post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:ok)
+        expect(existing_user.reload.provider).to eq('apple')
+      end
+    end
   end
 end

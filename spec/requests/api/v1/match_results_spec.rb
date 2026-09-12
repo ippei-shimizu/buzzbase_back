@@ -120,6 +120,61 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
   end
 
+  describe 'POST /api/v1/match_results (同一 game_result_id の並行作成レース)' do
+    let(:game_result) { create(:game_result, user:) }
+    let!(:winner) { game_result.match_result }
+    let(:params) do
+      { match_result: { game_result_id: game_result.id,
+                        date_and_time: Time.current.iso8601,
+                        match_type: '公式戦',
+                        my_team_id: winner.my_team_id,
+                        opponent_team_id: winner.opponent_team_id,
+                        my_team_score: 1,
+                        opponent_team_score: 0,
+                        inning_format: 9,
+                        appearance_type: 'starter',
+                        batting_order: '4',
+                        defensive_position: 'ショート' } }
+    end
+
+    context 'when the uniqueness validation passes before the rival commit (race simulated)' do
+      before do
+        # 並行リクエストでは相手の行が uniqueness の SELECT にまだ見えないため通過する。
+        # バリデーションをスキップして DB ユニークインデックス違反を再現する。
+        allow_any_instance_of(MatchResult).to receive(:valid?).and_return(true) # rubocop:disable RSpec/AnyInstance
+      end
+
+      it 'returns 201 with the winner record instead of 500' do
+        expect do
+          post '/api/v1/match_results', params:, headers: auth_headers_for(user)
+        end.not_to change(MatchResult, :count)
+
+        expect(response).to have_http_status(:created)
+        expect(response.parsed_body['id']).to eq(winner.id)
+      end
+
+      it 'returns 409 without exposing the winner when it belongs to another user' do
+        other_game_result = create(:game_result, user: create(:user))
+
+        post '/api/v1/match_results',
+             params: { match_result: params[:match_result].merge(game_result_id: other_game_result.id) },
+             headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:conflict)
+        expect(response.parsed_body['error']).to eq('record_not_unique')
+        expect(response.parsed_body).not_to have_key('id')
+      end
+    end
+
+    context 'when the duplicate is sequential (not a race)' do
+      it 'returns 422 from the uniqueness validation as before' do
+        post '/api/v1/match_results', params:, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+  end
+
   describe 'stadium_id 保存サポート' do
     let(:stadium) { create(:stadium) }
     let(:match_result) do

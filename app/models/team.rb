@@ -3,6 +3,9 @@ class Team < ApplicationRecord
   belongs_to :prefecture, optional: true
   has_one :user, foreign_key: 'user_id', primary_key: 'id', dependent: :destroy, inverse_of: :team
 
+  # 部分一致のチーム名検索。LIKE メタ文字 (% _ \) はリテラルとして扱う。
+  scope :search_by_name, ->(q) { where('teams.name ILIKE ?', "%#{sanitize_sql_like(q)}%") }
+
   validates :name, presence: true
   validates :category_id, numericality: { only_integer: true, greater_than: 0, allow_nil: true }
   validates :prefecture_id, numericality: { only_integer: true, greater_than: 0, allow_nil: true }

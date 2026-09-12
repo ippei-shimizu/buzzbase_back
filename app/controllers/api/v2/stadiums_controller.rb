@@ -18,13 +18,19 @@ module Api
         render json: paginated_response(stadiums, ::V2::StadiumSerializer)
       end
 
+      # 同名の球場が既にあれば作成せず既存を返す（冪等）。
+      # 試合登録で球場名を手入力するたびに同名レコードが増えるのを防ぐ。
       def create
-        stadium = Stadium.new(stadium_params.merge(created_by_user: current_api_v1_user))
-        if stadium.save
-          render json: stadium, serializer: ::V2::StadiumSerializer, status: :created
-        else
-          render json: { errors: stadium.errors.full_messages }, status: :unprocessable_entity
-        end
+        # 既存を返すときは created_by_user を渡さないので初代作成者が保持される。
+        stadium = Stadium.find_or_create_for!(
+          name: stadium_params[:name],
+          prefecture_id: stadium_params[:prefecture_id].presence,
+          created_by_user: current_api_v1_user
+        )
+        render json: stadium, serializer: ::V2::StadiumSerializer, status: :created
+      rescue ActiveRecord::RecordInvalid => e
+        # ApplicationController の rescue_from に任せると空入力のたびに Sentry へ送られるため、ここで返す。
+        render json: { errors: e.record.errors.full_messages }, status: :unprocessable_entity
       end
 
       private

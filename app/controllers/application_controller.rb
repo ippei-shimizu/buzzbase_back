@@ -47,6 +47,22 @@ class ApplicationController < ActionController::API
     render json: { errors: ['指定された関連データが存在しません'] }, status: :unprocessable_entity
   end
 
+  # integer カラムの範囲外値 (int4 = 2,147,483,647 超) は INSERT 直前の型変換で落ちるため
+  # モデルバリデーションでは捕まえられない。誤入力起因なので 500 ではなく 422 で返す。
+  rescue_from ActiveModel::RangeError do |exception|
+    Rails.logger.warn("RangeError: #{exception.message}")
+    Sentry.capture_exception(exception) if Sentry.initialized?
+    render json: { errors: ['入力値が大きすぎます'] }, status: :unprocessable_entity unless performed?
+  end
+
+  # 一意性バリデーションと DB ユニーク制約の間の並行レースはバリデーションでは捕まえられない。
+  # 個別に冪等化していない箇所で発生しても 500 ではなく重複エラーとして返す。
+  rescue_from ActiveRecord::RecordNotUnique do |exception|
+    Rails.logger.warn("RecordNotUnique: #{exception.message}")
+    Sentry.capture_exception(exception) if Sentry.initialized?
+    render json: { error: 'record_not_unique', message: '既に登録されています' }, status: :conflict unless performed?
+  end
+
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:account_update, keys: %i[name user_id])
   end

@@ -38,6 +38,15 @@ ja:
         name: チーム名
         category_id: チーム所属カテゴリー
         prefecture_id: チーム所属地域
+      season:
+        name: シーズン名
+      tournament:
+        name: 大会名
+      stadium:
+        name: 球場名
+        prefecture_id: 都道府県
+      pitcher:
+        name: 投手名
       
     models:
       user: ユーザー
@@ -160,6 +169,7 @@ ja:
       blank: "を入力してください"
       taken: "は既に存在します"
       too_short: "は%{count}文字以上で入力してください"
+      too_long: "は%{count}文字以内で入力してください"
       confirmation: "が一致しません"
       invalid: "は半角英数字のみ使用可能です"
       record_invalid: "バリデーションに失敗しました: %{errors}"

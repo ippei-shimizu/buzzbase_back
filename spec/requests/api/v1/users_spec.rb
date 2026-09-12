@@ -73,6 +73,39 @@ RSpec.describe 'Api::V1::Users', type: :request do
         expect(response.parsed_body['errors']).to include('このユーザーIDは既に使われています')
       end
     end
+
+    context 'with throw_hand / batting_side' do
+      it 'updates handedness' do
+        put '/api/v1/user',
+            params: { user: { throw_hand: 'right', batting_side: 'both' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.throw_hand).to eq('right')
+        expect(user.batting_side).to eq('both')
+      end
+
+      it 'normalizes empty strings (FormDataの未選択送信) to nil instead of 500' do
+        user.update!(throw_hand: :left, batting_side: :left)
+
+        put '/api/v1/user',
+            params: { user: { throw_hand: '', batting_side: '' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(user.reload.throw_hand).to be_nil
+        expect(user.batting_side).to be_nil
+      end
+
+      it 'returns 422 for an invalid enum value instead of 500' do
+        put '/api/v1/user',
+            params: { user: { throw_hand: 'ambidextrous' } },
+            headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include('利き腕・打席の指定が不正です')
+      end
+    end
   end
 
   describe 'DELETE /api/v1/user' do
@@ -126,6 +159,20 @@ RSpec.describe 'Api::V1::Users', type: :request do
       end
     end
 
+    # 作成した球場は共有リソースのため、作成者削除時に破棄せず created_by_user_id を NULL 化する回帰テスト
+    context 'when user has created a stadium' do
+      it 'destroys the user and keeps the stadium with a null creator' do
+        stadium = create(:stadium, created_by_user: user)
+
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(User.exists?(user.id)).to be(false)
+        expect(Stadium.exists?(stadium.id)).to be(true)
+        expect(stadium.reload.created_by_user_id).to be_nil
+      end
+    end
+
     context 'when destroy! raises an unexpected error' do
       it 'returns 500 with a localized message instead of leaking the exception' do
         # Devise が返す current_api_v1_user を直接掴めないため any_instance を許可
@@ -138,6 +185,24 @@ RSpec.describe 'Api::V1::Users', type: :request do
           'success' => false,
           'error' => a_string_including('アカウントの削除に失敗しました')
         )
+      end
+    end
+
+    context 'when the user is Pro active' do
+      before do
+        user.subscription.update!(status: 'active', expires_at: 30.days.from_now)
+      end
+
+      it 'returns 422 with error: pro_active and does not destroy the user' do
+        delete '/api/v1/user', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body).to include(
+          'success' => false,
+          'error' => 'pro_active',
+          'message' => 'Pro 加入中のため、先に解約してください'
+        )
+        expect(User.exists?(user.id)).to be(true)
       end
     end
   end

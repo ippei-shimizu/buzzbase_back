@@ -83,7 +83,7 @@ module Stats
               .joins('INNER JOIN teams ON teams.id = match_results.opponent_team_id')
               .select(Arel.sql(
                         'game_results.id AS game_result_id, ' \
-                        'match_results.date_and_time, ' \
+                        "#{Stats::JstDateSql::DATE_AND_TIME_JST_SQL} AS date_and_time_jst, " \
                         'match_results.match_type, ' \
                         'teams.name AS opponent_name, ' \
                         'match_results.my_team_score, ' \
@@ -102,7 +102,7 @@ module Stats
                  end
         {
           game_result_id: g.game_result_id,
-          date: g.date_and_time.strftime('%m/%d'),
+          date: g.date_and_time_jst.strftime('%m/%d'),
           match_type: g.match_type,
           opponent: g.opponent_name,
           result:,
