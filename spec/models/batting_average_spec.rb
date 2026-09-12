@@ -68,6 +68,24 @@ RSpec.describe BattingAverage, type: :model do
       result = described_class.filtered_aggregate_for_user(user.id, year: '2022').take
       expect(result).to be_nil
     end
+
+    context 'when a game is recorded at JST early morning on New Year’s Day' do
+      let!(:game_jst_new_year) do
+        gr = create(:game_result, user:)
+        # UTC 2025-12-31 18:00 = JST 2026-01-01 03:00。UTCのままだと年フィルタから漏れる
+        gr.match_result.update!(date_and_time: Time.zone.parse('2026-01-01 03:00:00 +0900'))
+        create(:batting_average, game_result: gr, user:, hit: 1, at_bats: 3, home_run: 0, times_at_bat: 4)
+        gr
+      end
+
+      it 'includes it in the JST year (2026), not the UTC year (2025)' do
+        result_jst_year = described_class.filtered_aggregate_for_user(user.id, year: '2026').take
+        result_utc_year = described_class.filtered_aggregate_for_user(user.id, year: '2025').take
+
+        expect(result_jst_year.hit.to_i).to eq(1)
+        expect(result_utc_year).to be_nil
+      end
+    end
   end
 
   describe '.filtered_stats_for_user' do
@@ -133,6 +151,17 @@ RSpec.describe BattingAverage, type: :model do
       ba = described_class.new(game_result:, user:)
       expect(ba).not_to be_valid
       expect(ba.errors[:base]).to include('打撃成績が未入力です')
+    end
+
+    it 'is valid when only plate_appearances is non-zero (interference-only or undecided-only games)' do
+      ba = described_class.new(
+        game_result:, user:, plate_appearances: 1,
+        times_at_bat: 0, at_bats: 0, hit: 0, two_base_hit: 0, three_base_hit: 0,
+        home_run: 0, total_bases: 0, runs_batted_in: 0, run: 0, strike_out: 0,
+        base_on_balls: 0, hit_by_pitch: 0, sacrifice_hit: 0, sacrifice_fly: 0,
+        stealing_base: 0, caught_stealing: 0, error: 0
+      )
+      expect(ba).to be_valid
     end
 
     it 'is valid when at least one stat field is non-zero' do

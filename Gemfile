@@ -10,7 +10,7 @@ gem 'rails', '~> 7.1.0'
 gem 'pg', '~> 1.1'
 
 # Use the Puma web server [https://github.com/puma/puma]
-gem 'puma', '~> 5.0'
+gem 'puma', '~> 6.0'
 
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 # gem "jbuilder"
@@ -39,6 +39,9 @@ gem 'bootsnap', require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin AJAX possible
 gem 'rack-cors'
 
+# 認証エンドポイントへのブルートフォース対策（レート制限）
+gem 'rack-attack', '~> 6.7'
+
 gem 'devise'
 
 gem 'devise_token_auth', '~> 1.2.5'
@@ -59,6 +62,9 @@ gem 'mini_magick'
 gem 'dotenv'
 
 gem 'fog-aws'
+
+# Cloudflare R2（S3互換）への署名URL発行専用。CarrierWave + fog-aws（アバター等）とは別系統で、混在させない。
+gem 'aws-sdk-s3', require: false
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
@@ -96,3 +102,9 @@ gem 'sentry-rails', '~> 5.13'
 gem 'kaminari'
 
 gem 'exponent-server-sdk'
+
+# Background job queue (Rails 7.1+)
+gem 'solid_queue'
+
+# Payment processing (Web subscription)
+gem 'stripe'

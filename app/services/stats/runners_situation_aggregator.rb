@@ -19,7 +19,10 @@ module Stats
 
     SCORING_POSITION_STATES = %w[second third first_second first_third second_third bases_loaded].freeze
 
-    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
+    # @param date_range [Range<Date>, nil] JST 日単位の絞り込み。週次レポートのように
+    #   月境界に揃わない期間を渡すためのもので、月単位の start_month / end_month とは別系統。
+    def initialize(user_id:, year: nil, match_type: nil, season_id: nil, # rubocop:disable Metrics/ParameterLists
+                   tournament_id: nil, start_month: nil, end_month: nil, date_range: nil)
       @user_id = user_id
       @year = year
       @match_type = match_type
@@ -27,6 +30,7 @@ module Stats
       @tournament_id = tournament_id
       @start_month = start_month
       @end_month = end_month
+      @date_range = date_range
     end
 
     # @return [Hash] at_bats / hits / two_base_hit / three_base_hit / home_run / batting_average
@@ -67,7 +71,17 @@ module Stats
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)
       scope = apply_tournament_filter(scope)
-      apply_date_range_filter(scope)
+      scope = apply_date_range_filter(scope)
+      apply_day_range_filter(scope)
+    end
+
+    # date_and_time は UTC 書き込みの unzoned timestamp のため、JST に変換してから
+    # 日付比較する（月初・月末をまたぐ深夜帯の試合が前後の日にずれるのを防ぐ）。
+    def apply_day_range_filter(scope)
+      return scope if @date_range.nil?
+
+      scope.where("DATE(#{Stats::JstDateSql::DATE_AND_TIME_JST_SQL}) BETWEEN ? AND ?",
+                  @date_range.first, @date_range.last)
     end
   end
 end

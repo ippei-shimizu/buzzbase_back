@@ -131,7 +131,12 @@ class BattingAverage < ApplicationRecord
   end
 
   def self.apply_filters(scope, year, match_type, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
-    scope = scope.where(match_results: { date_and_time: Date.new(year.to_i, 1, 1)..Date.new(year.to_i, 12, 31) }) if year.present? && year.to_s != '通算'
+    if year.present? && year.to_s != '通算'
+      # Date レンジは default_timezone(:local) 下では JST 変換されず UTC 値と素で比較されるため、
+      # JST 早朝(0:00-8:59)の試合が年フィルタから漏れる。Time.zone.local で明示的に JST 境界を作る。
+      year_range = Time.zone.local(year.to_i, 1, 1).beginning_of_day..Time.zone.local(year.to_i, 12, 31).end_of_day
+      scope = scope.where(match_results: { date_and_time: year_range })
+    end
     scope = scope.where(match_results: { match_type: }) if match_type.present? && match_type != '全て'
     scope = scope.where(game_results: { season_id: }) if season_id.present?
     scope = scope.where(match_results: { tournament_id: }) if tournament_id.present?
@@ -190,7 +195,12 @@ class BattingAverage < ApplicationRecord
   private
 
   def must_have_any_stats
+    # plate_appearances（総打席数）も判定に含める。打撃妨害・走塁妨害のみ、または
+    # 結果未確定の打席だけの試合は他の全項目が 0 になるが、打席が 1 件でもあれば
+    # 「未入力」ではない（v2 再集計がこの状態で保存に失敗しないようにする）。
+    # モデル共通のため v1 の手入力でも「打席数のみ」の登録が通るようになる。
     stat_fields = [
+      plate_appearances,
       times_at_bat, at_bats, hit, two_base_hit, three_base_hit, home_run,
       total_bases, runs_batted_in, run, strike_out, base_on_balls,
       hit_by_pitch, sacrifice_hit, sacrifice_fly, stealing_base,

@@ -162,7 +162,7 @@ module Api
       def build_available_years(user)
         MatchResult.joins(:game_result)
                    .where(game_results: { user_id: user.id })
-                   .select('EXTRACT(YEAR FROM date_and_time) AS year')
+                   .select(Arel.sql("#{Stats::JstDateSql::YEAR_JST_INT_SQL} AS year"))
                    .distinct.order(Arel.sql('year DESC'))
                    .map { |r| r.year.to_i }
       end

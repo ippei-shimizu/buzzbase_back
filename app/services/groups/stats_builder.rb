@@ -49,7 +49,7 @@ module Groups
 
     def available_years
       MatchResult.where(user_id: user_ids)
-                 .select('EXTRACT(YEAR FROM date_and_time) AS year')
+                 .select(Arel.sql("#{Stats::JstDateSql::YEAR_JST_INT_SQL} AS year"))
                  .distinct.order(Arel.sql('year DESC'))
                  .map { |r| r.year.to_i }
     end

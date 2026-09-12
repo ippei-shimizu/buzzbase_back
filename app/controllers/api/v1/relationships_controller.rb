@@ -47,7 +47,7 @@ module Api
       def notify_user(recipient, event_type, event_id, push_body)
         notification = Notification.create!(actor: current_api_v1_user, event_type:, event_id:)
         UserNotification.create!(user_id: recipient.id, notification_id: notification.id)
-        PushNotificationService.send_to_user(recipient, title: 'BUZZ BASE', body: push_body)
+        PushNotificationJob.perform_later(recipient.id, title: 'BUZZ BASE', body: push_body)
       end
     end
   end
