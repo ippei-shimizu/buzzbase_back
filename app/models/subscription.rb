@@ -1,4 +1,7 @@
 class Subscription < ApplicationRecord
+  # 実課金のレコードを内部付与向けの操作で壊さないためのガード用例外。
+  class NotInternalGrant < StandardError; end
+
   belongs_to :user
   has_many :user_subscription_events, dependent: :nullify
 
@@ -27,6 +30,12 @@ class Subscription < ApplicationRecord
   enum platform: { ios: 'ios', web: 'web', android: 'android' }, _prefix: :platform
 
   validates :status, inclusion: { in: STATUSES }
+  # 何のための内部付与かを後から追えるようにする。フラグだけ立っていて理由不明な行を作らせない。
+  validates :internal_grant_reason, presence: true, if: :internal_grant?
+
+  # 課金分析の母数。録画・審査・開発用の手動付与を除外する。
+  scope :billable, -> { where(internal_grant: false) }
+  scope :internal_grants, -> { where(internal_grant: true) }
 
   # Pro 機能が利用可能か。
   # 期限内かつ status が trial / active / cancelled / billing_issue のとき true。
@@ -65,5 +74,40 @@ class Subscription < ApplicationRecord
   # @return [Boolean]
   def can_use_trial?
     !has_used_trial?
+  end
+
+  # 内部利用（録画・審査・開発）の手動付与としてマークする。
+  # @param reason [String] 付与目的
+  # @return [Boolean]
+  def mark_internal_grant!(reason)
+    update!(internal_grant: true, internal_grant_reason: reason)
+  end
+
+  # 内部付与のマークを外す。手動付与ユーザーが実課金に切り替わったときに使う。
+  # @return [Boolean]
+  def unmark_internal_grant!
+    update!(internal_grant: false, internal_grant_reason: nil)
+  end
+
+  # 手動付与した Pro を無料状態へ戻す。
+  # ストア課金のレコードを誤って消さないよう internal_grant のものだけを対象にする。
+  # 除外対象であり続けるようフラグと理由は残す。
+  # has_used_trial はトライアル再取得を防ぐ制約のため触らない。
+  # @return [Boolean]
+  # @raise [NotInternalGrant] internal_grant でないレコードに対して呼ばれたとき
+  def revoke_internal_grant!
+    raise NotInternalGrant, "subscription #{id} は internal_grant ではありません" unless internal_grant?
+
+    update!(
+      status: 'free',
+      plan_type: nil,
+      platform: nil,
+      product_id: nil,
+      started_at: nil,
+      expires_at: nil,
+      cancelled_at: nil,
+      billing_issue_at: nil,
+      revenuecat_entitlement_id: nil
+    )
   end
 end

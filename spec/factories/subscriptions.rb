@@ -84,5 +84,13 @@ FactoryBot.define do
     trait :pending do
       status { 'pending' }
     end
+
+    # 録画用に手動 Pro 化したアカウントを再現する。ストア課金を経ていないため started_at は null。
+    trait :internal_grant do
+      status { 'active' }
+      started_at { nil }
+      internal_grant { true }
+      internal_grant_reason { '録画用' }
+    end
   end
 end

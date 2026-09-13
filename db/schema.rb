@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_13_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -939,6 +939,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
     t.datetime "updated_at", null: false
     t.string "stripe_customer_id"
     t.string "stripe_subscription_id"
+    t.boolean "internal_grant", default: false, null: false
+    t.string "internal_grant_reason"
     t.index ["expires_at"], name: "index_subscriptions_on_expires_at"
     t.index ["revenuecat_user_id"], name: "index_subscriptions_on_revenuecat_user_id", unique: true
     t.index ["status"], name: "index_subscriptions_on_status"

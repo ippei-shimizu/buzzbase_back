@@ -124,6 +124,79 @@ RSpec.describe Subscription, type: :model do
     end
   end
 
+  describe 'internal_grant' do
+    it 'is invalid when flagged without a reason' do
+      subscription = build(:subscription, :internal_grant, internal_grant_reason: nil)
+      expect(subscription).not_to be_valid
+      expect(subscription.errors[:internal_grant_reason]).to be_present
+    end
+
+    it 'is valid without a reason when not flagged' do
+      subscription = build(:subscription, :active)
+      expect(subscription).to be_valid
+    end
+  end
+
+  describe '.billable / .internal_grants' do
+    let!(:paid_subscription) { create(:subscription, :active) }
+    let!(:granted_subscription) { create(:subscription, :internal_grant) }
+
+    it 'excludes internal grants from billable' do
+      expect(described_class.billable).to include(paid_subscription)
+      expect(described_class.billable).not_to include(granted_subscription)
+    end
+
+    it 'collects only internal grants' do
+      expect(described_class.internal_grants).to contain_exactly(granted_subscription)
+    end
+  end
+
+  describe '#mark_internal_grant!' do
+    it 'flags the subscription with a reason' do
+      subscription = create(:subscription, :active)
+      subscription.mark_internal_grant!('審査用')
+      expect(subscription.internal_grant).to be true
+      expect(subscription.internal_grant_reason).to eq '審査用'
+    end
+  end
+
+  describe '#unmark_internal_grant!' do
+    it 'clears the flag and the reason' do
+      subscription = create(:subscription, :internal_grant)
+      subscription.unmark_internal_grant!
+      expect(subscription.internal_grant).to be false
+      expect(subscription.internal_grant_reason).to be_nil
+    end
+  end
+
+  describe '#revoke_internal_grant!' do
+    it 'resets an internal grant back to free while keeping the audit trail' do
+      subscription = create(:subscription, :internal_grant, expires_at: 30.days.from_now, plan_type: 'monthly', platform: 'ios')
+
+      subscription.revoke_internal_grant!
+
+      expect(subscription.status).to eq 'free'
+      expect(subscription.pro_active?).to be false
+      expect(subscription.plan_type).to be_nil
+      expect(subscription.platform).to be_nil
+      expect(subscription.expires_at).to be_nil
+      expect(subscription.internal_grant).to be true
+      expect(subscription.internal_grant_reason).to eq '録画用'
+    end
+
+    it 'keeps has_used_trial so the user cannot take another trial' do
+      subscription = create(:subscription, :internal_grant, has_used_trial: true)
+      subscription.revoke_internal_grant!
+      expect(subscription.has_used_trial).to be true
+    end
+
+    it 'raises for a real store purchase' do
+      subscription = create(:subscription, :active)
+      expect { subscription.revoke_internal_grant! }.to raise_error(Subscription::NotInternalGrant)
+      expect(subscription.reload.status).to eq 'active'
+    end
+  end
+
   # User の after_create で必ず free な subscription が生成されるため、
   # 同じユーザーに 2 つ目の subscription を作るとユニーク制約に当たる。
   # ファクトリ側で「既存 subscription を attributes で上書きする」戦略が
