@@ -115,10 +115,17 @@ RSpec.describe 'Api::V2::PracticeSessions', type: :request do
     context 'コンディション付き' do
       let(:condition) { { fatigue_level: 3, physical_level: 4, sleep_hours: 7.5, mood: '好調' } }
 
-      it '無料ユーザーは 403（コンディションは Pro 限定）' do
+      it '無料ユーザーは疲労度・体調だけ保存され、詳細項目は無視される' do
         post '/api/v2/practice_sessions', params: { practice_session: { logged_on: today, items:, condition: } },
                                           headers: auth_headers_for(user)
-        expect(response).to have_http_status(:forbidden)
+        log = user.condition_logs.find_by(logged_on: today)
+        aggregate_failures do
+          expect(response).to have_http_status(:created)
+          expect(log.fatigue_level).to eq(3)
+          expect(log.physical_level).to eq(4)
+          expect(log.sleep_hours).to be_nil
+          expect(log.mood).to be_nil
+        end
       end
 
       it 'Pro ユーザーはセッションと同時にコンディションを保存できる' do

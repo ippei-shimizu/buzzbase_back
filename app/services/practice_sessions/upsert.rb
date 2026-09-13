@@ -5,11 +5,8 @@ module PracticeSessions
   #
   # 量ログは practice_menu_id をキーに差分同期する（既存は更新・新規は作成・外れたものは削除）。
   # 素振り自動ログ（source=shadow_swing）は編集対象外なので触らない。
-  # コンディションは Pro 限定。ペイロードに含まれ、かつ Pro 未加入なら NotEntitled を投げる。
+  # コンディションは疲労度・体調を無料で記録でき、詳細項目のみ Pro 限定。
   class Upsert
-    # コンディション記録は Pro 限定のため、未加入時に投げる。
-    class NotEntitled < StandardError; end
-
     # 複数課題への紐付けは Pro 限定のため、無料ユーザーが2件以上指定したときに投げる。
     class ThemeLimitExceeded < StandardError; end
 
@@ -19,7 +16,7 @@ module PracticeSessions
     # @param practice_type [String, nil] 自主練習/チーム練習の種別（nil なら更新しない）
     # @param improvement_theme_ids [Array<Integer, String>, nil] 紐付ける課題テーマ群（nilならテーマ紐付けを更新しない）
     # @param items [Array<Hash>] [{ practice_menu_id:, amount:, memo: }]
-    # @param condition [Hash, nil] コンディション入力（nil なら更新しない）
+    # @param condition [Hash, nil] コンディション入力（nil なら更新しない。Pro 未加入なら詳細項目は無視する）
     def initialize(user:, logged_on:, memo: nil, practice_type: nil, improvement_theme_ids: nil, items: [], condition: nil)
       @user = user
       @logged_on = logged_on
@@ -98,9 +95,12 @@ module PracticeSessions
     end
 
     def upsert_condition
-      raise NotEntitled unless @user.has_entitlement?('detailed_condition_log')
+      permitted = permitted_condition_attributes
+      # Pro 限定項目だけのペイロードを無料ユーザーが送ってきた場合、残るのは空なので
+      # 中身の無いコンディションを作らずに何もしない（既存があるときは空入力での消去を許す）。
+      return if permitted.values.all?(&:blank?) && existing_condition_log.nil?
 
-      attributes = @condition.merge(logged_on: @logged_on)
+      attributes = permitted.merge(logged_on: @logged_on)
       # ユニーク制約違反は PostgreSQL では外側のトランザクションごと中断させるため、
       # 復旧クエリを流せるようセーブポイント内で INSERT させる。
       ActiveRecord::Base.transaction(requires_new: true) do
@@ -110,6 +110,19 @@ module PracticeSessions
       # 同時リクエストで find と INSERT の間に他方が作成した場合は、
       # (user_id, logged_on) のユニークインデックスに任せて拾い直す。
       @user.condition_logs.find_by!(logged_on: @logged_on).update!(attributes)
+    end
+
+    # 疲労度・体調は無料でも記録できる。詳細項目は Pro 未加入なら保存対象から落とす。
+    # 落とした項目は nil で上書きせず既存値を残し、Pro 解約後も過去の記録を壊さない。
+    def permitted_condition_attributes
+      attributes = @condition.with_indifferent_access
+      return attributes if @user.has_entitlement?('detailed_condition_log')
+
+      attributes.slice(*ConditionLog::BASIC_ATTRIBUTES)
+    end
+
+    def existing_condition_log
+      @user.condition_logs.find_by(logged_on: @logged_on)
     end
 
     def item_menu_ids

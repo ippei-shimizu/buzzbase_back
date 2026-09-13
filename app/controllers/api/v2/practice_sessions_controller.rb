@@ -2,7 +2,8 @@ module Api
   module V2
     # 日次の練習セッション（1日の振り返り）。
     # 日付ごとに複数メニューの量ログとコンディションを束ねて作成・取得・削除する。
-    # 量記録・閲覧は無料でも全期間・全件可。コンディション部分のみ Pro 限定。
+    # 量記録・閲覧は無料でも全期間・全件可。コンディションは疲労度・体調を無料で記録でき、
+    # 睡眠時間・気分・メモ・怪我のみ Pro 限定（無料で送られた場合は無視する）。
     class PracticeSessionsController < Api::V2::ApplicationController
       before_action :authenticate_api_v1_user!
 
@@ -48,8 +49,6 @@ module Api
           condition: session_params[:condition]&.to_h
         ).call
         render json: session, serializer: ::V2::PracticeSessionSerializer, status: :created
-      rescue PracticeSessions::Upsert::NotEntitled
-        render json: { error: 'コンディション記録は Pro プラン限定です' }, status: :forbidden
       rescue PracticeSessions::Upsert::ThemeLimitExceeded
         render json: { error: '複数の課題への紐付けは Pro プラン限定です' }, status: :forbidden
       rescue ActiveRecord::RecordInvalid => e
