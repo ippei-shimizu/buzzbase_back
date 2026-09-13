@@ -24,6 +24,44 @@ RSpec.describe PracticeSessions::Upsert do
       expect(user.condition_logs.find_by(logged_on: today).fatigue_level).to eq(4)
     end
 
+    context '無料ユーザーのとき' do
+      before { user.subscription.update!(status: 'free', expires_at: nil) }
+
+      it '疲労度・体調は保存し、Pro 限定の詳細項目は無視する' do
+        call_upsert
+
+        log = user.condition_logs.find_by(logged_on: today)
+        aggregate_failures do
+          expect(log.fatigue_level).to eq(4)
+          expect(log.physical_level).to eq(2)
+          expect(log.sleep_hours).to be_nil
+          expect(log.mood).to be_nil
+        end
+      end
+
+      it 'Pro 期間中に記録した詳細項目は上書きせず残す' do
+        create(:condition_log, user:, logged_on: today, sleep_hours: 7.0, mood: '好調', memo: '快調')
+
+        call_upsert
+
+        log = user.condition_logs.find_by(logged_on: today)
+        aggregate_failures do
+          expect(log.fatigue_level).to eq(4)
+          expect(log.sleep_hours).to eq(7.0)
+          expect(log.mood).to eq('好調')
+          expect(log.memo).to eq('快調')
+        end
+      end
+
+      context 'Pro 限定の詳細項目だけが送られたとき' do
+        let(:condition) { { sleep_hours: 6.5, mood: '普通' } }
+
+        it '中身の無いコンディションを作らない' do
+          expect { call_upsert }.not_to(change { user.condition_logs.count })
+        end
+      end
+    end
+
     context '同時リクエストがユニーク制約に競合したとき' do
       # 相手方リクエストを別コネクションからコミットさせるため、テスト用トランザクションを外す。
       self.use_transactional_tests = false

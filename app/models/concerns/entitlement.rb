@@ -14,7 +14,8 @@ module Entitlement
     'practice_log_basic',    # 練習記録(基本): 練習内容のログ
     'grass_recent_30days',   # 草機能: 直近30日分のヒートマップ表示
     'monthly_goal_single',   # 個人の期間目標（月次/週次/年間）: 2つまで作成可。カスタム期間は Pro 限定（custom_period_goals）
-    'schedule_single'        # 自主練スケジュール: 無料でも無制限に作成可
+    'schedule_single',       # 自主練スケジュール: 無料でも無制限に作成可
+    'condition_log_basic'    # コンディション記録(基本): 疲労度・体調の記録。詳細項目は Pro 限定（detailed_condition_log）
   ].freeze
 
   # Pro 加入時のみ利用可能な機能キー。subscription が pro_active? のとき true。
@@ -30,7 +31,7 @@ module Entitlement
     'season_goals',                 # シーズン目標(無料は利用不可)
     'tournament_goals',             # 大会目標(無料は利用不可)
     'custom_notification_messages', # カスタム通知メッセージの設定
-    'detailed_condition_log',       # 詳細コンディションログ(体調・気分の詳細記録)
+    'detailed_condition_log',       # コンディション記録(詳細): 睡眠時間・気分・メモ・怪我。疲労度・体調は無料（condition_log_basic）
     'unlimited_improvement_themes', # 課題テーマ無制限(無料は取組中2つまで)
     'correlation_insights',         # 相関インサイト(練習量・コンディション×成績の傾向)
     'unlimited_reflection_templates', # 振り返りテンプレの自作無制限(無料は1つまで・プリセットは全員可)
