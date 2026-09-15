@@ -32,6 +32,46 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
           expect(result[:hit]).to eq(0)
           expect(result[:home_run]).to eq(0)
           expect(result[:runs_batted_in]).to eq(0)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+    end
+
+    context '走本塁打の内訳' do
+      it '本塁打の内数として走本塁打を返し、本塁打の総数は変わらない' do
+        game_result = build_game(
+          batting_attrs: { at_bats: 4, hit: 0, home_run: 2, total_bases: 8 }
+        )
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :inside_the_park)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :over_fence)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(2)
+          expect(result[:inside_the_park_home_run]).to eq(1)
+        end
+      end
+
+      it '走本塁打が記録されていなければ 0 を返す' do
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(1)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
+      it 'year フィルタは走本塁打にも効く' do
+        game_result = build_game(date: '2025-05-05', batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :inside_the_park)
+
+        aggregate_failures do
+          expect(described_class.new(user_id: user.id, year: 2025).call[:inside_the_park_home_run]).to eq(1)
+          expect(described_class.new(user_id: user.id, year: 2026).call[:inside_the_park_home_run]).to eq(0)
         end
       end
     end

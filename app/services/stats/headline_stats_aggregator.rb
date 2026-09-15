@@ -22,7 +22,8 @@ module Stats
       @end_month = end_month
     end
 
-    # @return [Hash] 7 指標 + at_bats（母数）。値はすべて 0 始まりで、母数 0 でも nil を返さない
+    # @return [Hash] 7 指標 + at_bats（母数）+ home_run の内数 inside_the_park_home_run。
+    #   値はすべて 0 始まりで、母数 0 でも nil を返さない
     def call
       stats = aggregate_stats
       at_bats = stats[:at_bats]
@@ -45,7 +46,8 @@ module Stats
         on_base_percentage: obp,
         slugging_percentage: slg,
         ops: BattingFormulas.ops(obp:, slg:),
-        at_bats:
+        at_bats:,
+        inside_the_park_home_run: inside_the_park_home_run_count
       }
     end
 
@@ -64,6 +66,19 @@ module Stats
       row = filtered_scope.pick(*SUM_COLUMNS.map { |col| Arel.sql("SUM(COALESCE(#{col}, 0))") })
       values = Array.wrap(row).map(&:to_i)
       SUM_COLUMNS.zip(values).to_h
+    end
+
+    # 走本塁打（ランニング本塁打）の本数。home_run の内数で、home_run 自体は変わらない。
+    # batting_averages には内訳カラムが無いため plate_appearances を同じフィルタで数える。
+    def inside_the_park_home_run_count
+      scope = PlateAppearance.joins(game_result: :match_result).where(user_id: @user_id)
+      scope = apply_year_filter(scope)
+      scope = apply_match_type_filter(scope)
+      scope = apply_season_filter(scope)
+      scope = apply_tournament_filter(scope)
+      apply_date_range_filter(scope)
+        .where(home_run_type: PlateAppearance.home_run_types[:inside_the_park])
+        .count
     end
 
     def filtered_scope
