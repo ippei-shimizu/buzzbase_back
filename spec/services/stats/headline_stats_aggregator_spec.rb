@@ -96,6 +96,51 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
         end
       end
 
+      it '別ユーザーの走本塁打は数えない' do
+        other_user = create(:user)
+        other_game = create(:game_result, user: other_user)
+        create(:plate_appearance, game_result: other_game, user: other_user, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        expect(result[:inside_the_park_home_run]).to eq(1)
+      end
+
+      it 'match_type フィルタは走本塁打にも効く' do
+        regular_game = build_game(date: '2026-04-01', match_type: 'regular',
+                                  batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: regular_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        open_game = build_game(date: '2026-04-02', match_type: 'open',
+                               batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: open_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        aggregate_failures do
+          expect(described_class.new(user_id: user.id, match_type: 'regular').call[:inside_the_park_home_run]).to eq(1)
+          expect(described_class.new(user_id: user.id).call[:inside_the_park_home_run]).to eq(2)
+        end
+      end
+
+      it 'season_id フィルタは走本塁打にも効く' do
+        season = create(:season, user:)
+        season_game = build_game(batting_attrs: { home_run: 1, total_bases: 4 })
+        season_game.update!(season_id: season.id)
+        create(:plate_appearance, game_result: season_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        other_game = build_game(batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: other_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id, season_id: season.id).call
+
+        expect(result[:inside_the_park_home_run]).to eq(1)
+      end
+
       it 'year フィルタは走本塁打にも効く' do
         game_result = build_game(date: '2025-05-05', batting_attrs: { home_run: 1, total_bases: 4 })
         create(:plate_appearance, game_result:, user:, plate_result_id: 10,
