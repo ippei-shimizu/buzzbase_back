@@ -79,9 +79,7 @@ module Stats
     # @param home_run_total [Integer] batting_averages 由来の本塁打数（母数）
     # @return [Integer] 走本塁打の本数（0 〜 home_run_total）
     def inside_the_park_home_run_count(home_run_total)
-      count = filtered_pa_scope
-              .where(home_run_type: PlateAppearance.home_run_types[:inside_the_park])
-              .count
+      count = filtered_pa_scope.home_run_type_inside_the_park.count
       [count, home_run_total].min
     end
 
