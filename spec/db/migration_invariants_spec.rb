@@ -41,7 +41,8 @@ RSpec.describe 'マイグレーション後の既存データ保全', type: :mod
       new_columns = %i[out_type hit_type rbi run_scored stolen_bases caught_stealing
                        final_balls final_strikes final_outs first_pitch_swing runners_state inning
                        contact_quality_id timing_id pitch_type_id
-                       self_analysis_memo opponent_memo hit_location_x hit_location_y]
+                       self_analysis_memo opponent_memo hit_location_x hit_location_y
+                       swing_type home_run_type]
       aggregate_failures do
         new_columns.each do |column|
           expect(plate_appearance.public_send(column)).to be_nil, "expected #{column} to be nil"

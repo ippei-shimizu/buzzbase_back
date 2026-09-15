@@ -78,6 +78,35 @@ RSpec.describe PlateAppearance, type: :model do
     end
   end
 
+  describe 'home_run_type の整合バリデーション' do
+    let(:pa) { build(:plate_appearance) }
+
+    it 'home_run_type は over_fence / inside_the_park の 2 種' do
+      expect(described_class.home_run_types).to eq('over_fence' => 0, 'inside_the_park' => 1)
+    end
+
+    it '本塁打 (plate_result_id=10) で inside_the_park は valid' do
+      pa.assign_attributes(plate_result_id: 10, home_run_type: :inside_the_park)
+      expect(pa).to be_valid
+    end
+
+    it '本塁打で over_fence は valid' do
+      pa.assign_attributes(plate_result_id: 10, home_run_type: :over_fence)
+      expect(pa).to be_valid
+    end
+
+    it '本塁打で home_run_type 未指定は valid' do
+      pa.assign_attributes(plate_result_id: 10, home_run_type: nil)
+      expect(pa).to be_valid
+    end
+
+    it '本塁打以外 (例: 三塁打 id=9) に home_run_type を入れると invalid' do
+      pa.assign_attributes(plate_result_id: 9, home_run_type: :inside_the_park)
+      expect(pa).not_to be_valid
+      expect(pa.errors[:home_run_type]).to be_present
+    end
+  end
+
   describe '新カラムの保存と取得' do
     let(:pa) { create(:plate_appearance) }
 
