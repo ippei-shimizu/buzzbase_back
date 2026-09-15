@@ -8,7 +8,7 @@ module V2
     attributes :id, :game_result_id, :user_id,
                :batter_box_number, :batting_result,
                :plate_result_id, :hit_direction_id, :batting_position_id,
-               :out_type, :hit_type, :swing_type,
+               :out_type, :hit_type, :swing_type, :home_run_type,
                :hit_location_x, :hit_location_y,
                :rbi, :run_scored, :stolen_bases, :caught_stealing,
                :final_balls, :final_strikes, :final_outs,
@@ -33,7 +33,7 @@ module V2
 
     private
 
-    # swing_type は「打席結果 (plate_result_id) の不可分な一部」と捉えるため、
+    # swing_type / home_run_type は「打席結果 (plate_result_id) の不可分な一部」と捉えるため、
     # 任意入力の「詳細データ」とは別扱いにする（has_detail_data に含めない）。
     # 三振 PA で swing_type だけ入っていても「詳細未入力」バッジを出す意図。
     def detail_attributes
