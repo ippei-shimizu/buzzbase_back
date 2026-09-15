@@ -27,6 +27,9 @@ module Stats
 
     # ランニング本塁打（走本塁打）はスコアブック表記に合わせて「走本」で表示する。
     # plate_result は本塁打のままなので SHORT_FORMS には載せず、ここで差し替える。
+    # mobile の resultShortForms に対応表は無いが、そちらを使う getResultText は
+    # 走本塁打の選択肢を持たない v1 打撃入力専用で、v2 はサーバーが返す
+    # batting_result をそのまま表示するため不一致は起きない。
     INSIDE_THE_PARK_HOME_RUN_SHORT_FORM = '走本'.freeze
 
     # 打席結果テキストを生成する。
