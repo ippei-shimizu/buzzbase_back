@@ -42,8 +42,10 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
         game_result = build_game(
           batting_attrs: { at_bats: 4, hit: 0, home_run: 2, total_bases: 8 }
         )
-        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :inside_the_park)
-        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :over_fence)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :over_fence)
 
         result = described_class.new(user_id: user.id).call
 
@@ -55,7 +57,7 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
 
       it '走本塁打が記録されていなければ 0 を返す' do
         game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
-        create(:plate_appearance, game_result:, user:, plate_result_id: 10)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, is_new_format: true)
 
         result = described_class.new(user_id: user.id).call
 
@@ -65,9 +67,39 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
         end
       end
 
+      it '旧仕様 PA (is_new_format=false) の走本塁打は数えない' do
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: false, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(1)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
+      it '混在試合で batting_averages が古くても内数は母数を超えない' do
+        # 旧 PA を含む混在試合では BattingAverageRecalculator が再集計しないため
+        # home_run が 0 のまま新仕様の走本塁打 PA だけが増えうる。
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 1, home_run: 0, total_bases: 1 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 7, is_new_format: false)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(0)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
       it 'year フィルタは走本塁打にも効く' do
         game_result = build_game(date: '2025-05-05', batting_attrs: { home_run: 1, total_bases: 4 })
-        create(:plate_appearance, game_result:, user:, plate_result_id: 10, home_run_type: :inside_the_park)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
 
         aggregate_failures do
           expect(described_class.new(user_id: user.id, year: 2025).call[:inside_the_park_home_run]).to eq(1)
