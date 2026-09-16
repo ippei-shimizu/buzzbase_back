@@ -90,15 +90,20 @@ module Api
       end
 
       def build_batting_stats(user, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)
-        aggregate = BattingAverage.filtered_aggregate_for_user(user.id, year:, match_type:, season_id:, tournament_id:, start_month:,
-                                                                        end_month:).take
+        aggregate_scope = BattingAverage.filtered_aggregate_for_user(user.id, year:, match_type:, season_id:, tournament_id:,
+                                                                              start_month:, end_month:)
+        aggregate = aggregate_scope.take
         calculated = BattingAverage.filtered_stats_for_user(user.id, year:, match_type:, season_id:, tournament_id:, start_month:,
                                                                      end_month:)
 
         return { aggregate: nil, calculated: nil } unless aggregate && calculated
         return { aggregate: nil, calculated: nil } if batting_all_zero?(aggregate)
 
-        { aggregate: batting_aggregate_hash(aggregate), calculated: batting_calculated_hash(calculated) }
+        inside_the_park_home_run = Stats::InsideTheParkHomeRunCounter.count(
+          aggregate_scope, user_id: user.id, home_run_total: aggregate.home_run.to_i
+        )
+        { aggregate: batting_aggregate_hash(aggregate, inside_the_park_home_run:),
+          calculated: batting_calculated_hash(calculated) }
       end
 
       def batting_all_zero?(aggregate)
@@ -107,10 +112,11 @@ module Api
          aggregate.base_on_balls, aggregate.strike_out].all? { |v| v.to_i.zero? }
       end
 
-      def batting_aggregate_hash(agg)
+      # inside_the_park_home_run は home_run の内数（home_run 自体は走本塁打を含んだ総数のまま）
+      def batting_aggregate_hash(agg, inside_the_park_home_run:)
         { number_of_matches: agg.number_of_matches.to_i, hit: agg.hit.to_i,
           two_base_hit: agg.two_base_hit.to_i, three_base_hit: agg.three_base_hit.to_i,
-          home_run: agg.home_run.to_i, total_bases: agg.total_bases.to_i,
+          home_run: agg.home_run.to_i, inside_the_park_home_run:, total_bases: agg.total_bases.to_i,
           runs_batted_in: agg.runs_batted_in.to_i, run: agg.run.to_i,
           stealing_base: agg.stealing_base.to_i, caught_stealing: agg.caught_stealing.to_i,
           times_at_bat: agg.times_at_bat.to_i, at_bats: agg.at_bats.to_i,

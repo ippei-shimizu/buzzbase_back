@@ -3,6 +3,7 @@
   "batting_average": 0.588,
   "hit": 10,
   "home_run": 2,
+  "inside_the_park_home_run": 0,
   "on_base_percentage": 0.6,
   "ops": 1.776,
   "runs_batted_in": 8,

@@ -5,6 +5,28 @@ RSpec.describe Stats::BattingAverageRecalculator, type: :service do
   let(:game_result) { create(:game_result, user:) }
 
   describe '#call' do
+    context '走本塁打（home_run_type=inside_the_park）を含む試合' do
+      before do
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, hit_direction_id: 8,
+                                  is_new_format: true, home_run_type: :inside_the_park,
+                                  rbi: 1, run_scored: 1, stolen_bases: 0, caught_stealing: 0)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, hit_direction_id: 12,
+                                  is_new_format: true, home_run_type: :over_fence,
+                                  rbi: 1, run_scored: 1, stolen_bases: 0, caught_stealing: 0)
+      end
+
+      it '走本塁打も通常の本塁打と同じく本塁打・塁打に計上される' do
+        described_class.new(game_result_id: game_result.id).call
+        batting_average = BattingAverage.find_by(game_result_id: game_result.id)
+
+        aggregate_failures do
+          expect(batting_average.home_run).to eq(2)
+          expect(batting_average.total_bases).to eq(8)
+          expect(batting_average.hit).to eq(0)
+        end
+      end
+    end
+
     context '新仕様試合（is_new_format=true の打席が1件以上ある場合）' do
       before do
         # is_new_format=true の打席を 4 件作成: ヒット, 単打, 二塁打, 三振
