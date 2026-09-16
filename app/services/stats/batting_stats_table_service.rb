@@ -69,9 +69,13 @@ module Stats
                           .order('match_results.date_and_time ASC')
 
       games_prefix = { 'games' => 1 }
+      inside_the_park_counts = InsideTheParkHomeRunCounter.count_by_game_result(scope, user_id: @user_id)
       rows = game_results.map do |ba|
         mr = ba.game_result.match_result
-        row = compose_row(mr.date_and_time.strftime('%m/%d'), games_prefix.merge(extract_int_stats(ba, BATTING_FIELDS)))
+        # 母数を超えないクランプは InsideTheParkHomeRunCounter.count と同じ理由
+        inside_the_park_home_run = [inside_the_park_counts.fetch(ba.game_result_id, 0), ba.home_run.to_i].min
+        row = compose_row(mr.date_and_time.strftime('%m/%d'), games_prefix.merge(extract_int_stats(ba, BATTING_FIELDS)),
+                          inside_the_park_home_run:)
         row[:opponent] = mr.opponent_team&.name || '不明'
         row
       end
@@ -85,14 +89,19 @@ module Stats
       agg = scope.select(aggregate_columns).reorder(nil).take
       return empty_row(label) unless agg
 
-      compose_row(label, agg.attributes)
+      inside_the_park_home_run = InsideTheParkHomeRunCounter.count(scope, user_id: @user_id, home_run_total: agg.home_run.to_i)
+      compose_row(label, agg.attributes, inside_the_park_home_run:)
     end
 
-    def compose_row(label, stats)
+    # inside_the_park_home_run は home_run の内数（home_run 自体は走本塁打を含んだ総数のまま）
+    def compose_row(label, stats, inside_the_park_home_run:)
       vals = int_values(stats, BATTING_FIELDS)
       derived = calculate_rate_stats(vals)
 
-      { label:, games: stats['games'].to_i }.merge(vals.transform_keys(&:to_sym)).merge(derived)
+      { label:, games: stats['games'].to_i }
+        .merge(vals.transform_keys(&:to_sym))
+        .merge(inside_the_park_home_run:)
+        .merge(derived)
     end
 
     def calculate_rate_stats(vals)
@@ -133,7 +142,7 @@ module Stats
 
     def empty_row(label)
       base = { label:, games: 0 }
-      zeros = BATTING_SYMBOLS.index_with { 0 }
+      zeros = BATTING_SYMBOLS.index_with { 0 }.merge(inside_the_park_home_run: 0)
       rates = { hit: ZERO, batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
                 iso: ZERO, bb_per_k: ZERO, babip: ZERO }
       base.merge(zeros).merge(rates)
