@@ -94,9 +94,10 @@ class ShadowSwingSession < ApplicationRecord
   # 単位が「回数」以外の既存メニューは統合すると数値の意味が壊れるため紐付けない
   # （その場合は practice_menu: nil のまま、従来通り別集計になる）。
   # 該当メニューが無ければ「回数」単位で新規作成する。
+  # 削除済み（archived）のメニューはユーザーが消した意思を尊重して対象外とし、作り直す。
   # @return [PracticeMenu, nil]
   def linked_menu
-    existing = user.practice_menus.find_by(name: MENU_NAME)
+    existing = user.practice_menus.active.find_by(name: MENU_NAME)
     return existing if existing&.unit == 'count'
     return nil if existing
 
@@ -107,6 +108,6 @@ class ShadowSwingSession < ApplicationRecord
     end
   rescue ActiveRecord::RecordNotUnique
     # 一意インデックスは name / unit の両方で絞っているため、競合相手は必ず count 単位の行。
-    user.practice_menus.find_by!(name: MENU_NAME, unit: 'count')
+    user.practice_menus.active.find_by!(name: MENU_NAME, unit: 'count')
   end
 end
