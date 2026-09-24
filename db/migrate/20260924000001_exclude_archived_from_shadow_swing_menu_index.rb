@@ -15,8 +15,12 @@ class ExcludeArchivedFromShadowSwingMenuIndex < ActiveRecord::Migration[7.1]
     add_index :practice_menus, %i[user_id name], unique: true, where: NEW_CONDITION, name: INDEX_NAME
   end
 
+  # up 適用後は「削除済みの素振りメニュー + 新しい素振りメニュー」が同一ユーザーに
+  # 共存しうる（それがこの変更の目的）。旧条件は archived を含むため、その状態では
+  # インデックスを張り直せない。戻すには重複行の扱いを人が決める必要がある。
   def down
-    remove_index :practice_menus, name: INDEX_NAME
-    add_index :practice_menus, %i[user_id name], unique: true, where: OLD_CONDITION, name: INDEX_NAME
+    raise ActiveRecord::IrreversibleMigration,
+          "#{INDEX_NAME} は archived 込みの一意制約に自動では戻せません。" \
+          '重複する素振りメニューを整理してから、旧条件でインデックスを張り直してください。'
   end
 end
