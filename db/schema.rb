@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_15_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -598,6 +598,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
     t.integer "pitch_course"
     t.decimal "pitch_course_x", precision: 4, scale: 3
     t.decimal "pitch_course_y", precision: 4, scale: 3
+    t.integer "home_run_type"
     t.index ["appearance_situation_id"], name: "index_plate_appearances_on_appearance_situation_id"
     t.index ["contact_quality_id"], name: "index_plate_appearances_on_contact_quality_id"
     t.index ["game_result_id"], name: "index_plate_appearances_on_game_result_id"
@@ -608,6 +609,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_130002) do
     t.index ["plate_result_id"], name: "index_plate_appearances_on_plate_result_id"
     t.index ["swing_type"], name: "index_plate_appearances_on_swing_type", where: "(swing_type IS NOT NULL)"
     t.index ["timing_id"], name: "index_plate_appearances_on_timing_id"
+    t.index ["user_id", "home_run_type"], name: "index_plate_appearances_on_user_id_and_home_run_type", where: "(home_run_type IS NOT NULL)"
     t.index ["user_id"], name: "index_plate_appearances_on_user_id"
   end
 

@@ -13,7 +13,8 @@ module Stats
     SINGLE_HIT_ID = 7
     DOUBLE_HIT_ID = 8
     TRIPLE_HIT_ID = 9
-    HOME_RUN_ID = 10
+    # plate_result の ID はドメインの語彙なのでモデル側を SSoT とし、ここは参照に留める。
+    HOME_RUN_ID = PlateAppearance::HOME_RUN_RESULT_ID
     SACRIFICE_HIT_ID = 11
     SACRIFICE_FLY_ID = 12
     STRIKE_OUT_IDS = [13, 14].freeze

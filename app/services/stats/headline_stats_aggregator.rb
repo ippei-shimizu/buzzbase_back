@@ -22,7 +22,8 @@ module Stats
       @end_month = end_month
     end
 
-    # @return [Hash] 7 指標 + at_bats（母数）。値はすべて 0 始まりで、母数 0 でも nil を返さない
+    # @return [Hash] 7 指標 + at_bats（母数）+ home_run の内数 inside_the_park_home_run。
+    #   値はすべて 0 始まりで、母数 0 でも nil を返さない
     def call
       stats = aggregate_stats
       at_bats = stats[:at_bats]
@@ -45,7 +46,8 @@ module Stats
         on_base_percentage: obp,
         slugging_percentage: slg,
         ops: BattingFormulas.ops(obp:, slg:),
-        at_bats:
+        at_bats:,
+        inside_the_park_home_run: inside_the_park_home_run_count(stats[:home_run])
       }
     end
 
@@ -64,6 +66,33 @@ module Stats
       row = filtered_scope.pick(*SUM_COLUMNS.map { |col| Arel.sql("SUM(COALESCE(#{col}, 0))") })
       values = Array.wrap(row).map(&:to_i)
       SUM_COLUMNS.zip(values).to_h
+    end
+
+    # 走本塁打（ランニング本塁打）の本数。home_run の内数で、home_run 自体は変わらない。
+    # batting_averages には内訳カラムが無いため plate_appearances を同じフィルタで数える。
+    #
+    # 旧仕様 PA を含む混在試合では BattingAverageRecalculator が再集計を行わず
+    # batting_averages.home_run が古いまま残るため、内数だけが先に増えて母数を超えうる。
+    # フロントが home_run - inside_the_park_home_run で柵越え数を出しても負にならないよう、
+    # 母数でクランプして「内数は母数を超えない」を保証する。
+    #
+    # @param home_run_total [Integer] batting_averages 由来の本塁打数（母数）
+    # @return [Integer] 走本塁打の本数（0 〜 home_run_total）
+    def inside_the_park_home_run_count(home_run_total)
+      count = filtered_pa_scope.home_run_type_inside_the_park.count
+      [count, home_run_total].min
+    end
+
+    # plate_appearances を直接数える側のスコープ。batting_averages 経由の filtered_scope とは
+    # 別系統だが、他の Stats 系 PA スコープと同じく新仕様 PA のみを対象にする。
+    def filtered_pa_scope
+      scope = PlateAppearance.joins(game_result: :match_result)
+                             .where(user_id: @user_id, is_new_format: true)
+      scope = apply_year_filter(scope)
+      scope = apply_match_type_filter(scope)
+      scope = apply_season_filter(scope)
+      scope = apply_tournament_filter(scope)
+      apply_date_range_filter(scope)
     end
 
     def filtered_scope

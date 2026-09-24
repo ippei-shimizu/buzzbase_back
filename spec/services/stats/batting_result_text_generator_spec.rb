@@ -27,6 +27,28 @@ RSpec.describe Stats::BattingResultTextGenerator, type: :service do
     end
     # rubocop:enable Style/HashEachMethods
 
+    context '本塁打の内訳 (home_run_type)' do
+      it 'ランニング本塁打は「走本」で表示する' do
+        plate_appearance = build_stubbed(
+          :plate_appearance,
+          hit_direction_id: 8,
+          plate_result: PlateResult.find(10),
+          home_run_type: :inside_the_park
+        )
+        expect(described_class.generate(plate_appearance)).to eq('左走本')
+      end
+
+      it '柵越え本塁打は従来どおり「本」で表示する' do
+        plate_appearance = build_stubbed(
+          :plate_appearance,
+          hit_direction_id: 8,
+          plate_result: PlateResult.find(10),
+          home_run_type: :over_fence
+        )
+        expect(described_class.generate(plate_appearance)).to eq('左本')
+      end
+    end
+
     context '打球方向なし結果（hit_direction_id が nil）' do
       it '三振は短縮形のみ（hit_direction_id が nil）' do
         plate_appearance = build_stubbed(
