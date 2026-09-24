@@ -100,6 +100,38 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
         expect(PlateAppearance.find(response.parsed_body['id']).swing_type_swinging?).to be(true)
       end
 
+      it '本塁打 (plate_result_id=10) + home_run_type=inside_the_park で 201 と走本表記' do
+        home_run_params = {
+          plate_appearance: {
+            game_result_id: game_result.id,
+            batter_box_number: 3,
+            plate_result_id: 10,
+            hit_direction_id: 8,
+            hit_type: 'home_run',
+            home_run_type: 'inside_the_park'
+          }
+        }
+        post '/api/v2/plate_appearances', params: home_run_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:created)
+        json = response.parsed_body
+        aggregate_failures do
+          expect(json['home_run_type']).to eq('inside_the_park')
+          expect(json['batting_result']).to eq('左走本')
+        end
+      end
+
+      it '本塁打以外 (例: 三塁打 id=9) に home_run_type を指定すると 422' do
+        bad_params = base_params.deep_merge(
+          plate_appearance: { plate_result_id: 9, home_run_type: 'inside_the_park' }
+        )
+
+        post '/api/v2/plate_appearances', params: bad_params, headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors'].join).to include('本塁打')
+      end
+
       it '三振以外 (例: 単打 id=7) に swing_type を指定すると 422' do
         bad_params = base_params.deep_merge(plate_appearance: { swing_type: 'swinging' })
 
@@ -250,6 +282,33 @@ RSpec.describe 'Api::V2::PlateAppearances', type: :request do
 
         expect(response).to have_http_status(:ok)
         expect(strikeout.reload.swing_type_looking?).to be(true)
+      end
+
+      it '走本塁打 PA を三塁打に修正するには home_run_type を null で送る必要がある' do
+        home_run = create(:plate_appearance, game_result:, user:, batter_box_number: 6,
+                                             plate_result_id: 10, hit_direction_id: 8,
+                                             hit_type: :home_run, home_run_type: :inside_the_park,
+                                             is_new_format: true)
+
+        # update は assign_attributes なので、送られてこなかったカラムは既存値が残る。
+        # 内訳を落とさずに打席結果だけ変えるとバリデーションに弾かれる。
+        patch "/api/v2/plate_appearances/#{home_run.id}",
+              params: { plate_appearance: { plate_result_id: 9, hit_type: 'triple' } },
+              headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors'].join).to include('本塁打')
+
+        patch "/api/v2/plate_appearances/#{home_run.id}",
+              params: { plate_appearance: { plate_result_id: 9, hit_type: 'triple', home_run_type: nil } },
+              headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        aggregate_failures do
+          expect(home_run.reload.home_run_type).to be_nil
+          expect(home_run.plate_result_id).to eq(9)
+          expect(home_run.batting_result).to eq('左三')
+        end
       end
 
       it '三振以外の PA に swing_type を更新で付与しようとすると 422' do

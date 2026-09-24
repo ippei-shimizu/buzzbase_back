@@ -3,6 +3,11 @@ class PlateAppearance < ApplicationRecord
   # 意味を持つので、validate でこの ID とセットで指定されているか確認する。
   STRIKEOUT_RESULT_ID = 13
 
+  # plate_results マスタの「本塁打」エントリの ID。ランニング本塁打も記録上は本塁打なので
+  # plate_result_id は本塁打のまま据え置き、内訳は home_run_type で表現する
+  # （集計は plate_result_id だけを見ているため、本塁打数・塁打・OPS は影響を受けない）。
+  HOME_RUN_RESULT_ID = 10
+
   # 投球コース（打席結果が決まった最後の1球）。捕手目線・行優先の 5x5 グリッド
   # （左上=1 〜 右下=25、row = (n-1)/5 + 1、col = (n-1)%5 + 1）。
   # 保存値は打者の左右でミラーせず常に捕手目線の絶対座標で固定する。
@@ -26,6 +31,7 @@ class PlateAppearance < ApplicationRecord
   attribute :hit_type, :integer
   attribute :runners_state, :integer
   attribute :swing_type, :integer
+  attribute :home_run_type, :integer
 
   enum out_type: { ground_ball: 0, fly_ball: 1, line_drive: 2, double_play: 3, foul_fly: 4 }, _prefix: true
   enum hit_type: { single: 0, double: 1, triple: 2, home_run: 3 }, _prefix: true
@@ -40,6 +46,8 @@ class PlateAppearance < ApplicationRecord
     bases_loaded: 7
   }, _prefix: true
   enum swing_type: { swinging: 0, looking: 1 }, _prefix: true
+  # 柵越え / ランニング本塁打（走本塁打）の内訳。どちらも本塁打として集計される。
+  enum home_run_type: { over_fence: 0, inside_the_park: 1 }, _prefix: true
 
   # 打球位置は正規化座標 (0.0〜1.0) で保存する。
   # DB の precision: 4, scale: 3 は範囲外値を許してしまうため、モデル側で防ぐ。
@@ -61,6 +69,7 @@ class PlateAppearance < ApplicationRecord
   validates :pitch_course_y, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 1 }, allow_nil: true
 
   validate :swing_type_only_for_strikeout
+  validate :home_run_type_only_for_home_run
 
   private
 
@@ -69,5 +78,12 @@ class PlateAppearance < ApplicationRecord
     return if plate_result_id == STRIKEOUT_RESULT_ID
 
     errors.add(:swing_type, 'は三振 (plate_result_id=13) のときのみ指定可能です')
+  end
+
+  def home_run_type_only_for_home_run
+    return if home_run_type.blank?
+    return if plate_result_id == HOME_RUN_RESULT_ID
+
+    errors.add(:home_run_type, 'は本塁打 (plate_result_id=10) のときのみ指定可能です')
   end
 end

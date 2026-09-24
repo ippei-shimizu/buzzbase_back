@@ -287,6 +287,51 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
       end
     end
 
+    context '走本塁打の内数' do
+      def create_home_run_game(date:, match_type:, home_run:, inside_the_park:)
+        game = create(:game_result, user:)
+        game.match_result.update!(date_and_time: date, match_type:)
+        create(:batting_average, game_result: game, user:, hit: 0, at_bats: 4, times_at_bat: 4,
+                                 home_run:, total_bases: home_run * 4)
+        inside_the_park.times do
+          create(:plate_appearance, game_result: game, user:, plate_result_id: 10,
+                                    is_new_format: true, home_run_type: :inside_the_park)
+        end
+        (home_run - inside_the_park).times do
+          create(:plate_appearance, game_result: game, user:, plate_result_id: 10,
+                                    is_new_format: true, home_run_type: :over_fence)
+        end
+      end
+
+      before do
+        create_home_run_game(date: Time.zone.local(2024, 5, 10), match_type: 'regular', home_run: 2, inside_the_park: 1)
+        create_home_run_game(date: Time.zone.local(2025, 5, 10), match_type: 'open', home_run: 1, inside_the_park: 1)
+      end
+
+      it 'aggregate に本塁打の内数として走本塁打を返し、本塁打の総数は変わらない' do
+        get '/api/v2/dashboard/batting_stats', headers: auth_headers_for(user)
+
+        expect(response.parsed_body['aggregate']).to include('home_run' => 3, 'inside_the_park_home_run' => 2)
+      end
+
+      it 'year / match_type フィルタは走本塁打にも効く' do
+        get '/api/v2/dashboard/batting_stats', params: { year: '2024', match_type: 'regular' },
+                                               headers: auth_headers_for(user)
+
+        expect(response.parsed_body['aggregate']).to include('home_run' => 2, 'inside_the_park_home_run' => 1)
+      end
+
+      it '走本塁打が無ければ 0 を返す' do
+        other_user = create(:user)
+        game = create(:game_result, user: other_user)
+        create(:batting_average, game_result: game, user: other_user, hit: 1, at_bats: 4, times_at_bat: 4)
+
+        get '/api/v2/dashboard/batting_stats', params: { user_id: other_user.id }, headers: auth_headers_for(user)
+
+        expect(response.parsed_body['aggregate']).to include('home_run' => 0, 'inside_the_park_home_run' => 0)
+      end
+    end
+
     context 'when target user is private and viewer is not a follower' do
       let(:private_user) { create(:user, is_private: true) }
 

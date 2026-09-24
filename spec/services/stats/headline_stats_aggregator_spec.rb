@@ -32,6 +32,123 @@ RSpec.describe Stats::HeadlineStatsAggregator, type: :service do
           expect(result[:hit]).to eq(0)
           expect(result[:home_run]).to eq(0)
           expect(result[:runs_batted_in]).to eq(0)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+    end
+
+    context '走本塁打の内訳' do
+      it '本塁打の内数として走本塁打を返し、本塁打の総数は変わらない' do
+        game_result = build_game(
+          batting_attrs: { at_bats: 4, hit: 0, home_run: 2, total_bases: 8 }
+        )
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :over_fence)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(2)
+          expect(result[:inside_the_park_home_run]).to eq(1)
+        end
+      end
+
+      it '走本塁打が記録されていなければ 0 を返す' do
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10, is_new_format: true)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(1)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
+      it '旧仕様 PA (is_new_format=false) の走本塁打は数えない' do
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: false, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(1)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
+      it '混在試合で batting_averages が古くても内数は母数を超えない' do
+        # 旧 PA を含む混在試合では BattingAverageRecalculator が再集計しないため
+        # home_run が 0 のまま新仕様の走本塁打 PA だけが増えうる。
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 1, home_run: 0, total_bases: 1 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 7, is_new_format: false)
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:home_run]).to eq(0)
+          expect(result[:inside_the_park_home_run]).to eq(0)
+        end
+      end
+
+      it '別ユーザーの走本塁打は数えない' do
+        other_user = create(:user)
+        other_game = create(:game_result, user: other_user)
+        create(:plate_appearance, game_result: other_game, user: other_user, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        game_result = build_game(batting_attrs: { at_bats: 4, hit: 0, home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id).call
+
+        expect(result[:inside_the_park_home_run]).to eq(1)
+      end
+
+      it 'match_type フィルタは走本塁打にも効く' do
+        regular_game = build_game(date: '2026-04-01', match_type: 'regular',
+                                  batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: regular_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        open_game = build_game(date: '2026-04-02', match_type: 'open',
+                               batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: open_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        aggregate_failures do
+          expect(described_class.new(user_id: user.id, match_type: 'regular').call[:inside_the_park_home_run]).to eq(1)
+          expect(described_class.new(user_id: user.id).call[:inside_the_park_home_run]).to eq(2)
+        end
+      end
+
+      it 'season_id フィルタは走本塁打にも効く' do
+        season = create(:season, user:)
+        season_game = build_game(batting_attrs: { home_run: 1, total_bases: 4 })
+        season_game.update!(season_id: season.id)
+        create(:plate_appearance, game_result: season_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+        other_game = build_game(batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result: other_game, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        result = described_class.new(user_id: user.id, season_id: season.id).call
+
+        expect(result[:inside_the_park_home_run]).to eq(1)
+      end
+
+      it 'year フィルタは走本塁打にも効く' do
+        game_result = build_game(date: '2025-05-05', batting_attrs: { home_run: 1, total_bases: 4 })
+        create(:plate_appearance, game_result:, user:, plate_result_id: 10,
+                                  is_new_format: true, home_run_type: :inside_the_park)
+
+        aggregate_failures do
+          expect(described_class.new(user_id: user.id, year: 2025).call[:inside_the_park_home_run]).to eq(1)
+          expect(described_class.new(user_id: user.id, year: 2026).call[:inside_the_park_home_run]).to eq(0)
         end
       end
     end
