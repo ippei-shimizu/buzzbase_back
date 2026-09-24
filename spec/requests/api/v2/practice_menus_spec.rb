@@ -42,6 +42,32 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
       expect(response.parsed_body['name']).to eq('ティー')
     end
 
+    context '素振りメニューが既にある' do
+      let(:params) do
+        { practice_menu: { name: '素振り', category: 'batting', unit: 'count', unit_label: '本' } }
+      end
+
+      before { create(:practice_menu, user:, name: '素振り', unit: 'count') }
+
+      it '422 とエラーメッセージを返す' do
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include(a_string_matching('素振り'))
+      end
+
+      it '削除済みなら作り直せる' do
+        user.practice_menus.find_by(name: '素振り').update!(archived: true)
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+
+      it '単位が違えば同名で作成できる' do
+        params[:practice_menu][:unit] = 'minutes'
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+    end
+
     context '無料ユーザーが上限(3)を超える' do
       before { create_list(:practice_menu, 3, user:) }
 
@@ -64,6 +90,30 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
     end
   end
 
+  describe 'PATCH /api/v2/practice_menus/:id' do
+    before { create(:practice_menu, user:, name: '素振り', unit: 'count') }
+
+    it '既存の素振りメニューと重複する改名は 422 を返す' do
+      other = create(:practice_menu, user:, name: 'ティー', unit: 'count')
+
+      patch "/api/v2/practice_menus/#{other.id}",
+            params: { practice_menu: { name: '素振り' } }, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(other.reload.name).to eq('ティー')
+    end
+
+    it '素振りメニュー自身の更新は自分を重複扱いしない' do
+      menu = user.practice_menus.find_by(name: '素振り')
+
+      patch "/api/v2/practice_menus/#{menu.id}",
+            params: { practice_menu: { unit_label: '回' } }, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(menu.reload.unit_label).to eq('回')
+    end
+  end
+
   describe 'DELETE /api/v2/practice_menus/:id' do
     let!(:menu) { create(:practice_menu, user:) }
 
@@ -71,6 +121,15 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
       delete "/api/v2/practice_menus/#{menu.id}", headers: auth_headers_for(user)
       expect(response).to have_http_status(:ok)
       expect(menu.reload.archived).to be(true)
+    end
+
+    it '素振りメニューも重複バリデーションに引っかからず論理削除できる' do
+      shadow_swing = create(:practice_menu, user:, name: '素振り', unit: 'count')
+
+      delete "/api/v2/practice_menus/#{shadow_swing.id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(shadow_swing.reload.archived).to be(true)
     end
   end
 end

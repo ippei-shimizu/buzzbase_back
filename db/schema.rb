@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_15_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_24_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -665,7 +665,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_15_000001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id", "archived"], name: "index_practice_menus_on_user_id_and_archived"
-    t.index ["user_id", "name"], name: "index_practice_menus_on_user_id_and_shadow_swing_name", unique: true, where: "(((name)::text = '素振り'::text) AND ((unit)::text = 'count'::text))"
+    t.index ["user_id", "name"], name: "index_practice_menus_on_user_id_and_shadow_swing_name", unique: true, where: "(((name)::text = '素振り'::text) AND ((unit)::text = 'count'::text) AND (archived = false))"
     t.index ["user_id"], name: "index_practice_menus_on_user_id"
   end
 

@@ -2,7 +2,8 @@ class ShadowSwingSession < ApplicationRecord
   belongs_to :user
   belongs_to :practice_log, optional: true
 
-  MENU_NAME = '素振り'.freeze
+  MENU_NAME = PracticeMenu::SHADOW_SWING_NAME
+  MENU_UNIT = PracticeMenu::SHADOW_SWING_UNIT
   UNIT_LABEL = '本'.freeze
 
   # カウンターのインターバル（秒）。無料プランは FREE_INTERVAL_RANGE の範囲のみ選べる。
@@ -93,20 +94,35 @@ class ShadowSwingSession < ApplicationRecord
   # 「素振り」という名前の練習メニューが既にあれば紐付け、積み上げ・推移を一本化する。
   # 単位が「回数」以外の既存メニューは統合すると数値の意味が壊れるため紐付けない
   # （その場合は practice_menu: nil のまま、従来通り別集計になる）。
-  # 該当メニューが無ければ「回数」単位で新規作成する。
+  # 該当メニューが無ければ削除済みのものを復活させ、それも無ければ「回数」単位で新規作成する。
   # @return [PracticeMenu, nil]
   def linked_menu
-    existing = user.practice_menus.find_by(name: MENU_NAME)
-    return existing if existing&.unit == 'count'
-    return nil if existing
+    existing = user.practice_menus.active.find_by(name: MENU_NAME, unit: MENU_UNIT)
+    return existing if existing
+    # 同名で単位違いのメニューは作成できるため、name だけで引くと紐付け先が非決定的になる。
+    return nil if user.practice_menus.active.exists?(name: MENU_NAME)
 
     # 初回セッションの同時完了で create! が競合しうる。complete! のトランザクション内から
     # 呼ばれるため、一意インデックス違反をセーブポイントに閉じ込めて先勝ちした行を拾い直す。
     ActiveRecord::Base.transaction(requires_new: true) do
-      user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
+      revived_menu ||
+        user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: MENU_UNIT, unit_label: UNIT_LABEL)
     end
-  rescue ActiveRecord::RecordNotUnique
-    # 一意インデックスは name / unit の両方で絞っているため、競合相手は必ず count 単位の行。
-    user.practice_menus.find_by!(name: MENU_NAME, unit: 'count')
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+    # 先行トランザクションがコミット済みだと、INSERT に到達する前に PracticeMenu の
+    # 重複バリデーションで落ちるため RecordInvalid も競合として扱う。
+    # 重複以外の理由で作成に失敗したときは握り潰さず元の例外を投げ直す。
+    winner = user.practice_menus.active.find_by(name: MENU_NAME, unit: MENU_UNIT)
+    raise if winner.nil?
+
+    winner
+  end
+
+  # 削除済みの素振りメニューは作り直さず復活させる。別レコードにすると
+  # practice_menu_id 基準の目標・推移が旧レコードに取り残されて伸びなくなる。
+  # @return [PracticeMenu, nil] 復活させた場合のみメニューを返す
+  def revived_menu
+    archived = user.practice_menus.find_by(name: MENU_NAME, unit: MENU_UNIT, archived: true)
+    archived&.tap { |menu| menu.update!(archived: false) }
   end
 end
