@@ -42,6 +42,32 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
       expect(response.parsed_body['name']).to eq('ティー')
     end
 
+    context '素振りメニューが既にある' do
+      let(:params) do
+        { practice_menu: { name: '素振り', category: 'batting', unit: 'count', unit_label: '本' } }
+      end
+
+      before { create(:practice_menu, user:, name: '素振り', unit: 'count') }
+
+      it '422 とエラーメッセージを返す' do
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['errors']).to include(a_string_matching('素振り'))
+      end
+
+      it '削除済みなら作り直せる' do
+        user.practice_menus.find_by(name: '素振り').update!(archived: true)
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+
+      it '単位が違えば同名で作成できる' do
+        params[:practice_menu][:unit] = 'minutes'
+        post '/api/v2/practice_menus', params:, headers: auth_headers_for(user)
+        expect(response).to have_http_status(:created)
+      end
+    end
+
     context '無料ユーザーが上限(3)を超える' do
       before { create_list(:practice_menu, 3, user:) }
 
