@@ -127,6 +127,25 @@ RSpec.describe ShadowSwingSession, type: :model do
       end
     end
 
+    it '先勝ちしたメニューがコミット済みでバリデーションに落ちても、そのメニューに紐付けて完了できる' do
+      session = create(:shadow_swing_session, user:, logged_on: today)
+      # find_by では拾えず create! が重複バリデーションで落ちる状態を、別コネクションで作る。
+      allow(session.user.practice_menus).to receive(:create!) do
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            PracticeMenu.create!(user:, name: described_class::MENU_NAME, category: 'batting', unit: 'count',
+                                 unit_label: '本')
+          end
+        end.join
+        raise ActiveRecord::RecordInvalid, PracticeMenu.new
+      end
+
+      session.complete!(swing_count: 100)
+
+      log = user.practice_logs.find_by(source: 'shadow_swing', logged_on: today)
+      expect(log.practice_menu).to eq(user.practice_menus.find_by(name: described_class::MENU_NAME))
+    end
+
     it '素振りメニューが未作成の状態で複数セッションが同時に完了してもメニューは1件しか作られない' do
       sessions = Array.new(4) { create(:shadow_swing_session, user:, logged_on: today) }
 

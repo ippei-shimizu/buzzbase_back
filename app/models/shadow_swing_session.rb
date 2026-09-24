@@ -106,8 +106,13 @@ class ShadowSwingSession < ApplicationRecord
     ActiveRecord::Base.transaction(requires_new: true) do
       user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
     end
-  rescue ActiveRecord::RecordNotUnique
-    # 一意インデックスは name / unit の両方で絞っているため、競合相手は必ず count 単位の行。
-    user.practice_menus.active.find_by!(name: MENU_NAME, unit: 'count')
+  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+    # 先行トランザクションがコミット済みだと、INSERT に到達する前に PracticeMenu の
+    # 重複バリデーションで落ちるため RecordInvalid も競合として扱う。
+    # 重複以外の理由で作成に失敗したときは握り潰さず元の例外を投げ直す。
+    winner = user.practice_menus.active.find_by(name: MENU_NAME, unit: 'count')
+    raise if winner.nil?
+
+    winner
   end
 end
