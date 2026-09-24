@@ -97,9 +97,10 @@ class ShadowSwingSession < ApplicationRecord
   # 削除済み（archived）のメニューはユーザーが消した意思を尊重して対象外とし、作り直す。
   # @return [PracticeMenu, nil]
   def linked_menu
-    existing = user.practice_menus.active.find_by(name: MENU_NAME)
-    return existing if existing&.unit == 'count'
-    return nil if existing
+    existing = user.practice_menus.active.find_by(name: MENU_NAME, unit: 'count')
+    return existing if existing
+    # 同名で単位違いのメニューは作成できるため、name だけで引くと紐付け先が非決定的になる。
+    return nil if user.practice_menus.active.exists?(name: MENU_NAME)
 
     # 初回セッションの同時完了で create! が競合しうる。complete! のトランザクション内から
     # 呼ばれるため、一意インデックス違反をセーブポイントに閉じ込めて先勝ちした行を拾い直す。

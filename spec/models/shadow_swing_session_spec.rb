@@ -65,6 +65,16 @@ RSpec.describe ShadowSwingSession, type: :model do
       expect(log.practice_menu).to eq(user.practice_menus.active.find_by(name: '素振り', unit: 'count'))
     end
 
+    it '同名で単位違いのメニューが併存していても回数単位の方に紐付ける' do
+      create(:practice_menu, user:, name: '素振り', unit: 'minutes')
+      menu = create(:practice_menu, user:, name: '素振り', unit: 'count')
+      session = create(:shadow_swing_session, user:)
+
+      session.complete!(swing_count: 120)
+
+      expect(user.practice_logs.find_by(source: 'shadow_swing').practice_menu).to eq(menu)
+    end
+
     it '既存の「素振り」メニューが回数以外の単位なら紐付けない（統合しない）' do
       create(:practice_menu, user:, name: '素振り', unit: 'minutes')
       session = create(:shadow_swing_session, user:)
