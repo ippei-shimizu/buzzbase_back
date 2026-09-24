@@ -54,6 +54,30 @@ RSpec.describe ShadowSwingSession, type: :model do
       expect(log.unit_label).to eq('回')
     end
 
+    it '既存の「素振り」メニューが削除済みなら復活させて紐付ける' do
+      archived = create(:practice_menu, user:, name: '素振り', unit: 'count', archived: true)
+      session = create(:shadow_swing_session, user:)
+
+      session.complete!(swing_count: 120)
+
+      log = user.practice_logs.find_by(source: 'shadow_swing')
+      aggregate_failures do
+        expect(log.practice_menu).to eq(archived)
+        expect(archived.reload.archived).to be(false)
+        expect(user.practice_menus.where(name: '素振り', unit: 'count').count).to eq(1)
+      end
+    end
+
+    it '同名で単位違いのメニューが併存していても回数単位の方に紐付ける' do
+      create(:practice_menu, user:, name: '素振り', unit: 'minutes')
+      menu = create(:practice_menu, user:, name: '素振り', unit: 'count')
+      session = create(:shadow_swing_session, user:)
+
+      session.complete!(swing_count: 120)
+
+      expect(user.practice_logs.find_by(source: 'shadow_swing').practice_menu).to eq(menu)
+    end
+
     it '既存の「素振り」メニューが回数以外の単位なら紐付けない（統合しない）' do
       create(:practice_menu, user:, name: '素振り', unit: 'minutes')
       session = create(:shadow_swing_session, user:)
@@ -114,6 +138,25 @@ RSpec.describe ShadowSwingSession, type: :model do
         expect(logs.count).to eq(1)
         expect(logs.first.amount).to eq(40)
       end
+    end
+
+    it '先勝ちしたメニューがコミット済みでバリデーションに落ちても、そのメニューに紐付けて完了できる' do
+      session = create(:shadow_swing_session, user:, logged_on: today)
+      # find_by では拾えず create! が重複バリデーションで落ちる状態を、別コネクションで作る。
+      allow(session.user.practice_menus).to receive(:create!) do
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            PracticeMenu.create!(user:, name: described_class::MENU_NAME, category: 'batting', unit: 'count',
+                                 unit_label: '本')
+          end
+        end.join
+        raise ActiveRecord::RecordInvalid, PracticeMenu.new
+      end
+
+      session.complete!(swing_count: 100)
+
+      log = user.practice_logs.find_by(source: 'shadow_swing', logged_on: today)
+      expect(log.practice_menu).to eq(user.practice_menus.find_by(name: described_class::MENU_NAME))
     end
 
     it '素振りメニューが未作成の状態で複数セッションが同時に完了してもメニューは1件しか作られない' do
