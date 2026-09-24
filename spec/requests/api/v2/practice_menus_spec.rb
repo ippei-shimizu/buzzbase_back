@@ -90,6 +90,30 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
     end
   end
 
+  describe 'PATCH /api/v2/practice_menus/:id' do
+    before { create(:practice_menu, user:, name: '素振り', unit: 'count') }
+
+    it '既存の素振りメニューと重複する改名は 422 を返す' do
+      other = create(:practice_menu, user:, name: 'ティー', unit: 'count')
+
+      patch "/api/v2/practice_menus/#{other.id}",
+            params: { practice_menu: { name: '素振り' } }, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(other.reload.name).to eq('ティー')
+    end
+
+    it '素振りメニュー自身の更新は自分を重複扱いしない' do
+      menu = user.practice_menus.find_by(name: '素振り')
+
+      patch "/api/v2/practice_menus/#{menu.id}",
+            params: { practice_menu: { unit_label: '回' } }, headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(menu.reload.unit_label).to eq('回')
+    end
+  end
+
   describe 'DELETE /api/v2/practice_menus/:id' do
     let!(:menu) { create(:practice_menu, user:) }
 
