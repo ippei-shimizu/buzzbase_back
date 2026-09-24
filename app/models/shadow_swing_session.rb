@@ -93,8 +93,7 @@ class ShadowSwingSession < ApplicationRecord
   # 「素振り」という名前の練習メニューが既にあれば紐付け、積み上げ・推移を一本化する。
   # 単位が「回数」以外の既存メニューは統合すると数値の意味が壊れるため紐付けない
   # （その場合は practice_menu: nil のまま、従来通り別集計になる）。
-  # 該当メニューが無ければ「回数」単位で新規作成する。
-  # 削除済み（archived）のメニューはユーザーが消した意思を尊重して対象外とし、作り直す。
+  # 該当メニューが無ければ削除済みのものを復活させ、それも無ければ「回数」単位で新規作成する。
   # @return [PracticeMenu, nil]
   def linked_menu
     existing = user.practice_menus.active.find_by(name: MENU_NAME, unit: 'count')
@@ -105,7 +104,8 @@ class ShadowSwingSession < ApplicationRecord
     # 初回セッションの同時完了で create! が競合しうる。complete! のトランザクション内から
     # 呼ばれるため、一意インデックス違反をセーブポイントに閉じ込めて先勝ちした行を拾い直す。
     ActiveRecord::Base.transaction(requires_new: true) do
-      user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
+      revived_menu ||
+        user.practice_menus.create!(name: MENU_NAME, category: 'batting', unit: 'count', unit_label: UNIT_LABEL)
     end
   rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
     # 先行トランザクションがコミット済みだと、INSERT に到達する前に PracticeMenu の
@@ -115,5 +115,13 @@ class ShadowSwingSession < ApplicationRecord
     raise if winner.nil?
 
     winner
+  end
+
+  # 削除済みの素振りメニューは作り直さず復活させる。別レコードにすると
+  # practice_menu_id 基準の目標・推移が旧レコードに取り残されて伸びなくなる。
+  # @return [PracticeMenu, nil] 復活させた場合のみメニューを返す
+  def revived_menu
+    archived = user.practice_menus.find_by(name: MENU_NAME, unit: 'count', archived: true)
+    archived&.tap { |menu| menu.update!(archived: false) }
   end
 end

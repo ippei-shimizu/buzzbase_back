@@ -54,15 +54,18 @@ RSpec.describe ShadowSwingSession, type: :model do
       expect(log.unit_label).to eq('回')
     end
 
-    it '既存の「素振り」メニューが削除済みなら紐付けずに作り直す' do
+    it '既存の「素振り」メニューが削除済みなら復活させて紐付ける' do
       archived = create(:practice_menu, user:, name: '素振り', unit: 'count', archived: true)
       session = create(:shadow_swing_session, user:)
 
       session.complete!(swing_count: 120)
 
       log = user.practice_logs.find_by(source: 'shadow_swing')
-      expect(log.practice_menu).not_to eq(archived)
-      expect(log.practice_menu).to eq(user.practice_menus.active.find_by(name: '素振り', unit: 'count'))
+      aggregate_failures do
+        expect(log.practice_menu).to eq(archived)
+        expect(archived.reload.archived).to be(false)
+        expect(user.practice_menus.where(name: '素振り', unit: 'count').count).to eq(1)
+      end
     end
 
     it '同名で単位違いのメニューが併存していても回数単位の方に紐付ける' do
