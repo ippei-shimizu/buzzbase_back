@@ -6,6 +6,10 @@ class ExcludeArchivedFromShadowSwingMenuIndex < ActiveRecord::Migration[7.1]
   # メニュー削除は論理削除（archived）なので、archived を含めたままだと
   # 一度削除した素振りメニューをユーザーが二度と作り直せなくなる。
   # 制約対象を active な行だけに絞る。
+  #
+  # DDL トランザクション内で張り替えるため制約が消える瞬間は他セッションから見えない。
+  # インデックス構築中は practice_menus が ACCESS EXCLUSIVE ロックで止まるが、
+  # 行数が小さく一瞬で終わるため許容する。大きくなったら concurrently 化が必要。
   def up
     remove_index :practice_menus, name: INDEX_NAME
     add_index :practice_menus, %i[user_id name], unique: true, where: NEW_CONDITION, name: INDEX_NAME
