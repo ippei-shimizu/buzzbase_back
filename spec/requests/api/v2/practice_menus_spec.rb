@@ -98,5 +98,14 @@ RSpec.describe 'Api::V2::PracticeMenus', type: :request do
       expect(response).to have_http_status(:ok)
       expect(menu.reload.archived).to be(true)
     end
+
+    it '素振りメニューも重複バリデーションに引っかからず論理削除できる' do
+      shadow_swing = create(:practice_menu, user:, name: '素振り', unit: 'count')
+
+      delete "/api/v2/practice_menus/#{shadow_swing.id}", headers: auth_headers_for(user)
+
+      expect(response).to have_http_status(:ok)
+      expect(shadow_swing.reload.archived).to be(true)
+    end
   end
 end
