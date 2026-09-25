@@ -51,3 +51,18 @@ end
 - 非公開アカウント関連テストは専用ファイルに分離
 - サービススペックは`spec/services/`に配置
 - シリアライザスペックは`spec/serializers/`に`type: :serializer`を明示
+
+## 競合（レース）の再現
+
+- `transaction(requires_new: true)` の中で `create!` をスタブし、**そのブロック内で勝者レコードを作ってから raise しない**。勝者ごとセーブポイントがロールバックされ、rescue 節の引き直しが失敗する
+- 勝者は `.call` の前に作り、`allow(User).to receive(:find_by).and_return(nil, nil, winner)` で「SELECT の後・INSERT の前にコミットされた」状況を作る
+- 実制約に当たる検証は、Queue バリア + `use_transactional_tests = false` + `TRUNCATE` の実スレッドパターンを1本だけ添える
+- バリデーションを抜いて実 DB 制約違反を起こしたいときは、private な `perform_validations` ではなく公開 API の `valid?` をスタブする
+
+## テストの有効性を確認する
+
+- **修正に対してテストを追加したら、修正を戻した状態で実行して落ちることを確認する**。落ちないテストは検証になっていない
+  - 確認方法: `git checkout origin/<base> -- <対象ファイル>` → rspec → `git checkout HEAD -- <対象ファイル>`（`git stash` は使わない）
+- 落ちない場合、別の層が先にリクエストを止めている可能性を疑う。その層を迂回する経路でテストを書き直す
+  - 例: `/api/v1/auth/sign_in` は `provider='email'` で絞るため、パスワードが残っていても 401 になる。provider を見ない `/users/sign_in` なら差が出る
+- 同じ assertion をユニットとリクエストの両方に置かない。リクエストスペックでは「外から観測できる振る舞い」を見る

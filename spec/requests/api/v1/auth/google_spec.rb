@@ -54,7 +54,20 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
 
     context 'メール登録済みの未確認ユーザーが同じメールでログインする場合' do
       let!(:existing_user) do
-        create(:user, :unconfirmed, provider: 'email', uid: email, email:, user_id: 'yamada')
+        create(:user, :unconfirmed, provider: 'email', uid: email, email:, user_id: 'yamada',
+                                    password: 'password123', password_confirmation: 'password123')
+      end
+
+      # devise_token_auth の /api/v1/auth/sign_in は provider='email' で絞るため、パスワードが
+      # 残っていても落ちる。provider を見ない素の Devise ルートで認証不可を確認する。
+      it 'リンク後は素の Devise ルートでも登録時のパスワードで認証できない' do
+        post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
+        expect(response).to have_http_status(:ok)
+
+        post '/users/sign_in', params: { user: { email:, password: 'password123' } }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(session['warden.user.user.key']).to be_nil
       end
 
       it 'provider・uid・confirmed_at をまとめて更新しトークンを発行する' do
