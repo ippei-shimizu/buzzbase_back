@@ -341,4 +341,57 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       end
     end
   end
+
+  describe 'GET /api/v2/baseball_notes/:id（添付メディアのURL）' do
+    let(:note) { create(:baseball_note, user:, memo:) }
+    let!(:attachment) { create(:media_attachment, :video, :ready, user:, baseball_note: note) }
+
+    def fetch_media_urls
+      get "/api/v2/baseball_notes/#{note.id}", headers: auth_headers_for(user)
+      response.parsed_body['media_attachments'].first.slice('playback_url', 'thumbnail_url')
+    end
+
+    def query_of(url)
+      Rack::Utils.parse_query(URI.parse(url).query)
+    end
+
+    it 'R2への有効期限付き署名GET URLを返す' do
+      urls = fetch_media_urls
+
+      { 'playback_url' => attachment.r2_key, 'thumbnail_url' => attachment.thumbnail_r2_key }.each do |field, key|
+        uri = URI.parse(urls[field])
+        expect("#{uri.scheme}://#{uri.host}#{uri.path}").to eq("#{ENV.fetch('R2_ENDPOINT')}/#{ENV.fetch('R2_BUCKET_NAME')}/#{key}")
+        expect(query_of(urls[field])).to include(
+          'X-Amz-Signature', 'X-Amz-Expires' => '7200', 'response-cache-control' => 'private, max-age=3600'
+        )
+      end
+    end
+
+    it 'サムネイルを持たない画像添付では thumbnail_url が nil になる' do
+      attachment.destroy!
+      create(:media_attachment, :ready, user:, baseball_note: note)
+
+      urls = fetch_media_urls
+      expect(urls['playback_url']).to include('X-Amz-Signature')
+      expect(urls['thumbnail_url']).to be_nil
+    end
+
+    it '発行時点から少なくとも1時間は有効' do
+      travel_to Time.zone.parse('2026-09-25 10:59:59') do
+        query = query_of(fetch_media_urls['playback_url'])
+        signed_at = Time.strptime(query['X-Amz-Date'], '%Y%m%dT%H%M%S%z')
+
+        expect(signed_at + query['X-Amz-Expires'].to_i.seconds).to be >= 1.hour.from_now
+      end
+    end
+
+    it '同じ1時間の窓内ではURLが変わらず、窓をまたぐと変わる' do
+      first_urls = travel_to(Time.zone.parse('2026-09-25 10:00:00')) { fetch_media_urls }
+      same_window_urls = travel_to(Time.zone.parse('2026-09-25 10:59:59')) { fetch_media_urls }
+      next_window_urls = travel_to(Time.zone.parse('2026-09-25 11:00:00')) { fetch_media_urls }
+
+      expect(same_window_urls).to eq(first_urls)
+      expect(next_window_urls['playback_url']).not_to eq(first_urls['playback_url'])
+    end
+  end
 end
