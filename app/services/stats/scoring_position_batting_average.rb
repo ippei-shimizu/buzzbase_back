@@ -28,8 +28,8 @@ module Stats
       plate_appearance_scope(batting_average_scope, user_id:)
         .group(:game_result_id)
         .pluck(:game_result_id, *COUNT_COLUMNS)
-        .filter_map { |game_result_id, at_bats, hits| [game_result_id, rate(hits:, at_bats:)] if at_bats.to_i.positive? }
-        .to_h
+        .to_h { |game_result_id, at_bats, hits| [game_result_id, rate(hits:, at_bats:)] }
+        .compact
     end
 
     # 母数は batting_averages がある試合に限る。旧 PA が混ざる試合は batting_average が作られないため、
