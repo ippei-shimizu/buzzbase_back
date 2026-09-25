@@ -58,13 +58,13 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
                                     password: 'password123', password_confirmation: 'password123')
       end
 
-      it '登録時のパスワードでログインできなくなる' do
+      it '登録時のパスワードを破棄する' do
         post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
         expect(response).to have_http_status(:ok)
 
-        post '/api/v1/auth/sign_in', params: { email:, password: 'password123' }
-
-        expect(response).to have_http_status(:unauthorized)
+        existing_user.reload
+        expect(existing_user.encrypted_password).to be_blank
+        expect(existing_user.valid_password?('password123')).to be false
       end
 
       it 'provider・uid・confirmed_at をまとめて更新しトークンを発行する' do
