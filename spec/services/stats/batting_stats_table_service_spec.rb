@@ -241,5 +241,32 @@ RSpec.describe Stats::BattingStatsTableService, type: :service do
 
       expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(1.0)
     end
+
+    it '他ユーザーの得点圏打席は母数に入らない' do
+      create_scoring_position_game(date: '2026-05-10', results: [[strike_out, :second]])
+      other_user = create(:user)
+      other_game = create(:game_result, user: other_user)
+      other_game.match_result.update!(date_and_time: Time.zone.parse('2026-05-10 12:00:00'), match_type: 'regular')
+      create(:batting_average, game_result: other_game, user: other_user, hit: 1, at_bats: 4, times_at_bat: 4, total_bases: 1)
+      create(:plate_appearance, game_result: other_game, user: other_user, plate_result_id: single_hit,
+                                runners_state: :second, is_new_format: true)
+
+      rows = described_class.new(user_id: user.id, mode: :yearly).call
+
+      expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(0.0)
+    end
+
+    it 'batting_average が無い試合の得点圏打席は母数に入らない' do
+      create_scoring_position_game(date: '2026-05-10', results: [[strike_out, :second]])
+      game_without_batting_average = create(:game_result, user:)
+      game_without_batting_average.match_result.update!(date_and_time: Time.zone.parse('2026-05-11 12:00:00'),
+                                                        match_type: 'regular')
+      create(:plate_appearance, game_result: game_without_batting_average, user:, plate_result_id: single_hit,
+                                runners_state: :second, is_new_format: true)
+
+      rows = described_class.new(user_id: user.id, mode: :yearly).call
+
+      expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(0.0)
+    end
   end
 end
