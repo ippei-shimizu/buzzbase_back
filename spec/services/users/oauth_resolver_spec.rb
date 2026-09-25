@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe Users::OauthResolver do
   let(:uid) { '110000000000000000001' }
   let(:email) { 'google-user@example.com' }
+  let(:password) { 'password123' }
 
   describe '#call' do
     context 'provider と uid が一致する既存ユーザーがいる場合' do
@@ -32,6 +33,46 @@ RSpec.describe Users::OauthResolver do
         described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
 
         expect(existing_user.reload.confirmed_at).to be_present
+      end
+
+      it '未確認ユーザーのパスワードを破棄して認証できなくする' do
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password:,
+                                                    password_confirmation: password)
+
+        described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
+
+        existing_user.reload
+        expect(existing_user.encrypted_password).to be_blank
+        expect(existing_user.valid_password?(password)).to be false
+      end
+
+      it '未確認ユーザーの発行済みリセットトークンも破棄する' do
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:,
+                                                    reset_password_token: 'issued-token', reset_password_sent_at: Time.current)
+
+        described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
+
+        existing_user.reload
+        expect(existing_user.reset_password_token).to be_nil
+        expect(existing_user.reset_password_sent_at).to be_nil
+      end
+
+      it 'apple でも未確認ユーザーのパスワードを破棄する' do
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password:,
+                                                    password_confirmation: password)
+
+        described_class.new(provider: 'apple', uid:, email:, name: '山田 太郎').call
+
+        expect(existing_user.reload.valid_password?(password)).to be false
+      end
+
+      it '確認済みユーザーのパスワードは維持する' do
+        existing_user = create(:user, provider: 'email', uid: email, email:, password:,
+                                      password_confirmation: password)
+
+        described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
+
+        expect(existing_user.reload.valid_password?(password)).to be true
       end
 
       it '確認済みユーザーの confirmed_at は上書きしない' do
