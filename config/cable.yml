@@ -4,7 +4,7 @@ development:
 test:
   adapter: test
 
+# Action Cable は未使用。redis adapter に切り替えるときは REDIS_URL を必須にし、
+# localhost へのフォールバックで設定漏れが隠れないようにする。
 production:
-  adapter: redis
-  url: <%= ENV.fetch("REDIS_URL") { "redis://localhost:6379/1" } %>
-  channel_prefix: app_production
+  adapter: async
