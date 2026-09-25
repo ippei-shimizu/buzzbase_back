@@ -102,8 +102,9 @@ module Api
         inside_the_park_home_run = Stats::InsideTheParkHomeRunCounter.count(
           aggregate_scope, user_id: user.id, home_run_total: aggregate.home_run.to_i
         )
+        scoring_position_batting_average = Stats::ScoringPositionBattingAverage.calculate(aggregate_scope, user_id: user.id)
         { aggregate: batting_aggregate_hash(aggregate, inside_the_park_home_run:),
-          calculated: batting_calculated_hash(calculated) }
+          calculated: batting_calculated_hash(calculated).merge(scoring_position_batting_average:) }
       end
 
       def batting_all_zero?(aggregate)
