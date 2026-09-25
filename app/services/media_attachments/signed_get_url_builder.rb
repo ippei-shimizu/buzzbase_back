@@ -16,6 +16,8 @@ module MediaAttachments
         bucket: ENV.fetch('R2_BUCKET_NAME'),
         key:,
         expires_in: EXPIRES_IN,
+        # R2上のオブジェクトはCache-Controlを持たないため、URLが変わる窓の長さに合わせて寿命を指定する。
+        response_cache_control: "private, max-age=#{SIGNING_WINDOW.to_i}",
         time: signing_time
       )
     end

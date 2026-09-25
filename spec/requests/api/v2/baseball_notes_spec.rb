@@ -361,7 +361,9 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       { 'playback_url' => attachment.r2_key, 'thumbnail_url' => attachment.thumbnail_r2_key }.each do |field, key|
         uri = URI.parse(urls[field])
         expect("#{uri.scheme}://#{uri.host}#{uri.path}").to eq("#{ENV.fetch('R2_ENDPOINT')}/#{ENV.fetch('R2_BUCKET_NAME')}/#{key}")
-        expect(query_of(urls[field])).to include('X-Amz-Signature', 'X-Amz-Expires' => '7200')
+        expect(query_of(urls[field])).to include(
+          'X-Amz-Signature', 'X-Amz-Expires' => '7200', 'response-cache-control' => 'private, max-age=3600'
+        )
       end
     end
 
