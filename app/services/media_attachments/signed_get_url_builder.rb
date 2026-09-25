@@ -11,7 +11,7 @@ module MediaAttachments
     def for(key)
       return nil if key.blank?
 
-      Aws::S3::Presigner.new(client: PresignedUrlService.client).presigned_url(
+      presigner.presigned_url(
         :get_object,
         bucket: ENV.fetch('R2_BUCKET_NAME'),
         key:,
@@ -24,6 +24,11 @@ module MediaAttachments
     # 有効期限を窓の2倍にしているので、発行時点から最低でも窓1つ分（1時間）は再生できる。
     def signing_time
       Time.zone.at((Time.current.to_i / SIGNING_WINDOW.to_i) * SIGNING_WINDOW.to_i)
+    end
+
+    # ノート一覧では「ノート数 × 添付数 × 2」回呼ばれるため、Presigner は生成し直さずに使い回す。
+    def presigner
+      @presigner ||= Aws::S3::Presigner.new(client: PresignedUrlService.client)
     end
   end
 end
