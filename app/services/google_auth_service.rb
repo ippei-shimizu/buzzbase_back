@@ -28,8 +28,11 @@ class GoogleAuthService
   rescue StandardError => e
     raise if e.is_a?(InvalidToken)
 
+    # InvalidToken の message は未認証のクライアントにそのまま返るため、rescue した
+    # 内部例外の詳細は載せずログと Sentry に留める。
+    Rails.logger.error("Google Auth Error: #{e.class}: #{e.message}")
     Sentry.capture_exception(e) if Sentry.initialized?
-    raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}"
+    raise InvalidToken, 'Google認証サービスとの通信に失敗しました'
   end
 
   # Google は boolean で返すが、他の OIDC プロバイダに揃えて文字列も許容する。
