@@ -12,6 +12,10 @@ class GoogleAuthService
 
     raise InvalidToken, 'Google IDトークンの検証に失敗しました' unless payload
 
+    # 未検証メールを通すと、同じメールで登録済みの既存アカウントに provider/uid が
+    # リンクされて乗っ取りになりうる。
+    raise InvalidToken, 'メールアドレスが未検証です' unless email_verified?(payload)
+
     {
       email: payload['email'],
       uid: payload['sub'],
@@ -23,6 +27,13 @@ class GoogleAuthService
     Sentry.capture_exception(e) if Sentry.initialized?
     raise InvalidToken, "Google認証サービスとの通信に失敗しました: #{e.message}"
   end
+
+  # Google は boolean で返すが、他の OIDC プロバイダに揃えて文字列も許容する。
+  def self.email_verified?(payload)
+    payload['email_verified'] == true || payload['email_verified'] == 'true'
+  end
+
+  private_class_method :email_verified?
 
   # Google IDトークンの audience として許容する Client ID 一覧。
   # iOS は iosClientId を使うため aud=iOS Client ID。
