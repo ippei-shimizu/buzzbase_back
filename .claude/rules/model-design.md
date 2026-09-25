@@ -20,6 +20,14 @@
 - 再利用可能なバリデータは`app/validators/`にクラスとして分離
 - エラーメッセージは日本語（`errors.add(:base, '打撃成績が未入力です')`）
 
+### 既存モデルへ後から制約を足すとき
+
+既存レコードが制約違反のまま残るため、次の3点を必ず確認する。
+
+1. **その属性を変更しない更新で発火しないか** — `if: :note_changed?` や `on: :create` で既存データを grandfather する。しないと、ユーザーが無関係な項目を更新しただけで422になる
+2. **ユーザーが値を直す経路があるか** — strong params が当該属性を除外していると（例: `update_params` に `metric_key` が無い）、修復手段が無く完全に詰む
+3. **一括処理が1件の失敗で止まらないか** — `find_each` + `update!` のバッチに rescue が無いと、1件の不正データで全ユーザーの処理が停止する
+
 ## enum / scope / delegate
 
 - enumは整数マッピング: `enum status: { pending: 0, accepted: 1 }`
