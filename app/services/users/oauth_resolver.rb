@@ -62,9 +62,16 @@ module Users
       @email.to_s.strip.downcase
     end
 
+    # 未確認アカウントのパスワードは、被害者のメールアドレスで第三者が先に登録したものである
+    # 可能性がある。confirmed_at を立てるとそのパスワードでのログインが有効になるため、
+    # 同時に破棄して再設定を強制する。リンク後は provider が google/apple になり
+    # User#password_required? が false を返すので、パスワード無しの状態を保存できる。
     def link_provider!(user)
       attributes = { provider: @provider, uid: @uid }
-      attributes[:confirmed_at] = Time.current if user.confirmed_at.blank?
+      if user.confirmed_at.blank?
+        attributes[:confirmed_at] = Time.current
+        attributes[:encrypted_password] = ''
+      end
       user.update!(attributes)
       user
     end
