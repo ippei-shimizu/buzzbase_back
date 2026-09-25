@@ -44,3 +44,12 @@
 
 - 複雑なクエリはクラスメソッド（`self.aggregate_for_user`）で管理
 - ソート可能カラムは`SORTABLE_COLUMNS`定数で許可リスト管理
+
+## find_or_create の競合対策
+
+同時実行の重複対策は、レビューで繰り返し指摘が出ている箇所なので以下を定型とする。
+
+- **update パスと create パスの両方**を見る。「既存行があれば更新」に `with_lock` を入れても、`find_by` が nil を引く create パスは無防備。DB の一意制約（部分インデックス可）+ `rescue ActiveRecord::RecordNotUnique` で塞ぐ
+- 外側にトランザクションがある場合は `ActiveRecord::Base.transaction(requires_new: true)` のセーブポイントで囲む。囲まないと PostgreSQL がトランザクション全体を aborted にし、rescue 節の復旧クエリ自体が落ちる
+- **勝者の引き直しには所有者スコープを掛ける**（`current_api_v1_user.match_results.find_by(...)`）。一意インデックスが所有者カラムを含まない単独キーだと、`Model.find_by(key)` は他ユーザーの行を勝者として返し 201 で中身ごと流出する。スコープを掛けて引けないときは `raise` して 409 に倒す
+- 一意制約の rescue がある箇所へ**同条件のモデルバリデーションを後から足すときは注意**。先行トランザクションがコミット済みだと INSERT に到達せず `RecordInvalid` が飛び、既存の rescue をすり抜けて 500 になる。rescue を両方の例外に広げ、引き直しに失敗したら `raise` で投げ直す
