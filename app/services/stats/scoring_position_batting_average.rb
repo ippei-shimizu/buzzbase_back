@@ -10,8 +10,8 @@ module Stats
     module_function
 
     COUNT_COLUMNS = [
-      Arel.sql('COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE)'),
-      Arel.sql("COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{BattingAverageRecalculator::HIT_RESULT_IDS.join(',')}))")
+      Arel.sql(RunnersSituationAggregator::AT_BATS_COUNT_SQL),
+      Arel.sql(RunnersSituationAggregator::HITS_COUNT_SQL)
     ].freeze
 
     # @param batting_average_scope [ActiveRecord::Relation] 集計対象の batting_averages スコープ

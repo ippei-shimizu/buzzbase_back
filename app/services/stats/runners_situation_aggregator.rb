@@ -18,6 +18,8 @@ module Stats
     HOME_RUN_ID = ::Stats::BattingAverageRecalculator::HOME_RUN_ID
 
     SCORING_POSITION_STATES = %w[second third first_second first_third second_third bases_loaded].freeze
+    AT_BATS_COUNT_SQL = 'COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE)'
+    HITS_COUNT_SQL = "COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')}))".freeze
 
     # @param date_range [Range<Date>, nil] JST 日単位の絞り込み。週次レポートのように
     #   月境界に揃わない期間を渡すためのもので、月単位の start_month / end_month とは別系統。
@@ -53,8 +55,8 @@ module Stats
     # 両方を FILTER 条件で使う。
     def aggregate_counts
       sql = <<~SQL.squish
-        COUNT(*) FILTER (WHERE plate_results.counted_in_at_bats = TRUE) AS at_bats,
-        COUNT(*) FILTER (WHERE plate_appearances.plate_result_id IN (#{HIT_RESULT_IDS.join(',')})) AS hits,
+        #{AT_BATS_COUNT_SQL} AS at_bats,
+        #{HITS_COUNT_SQL} AS hits,
         COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{DOUBLE_HIT_ID}) AS two_base_hit,
         COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{TRIPLE_HIT_ID}) AS three_base_hit,
         COUNT(*) FILTER (WHERE plate_appearances.plate_result_id = #{HOME_RUN_ID}) AS home_run
