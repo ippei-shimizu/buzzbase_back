@@ -3,6 +3,7 @@ require 'rails_helper'
 RSpec.describe Users::OauthResolver do
   let(:uid) { '110000000000000000001' }
   let(:email) { 'google-user@example.com' }
+  let(:password) { 'password123' }
 
   describe '#call' do
     context 'provider と uid が一致する既存ユーザーがいる場合' do
@@ -35,14 +36,14 @@ RSpec.describe Users::OauthResolver do
       end
 
       it '未確認ユーザーのパスワードを破棄して認証できなくする' do
-        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password: 'password123',
-                                                    password_confirmation: 'password123')
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password:,
+                                                    password_confirmation: password)
 
         described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
 
         existing_user.reload
         expect(existing_user.encrypted_password).to be_blank
-        expect(existing_user.valid_password?('password123')).to be false
+        expect(existing_user.valid_password?(password)).to be false
       end
 
       it '未確認ユーザーの発行済みリセットトークンも破棄する' do
@@ -57,21 +58,21 @@ RSpec.describe Users::OauthResolver do
       end
 
       it 'apple でも未確認ユーザーのパスワードを破棄する' do
-        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password: 'password123',
-                                                    password_confirmation: 'password123')
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, password:,
+                                                    password_confirmation: password)
 
         described_class.new(provider: 'apple', uid:, email:, name: '山田 太郎').call
 
-        expect(existing_user.reload.valid_password?('password123')).to be false
+        expect(existing_user.reload.valid_password?(password)).to be false
       end
 
       it '確認済みユーザーのパスワードは維持する' do
-        existing_user = create(:user, provider: 'email', uid: email, email:, password: 'password123',
-                                      password_confirmation: 'password123')
+        existing_user = create(:user, provider: 'email', uid: email, email:, password:,
+                                      password_confirmation: password)
 
         described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call
 
-        expect(existing_user.reload.valid_password?('password123')).to be true
+        expect(existing_user.reload.valid_password?(password)).to be true
       end
 
       it '確認済みユーザーの confirmed_at は上書きしない' do
