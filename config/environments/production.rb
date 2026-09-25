@@ -1,8 +1,8 @@
 require 'active_support/core_ext/integer/time'
 
 # Heroku dyno のファイルシステムは ephemeral かつ dyno ごとに独立のため、既定の
-# file_store はキャッシュとして実質機能しない。REDIS_URL（Action Cable と共用の
-# アドオン）があれば redis_cache_store を使い、無ければ memory_store を明示する
+# file_store はキャッシュとして実質機能しない。REDIS_URL（Redis アドオン）が
+# あれば redis_cache_store を使い、無ければ memory_store を明示する
 # （dyno ごとに独立・再起動で消える前提を許容できる用途に限る）。
 # Redis 側の障害でリクエストを巻き込まないよう、タイムアウトを短く明示し、
 # エラーはキャッシュミス扱いで握り潰して Sentry に記録する。
@@ -10,10 +10,10 @@ production_cache_store =
   if ENV['REDIS_URL'].present?
     redis_cache_options = {
       url: ENV['REDIS_URL'],
-      # Action Cable (cable.yml) と同一インスタンスを共有するため、キー空間を分ける。
+      # 同一インスタンスを他用途（Action Cable 等）と共有してもキーが衝突しないよう分ける。
       namespace: 'cache',
       # Heroku Key-Value Store はプランによって maxmemory-policy が noeviction で、
-      # TTL 無しのキーが増え続けると Action Cable の pub/sub ごと書き込み不能になる。
+      # TTL 無しのキーが増え続けると同一インスタンス全体が書き込み不能になる。
       # 個別に expires_in を渡さない呼び出しのための既定の上限。
       expires_in: 1.hour,
       connect_timeout: 1,
