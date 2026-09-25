@@ -367,6 +367,15 @@ RSpec.describe 'Api::V2::BaseballNotes', type: :request do
       end
     end
 
+    it 'サムネイルを持たない画像添付では thumbnail_url が nil になる' do
+      attachment.destroy!
+      create(:media_attachment, :ready, user:, baseball_note: note)
+
+      urls = fetch_media_urls
+      expect(urls['playback_url']).to include('X-Amz-Signature')
+      expect(urls['thumbnail_url']).to be_nil
+    end
+
     it '発行時点から少なくとも1時間は有効' do
       travel_to Time.zone.parse('2026-09-25 10:59:59') do
         query = query_of(fetch_media_urls['playback_url'])
