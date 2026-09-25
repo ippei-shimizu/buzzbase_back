@@ -161,6 +161,16 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
     'active'
   end
 
+  # ログインを拒否する理由。利用可能なら nil。
+  # 未知の account_status は拒否側（フェイルクローズ）に倒す。
+  def account_unavailable_message
+    case account_status
+    when 'active' then nil
+    when 'deleted' then 'アカウントが削除されています'
+    else 'アカウントが停止されています'
+    end
+  end
+
   def suspend!(reason = nil)
     update!(suspended_at: Time.current, suspended_reason: reason)
   end

@@ -118,6 +118,44 @@ RSpec.describe 'Api::V1::Auth::Apple', type: :request do
       end
     end
 
+    context '停止済みアカウントと同じメールで別のAppleアカウントからログインした場合' do
+      let!(:suspended_user) do
+        create(:user, :unconfirmed, provider: 'email', uid: email, email:, suspended_at: Time.current)
+      end
+
+      it '401を返し provider・uid・confirmed_at を書き換えない' do
+        post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('アカウントが停止されています')
+
+        suspended_user.reload
+        expect(suspended_user.provider).to eq('email')
+        expect(suspended_user.uid).to eq(email)
+        expect(suspended_user.confirmed_at).to be_nil
+        expect(suspended_user.tokens).to be_empty
+      end
+    end
+
+    context '削除済みアカウントと同じメールで別のAppleアカウントからログインした場合' do
+      let!(:deleted_user) do
+        create(:user, :unconfirmed, provider: 'email', uid: email, email:, deleted_at: Time.current)
+      end
+
+      it '401を返し provider・uid・confirmed_at を書き換えない' do
+        post '/api/v1/apple_sign_in', params: { identity_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('アカウントが削除されています')
+
+        deleted_user.reload
+        expect(deleted_user.provider).to eq('email')
+        expect(deleted_user.uid).to eq(email)
+        expect(deleted_user.confirmed_at).to be_nil
+        expect(deleted_user.tokens).to be_empty
+      end
+    end
+
     context 'full_nameが送信された場合' do
       let(:apple_data) { { uid: apple_uid, email:, name: '山田 太郎' } }
 

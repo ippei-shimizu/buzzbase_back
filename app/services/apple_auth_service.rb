@@ -34,13 +34,17 @@ class AppleAuthService
       uid: payload['sub'],
       name:
     }
+  # InvalidToken の message は未認証のクライアントにそのまま返るため、rescue した
+  # 内部例外の詳細は載せずログと Sentry に留める。
   rescue JWT::DecodeError, JWT::ExpiredSignature, JWT::InvalidIssuerError, JWT::InvalidAudError => e
-    raise InvalidToken, "Apple IDトークンの検証に失敗しました: #{e.message}"
+    Rails.logger.error("Apple Auth Error: #{e.class}: #{e.message}")
+    raise InvalidToken, 'Apple IDトークンの検証に失敗しました'
   rescue StandardError => e
     raise if e.is_a?(InvalidToken)
 
+    Rails.logger.error("Apple Auth Error: #{e.class}: #{e.message}")
     Sentry.capture_exception(e) if Sentry.initialized?
-    raise InvalidToken, "Apple認証サービスとの通信に失敗しました: #{e.message}"
+    raise InvalidToken, 'Apple認証サービスとの通信に失敗しました'
   end
 
   @mutex = Mutex.new

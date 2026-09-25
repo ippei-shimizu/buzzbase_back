@@ -42,6 +42,22 @@ RSpec.describe Users::OauthResolver do
 
         expect(existing_user.reload.confirmed_at).to be_within(1.second).of(confirmed_at)
       end
+
+      it '停止済みユーザーにはリンクせずそのまま返す' do
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, suspended_at: Time.current)
+
+        expect(described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call).to eq(existing_user)
+
+        expect(existing_user.reload).to have_attributes(provider: 'email', uid: email, confirmed_at: nil)
+      end
+
+      it '削除済みユーザーにはリンクせずそのまま返す' do
+        existing_user = create(:user, :unconfirmed, provider: 'email', uid: email, email:, deleted_at: Time.current)
+
+        expect(described_class.new(provider: 'google', uid:, email:, name: '山田 太郎').call).to eq(existing_user)
+
+        expect(existing_user.reload).to have_attributes(provider: 'email', uid: email, confirmed_at: nil)
+      end
     end
 
     context '該当するユーザーがいない場合' do

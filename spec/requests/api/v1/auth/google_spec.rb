@@ -93,6 +93,23 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
       end
     end
 
+    context 'メールが未検証の場合' do
+      before do
+        allow(GoogleAuthService).to receive(:verify).and_raise(
+          GoogleAuthService::InvalidToken, 'メールアドレスが未検証です'
+        )
+      end
+
+      it '401を返しユーザーを作成しない' do
+        expect do
+          post '/api/v1/google_sign_in', params: { id_token: 'unverified_email_token' }
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('メールアドレスが未検証です')
+      end
+    end
+
     context 'アカウントが停止されている場合' do
       let!(:suspended_user) do
         create(:user, :google, uid: google_uid, email:, suspended_at: Time.current)
@@ -118,6 +135,44 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
         expect(response).to have_http_status(:unauthorized)
         expect(response.parsed_body['errors']).to include('アカウントが削除されています')
         expect(deleted_user.reload.tokens).to be_empty
+      end
+    end
+
+    context '停止済みアカウントと同じメールで別のGoogleアカウントからログインした場合' do
+      let!(:suspended_user) do
+        create(:user, :unconfirmed, provider: 'email', uid: email, email:, suspended_at: Time.current)
+      end
+
+      it '401を返し provider・uid・confirmed_at を書き換えない' do
+        post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('アカウントが停止されています')
+
+        suspended_user.reload
+        expect(suspended_user.provider).to eq('email')
+        expect(suspended_user.uid).to eq(email)
+        expect(suspended_user.confirmed_at).to be_nil
+        expect(suspended_user.tokens).to be_empty
+      end
+    end
+
+    context '削除済みアカウントと同じメールで別のGoogleアカウントからログインした場合' do
+      let!(:deleted_user) do
+        create(:user, :unconfirmed, provider: 'email', uid: email, email:, deleted_at: Time.current)
+      end
+
+      it '401を返し provider・uid・confirmed_at を書き換えない' do
+        post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('アカウントが削除されています')
+
+        deleted_user.reload
+        expect(deleted_user.provider).to eq('email')
+        expect(deleted_user.uid).to eq(email)
+        expect(deleted_user.confirmed_at).to be_nil
+        expect(deleted_user.tokens).to be_empty
       end
     end
 
