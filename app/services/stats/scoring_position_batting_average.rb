@@ -32,6 +32,8 @@ module Stats
         .to_h
     end
 
+    # 母数は batting_averages がある試合に限る。旧 PA が混ざる試合は batting_average が作られないため、
+    # PA を直接絞る RunnersSituationAggregator より母数が小さくなりうる。
     def plate_appearance_scope(batting_average_scope, user_id:)
       game_result_ids = batting_average_scope.unscope(:select, :group, :order)
                                              .select('batting_averages.game_result_id')
