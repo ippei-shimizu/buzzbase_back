@@ -37,6 +37,7 @@ module Stats
     def plate_appearance_scope(batting_average_scope, user_id:)
       game_result_ids = batting_average_scope.unscope(:select, :group, :order)
                                              .select('batting_averages.game_result_id')
+      # is_new_format で絞らないのは RunnersSituationAggregator と母数定義を揃えるため（runners_state は v2 経路でしか入らない）。
       PlateAppearance.joins(:plate_result)
                      .where(user_id:, game_result_id: game_result_ids,
                             runners_state: RunnersSituationAggregator::SCORING_POSITION_STATES)
