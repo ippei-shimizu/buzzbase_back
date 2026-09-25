@@ -30,7 +30,11 @@ module Users
       # セーブポイント内で書き込む。
       ActiveRecord::Base.transaction(requires_new: true) do
         linked_user = find_by_email
-        linked_user ? link_provider!(linked_user) : create_user!
+        next create_user! unless linked_user
+
+        # 停止・削除済みは呼び出し側が 401 で拒否する。ここで provider/uid を付け替えると
+        # 拒否したはずのリクエストで復帰後のログイン経路が第三者のものに変わってしまう。
+        linked_user.account_status == 'active' ? link_provider!(linked_user) : linked_user
       end
     rescue ActiveRecord::RecordNotUnique => e
       # 同一 email / uid が並行到達したときの敗者側。勝者は必ず provider+uid を満たすため
