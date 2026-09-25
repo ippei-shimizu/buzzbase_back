@@ -225,9 +225,9 @@ RSpec.describe Stats::BattingStatsTableService, type: :service do
       daily = described_class.new(user_id: user.id, mode: :daily, year: 2026).call
 
       aggregate_failures do
-        expect(find_row(yearly, '2026')[:scoring_position_batting_average]).to be_nil
-        expect(find_row(daily, '05/10')[:scoring_position_batting_average]).to be_nil
-        expect(find_row(daily, '05/11')[:scoring_position_batting_average]).to be_nil
+        expect(find_row(yearly, '2026')).to include(scoring_position_batting_average: nil)
+        expect(find_row(daily, '05/10')).to include(scoring_position_batting_average: nil)
+        expect(find_row(daily, '05/11')).to include(scoring_position_batting_average: nil)
       end
     end
 
