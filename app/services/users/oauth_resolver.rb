@@ -71,6 +71,10 @@ module Users
       if user.confirmed_at.blank?
         attributes[:confirmed_at] = Time.current
         attributes[:encrypted_password] = ''
+        # 発行済みのリセットトークンは provider を見ずに引けてしまい、password/edit が
+        # アクセストークンを発行する。パスワードと同じく信用できないので一緒に落とす。
+        attributes[:reset_password_token] = nil
+        attributes[:reset_password_sent_at] = nil
       end
       user.update!(attributes)
       user
