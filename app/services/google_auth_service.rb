@@ -13,8 +13,12 @@ class GoogleAuthService
     raise InvalidToken, 'Google IDトークンの検証に失敗しました' unless payload
 
     # 未検証メールを通すと、同じメールで登録済みの既存アカウントに provider/uid が
-    # リンクされて乗っ取りになりうる。
-    raise InvalidToken, 'メールアドレスが未検証です' unless email_verified?(payload)
+    # リンクされて乗っ取りになりうる。想定外の条件で正規ユーザーを弾いていないか
+    # デプロイ後に追えるよう、個人情報を含めずに拒否の痕跡だけ残す。
+    unless email_verified?(payload)
+      Rails.logger.warn("Google sign-in rejected: email_verified=#{payload['email_verified'].inspect} aud=#{payload['aud']}")
+      raise InvalidToken, 'メールアドレスが未検証です'
+    end
 
     {
       email: payload['email'],
