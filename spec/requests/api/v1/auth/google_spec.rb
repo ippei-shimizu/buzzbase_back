@@ -93,6 +93,23 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
       end
     end
 
+    context 'メールが未検証の場合' do
+      before do
+        allow(GoogleAuthService).to receive(:verify).and_raise(
+          GoogleAuthService::InvalidToken, 'メールアドレスが未検証です'
+        )
+      end
+
+      it '401を返しユーザーを作成しない' do
+        expect do
+          post '/api/v1/google_sign_in', params: { id_token: 'unverified_email_token' }
+        end.not_to change(User, :count)
+
+        expect(response).to have_http_status(:unauthorized)
+        expect(response.parsed_body['errors']).to include('メールアドレスが未検証です')
+      end
+    end
+
     context 'アカウントが停止されている場合' do
       let!(:suspended_user) do
         create(:user, :google, uid: google_uid, email:, suspended_at: Time.current)
