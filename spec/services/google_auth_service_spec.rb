@@ -52,6 +52,25 @@ RSpec.describe GoogleAuthService do
       end
     end
 
+    context '2つ目のClient IDで検証に成功する場合' do
+      let(:ios_client_id) { 'ios-client-id.apps.googleusercontent.com' }
+
+      before do
+        allow(ENV).to receive(:fetch).with('GOOGLE_IOS_CLIENT_ID', nil).and_return(ios_client_id)
+        allow(Google::Auth::IDTokens).to receive(:verify_oidc)
+          .with(id_token, aud: client_id).and_raise(Google::Auth::IDTokens::VerificationError)
+        allow(Google::Auth::IDTokens).to receive(:verify_oidc)
+          .with(id_token, aud: ios_client_id).and_return(payload)
+      end
+
+      it 'email, uid, nameを返す' do
+        result = described_class.verify(id_token)
+
+        expect(result[:email]).to eq(email)
+        expect(result[:uid]).to eq(google_uid)
+      end
+    end
+
     context 'email_verifiedがfalseの場合' do
       let(:payload) do
         {
