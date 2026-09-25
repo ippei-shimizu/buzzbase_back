@@ -18,7 +18,10 @@ module Users
       @name = name
     end
 
-    # @return [User] 既存・リンク済み・新規作成のいずれかのユーザー
+    # 停止・削除済みのユーザーはリンクせずそのまま返すため、呼び出し側で
+    # account_status を必ず確認して弾くこと。
+    #
+    # @return [User] 既存・リンク済み・新規作成・リンクを見送った停止/削除済みのいずれかのユーザー
     # @raise [EmailMissing] uid で引けず email も無い場合
     def call
       existing_user = find_by_provider_uid

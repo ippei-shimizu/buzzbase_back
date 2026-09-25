@@ -205,6 +205,23 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe '#account_unavailable_message' do
+    it 'returns nil for normal users' do
+      user = create(:user)
+      expect(user.account_unavailable_message).to be_nil
+    end
+
+    it 'returns the suspended message for suspended users' do
+      user = create(:user, suspended_at: Time.current)
+      expect(user.account_unavailable_message).to eq('アカウントが停止されています')
+    end
+
+    it 'returns the deleted message for soft-deleted users' do
+      user = create(:user, deleted_at: Time.current)
+      expect(user.account_unavailable_message).to eq('アカウントが削除されています')
+    end
+  end
+
   describe '#suspend!' do
     it 'sets suspended_at and suspended_reason' do
       user = create(:user)
