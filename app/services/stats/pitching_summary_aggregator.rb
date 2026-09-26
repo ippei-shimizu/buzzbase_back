@@ -15,8 +15,7 @@ module Stats
       hold: 'SUM(COALESCE(pitching_results.hold, 0))',
       saves: 'SUM(COALESCE(pitching_results.saves, 0))',
       complete_games: 'SUM(CASE WHEN pitching_results.got_to_the_distance THEN 1 ELSE 0 END)',
-      shutouts: 'SUM(CASE WHEN pitching_results.got_to_the_distance AND COALESCE(pitching_results.run_allowed, 0) = 0 ' \
-                'THEN 1 ELSE 0 END)',
+      shutouts: 'SUM(CASE WHEN pitching_results.got_to_the_distance AND pitching_results.run_allowed = 0 THEN 1 ELSE 0 END)',
       number_of_pitches: 'SUM(COALESCE(pitching_results.number_of_pitches, 0))',
       hits_allowed: 'SUM(COALESCE(pitching_results.hits_allowed, 0))',
       home_runs_hit: 'SUM(COALESCE(pitching_results.home_runs_hit, 0))',

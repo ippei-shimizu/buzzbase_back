@@ -83,6 +83,14 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
       expect(result[:era]).to eq(2.0)
     end
 
+    it 'does not count a complete game with a blank run allowed as a shutout' do
+      build_pitching_game(pitching_attrs: { got_to_the_distance: true, run_allowed: nil })
+
+      result = described_class.new(user_id: user.id).call
+
+      expect(result).to include(complete_games: 1, shutouts: 0)
+    end
+
     it 'does not count games with zero innings pitched as appearances' do
       build_pitching_game(pitching_attrs: { innings_pitched: 0.0, earned_run: 3 })
 
