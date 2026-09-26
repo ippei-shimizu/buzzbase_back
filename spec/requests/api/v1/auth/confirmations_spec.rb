@@ -41,6 +41,36 @@ RSpec.describe 'CustomConfirmationsController', type: :request do
       end
     end
 
+    context 'with valid confirmation token' do
+      it 'includes auth tokens in the redirect URL so the client can skip manual sign in' do
+        get '/api/v1/auth/confirmation', params: {
+          confirmation_token: user.confirmation_token,
+          redirect_url: 'buzzbase://confirmation-success'
+        }
+
+        query = Rack::Utils.parse_query(URI.parse(response.location).query)
+        expect(query['access-token']).to be_present
+        expect(query['client']).to be_present
+        expect(query['uid']).to eq(user.uid)
+      end
+
+      it 'issues auth tokens that authenticate the user' do
+        get '/api/v1/auth/confirmation', params: {
+          confirmation_token: user.confirmation_token,
+          redirect_url: 'buzzbase://confirmation-success'
+        }
+
+        query = Rack::Utils.parse_query(URI.parse(response.location).query)
+        get '/api/v1/auth/validate_token', headers: {
+          'access-token' => query['access-token'],
+          'client' => query['client'],
+          'uid' => query['uid']
+        }
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
     context 'with unauthorized redirect_url scheme' do
       it 'falls back to the default redirect URL' do
         get '/api/v1/auth/confirmation', params: {
@@ -62,6 +92,17 @@ RSpec.describe 'CustomConfirmationsController', type: :request do
 
         expect(response).to have_http_status(:redirect)
         expect(response.location).to include('account_confirmation_success=false')
+      end
+
+      it 'does not include auth tokens in the redirect URL' do
+        get '/api/v1/auth/confirmation', params: {
+          confirmation_token: 'invalid_token',
+          redirect_url: 'buzzbase://confirmation-success'
+        }
+
+        query = Rack::Utils.parse_query(URI.parse(response.location).query)
+        expect(query['access-token']).to be_nil
+        expect(query['uid']).to be_nil
       end
     end
   end

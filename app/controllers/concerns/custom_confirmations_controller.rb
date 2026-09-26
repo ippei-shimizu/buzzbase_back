@@ -7,8 +7,7 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
     # validate_redirect_urlでホワイトリスト検証済みのURLを取得
     redirect_url = your_custom_path(@resource)
     if @resource.errors.empty?
-      # 確認成功パラメータを追加
-      redirect_url_with_params = add_query_param(redirect_url, 'account_confirmation_success', 'true')
+      redirect_url_with_params = success_redirect_url(redirect_url)
     else
       # エラーの場合はリダイレクト先にエラーパラメータを付けて遷移
       error_message = @resource.errors.full_messages.join(', ')
@@ -21,6 +20,24 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
   end
 
   private
+
+  # 確認成功時は認証トークンを発行し、リダイレクト URL のクエリに載せる。
+  # front / mobile がこれを読んでそのままログイン状態にするため、メール確認後の手動再ログインが不要になる。
+  # gem 既定の show はサインイン済みのときだけトークンを発行するので、メールリンク経由では発行されない。
+  # @param redirect_url [String] ホワイトリスト検証済みのリダイレクト先
+  # @return [String] 認証トークンと account_confirmation_success を含む URL
+  def success_redirect_url(redirect_url)
+    token = @resource.create_token
+    @resource.save!
+
+    redirect_headers = build_redirect_headers(
+      token.token,
+      token.client,
+      { account_confirmation_success: true }
+    ).compact
+
+    @resource.build_auth_url(redirect_url, redirect_headers)
+  end
 
   def your_custom_path(_resource)
     redirect_url = params[:redirect_url] || default_redirect_url
