@@ -21,5 +21,19 @@ RSpec.describe Admin::Analytics::UsersService do
       expect(result[:users].pluck(:id)).not_to include(deleted_user.id)
       expect(result[:total_count]).to eq(2)
     end
+
+    it 'falls back to the default page size for out-of-range per_page' do
+      %w[0 abc 1000].each do |per_page|
+        pagination = described_class.new({ per_page: }).call[:pagination]
+
+        expect(pagination[:per_page]).to eq(described_class::DEFAULT_PER_PAGE)
+      end
+    end
+
+    it 'treats page below 1 as the first page' do
+      pagination = described_class.new({ page: '0' }).call[:pagination]
+
+      expect(pagination[:current_page]).to eq(1)
+    end
   end
 end

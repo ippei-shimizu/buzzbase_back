@@ -1,9 +1,12 @@
 module Admin
   module Analytics
     class UsersService
+      DEFAULT_PER_PAGE = 20
+      MAX_PER_PAGE = 100
+
       def initialize(params)
-        @page = params[:page]&.to_i || 1
-        @per_page = params[:per_page]&.to_i || 20
+        @page = [params[:page].to_i, 1].max
+        @per_page = params[:per_page].to_i.between?(1, MAX_PER_PAGE) ? params[:per_page].to_i : DEFAULT_PER_PAGE
         @search_term = params[:search]
       end
 
