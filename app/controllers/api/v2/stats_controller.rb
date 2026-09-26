@@ -58,6 +58,10 @@ module Api
         render json: Stats::AdditionalStatsAggregator.new(**aggregator_params).call
       end
 
+      def pitching_summary
+        render json: Stats::PitchingSummaryAggregator.new(**aggregator_params).call
+      end
+
       def runners_situation
         render json: Stats::RunnersSituationAggregator.new(**aggregator_params).call
       end

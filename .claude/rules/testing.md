@@ -67,4 +67,6 @@ end
   - 例: `/api/v1/auth/sign_in` は `provider='email'` で絞るため、パスワードが残っていても 401 になる。provider を見ない `user.valid_password?` なら差が出る
 - **「含まれないこと」を見る assertion（`not_to include(...)`）は、壊れた実装で実際に出力される文字列を比較対象にする**。例: リセットメールが誤送信されたとき本文に出るのはトークンの値であって `reset_password_token` という文字列ではないので、`not_to include('reset_password_token')` は常に通る。`password/edit` のようにリンクに必ず含まれる部分を見る
   - メールの本文を見るときは `mail.body.encoded` を使わない。multipart + base64 では可読文字列が一切現れず、`include` も `not_to include` も本文を観測できない。`mail.text_part.decoded` / `mail.html_part.decoded` を見る
+- **絞り込み・変換のテストは「0 件になること」だけで終わらせない**。変換が壊れて一致しない値で絞っても 0 件になるので常に通る。変換後に一致して 1 件以上返るケースを必ず置く（例: 種別 `公式戦` → `regular` で 1 件返る）
+- 複数カラムを SUM / pick する集計のテストは、カラムごとの合計が互いに異なる値になるようにデータを作る。同じ値が並ぶと、列の取り違えがあっても通る
 - 同じ assertion をユニットとリクエストの両方に置かない。リクエストスペックでは「外から観測できる振る舞い」を見る
