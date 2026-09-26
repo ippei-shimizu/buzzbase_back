@@ -474,6 +474,29 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
   end
 
+  describe 'GET /api/v2/stats/pitching_summary' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitching_summary'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 200 with pitching totals and rates' do
+      get('/api/v2/stats/pitching_summary', headers:)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to include(
+        'appearances' => 1, 'win' => 1, 'innings_pitched' => 7.0,
+        'strikeouts' => 6, 'era' => 2.57, 'whip' => 1.0
+      )
+    end
+
+    it 'applies the match type filter given as a Japanese label' do
+      get('/api/v2/stats/pitching_summary', params: { match_type: 'オープン戦' }, headers:)
+
+      expect(response.parsed_body['appearances']).to eq(0)
+    end
+  end
+
   describe 'GET /api/v2/stats/pitcher_attribute_summary' do
     it 'returns 401 when not authenticated' do
       get '/api/v2/stats/pitcher_attribute_summary'
@@ -516,6 +539,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
 
       it 'returns 403 for pitcher_attribute_summary' do
         get '/api/v2/stats/pitcher_attribute_summary',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for pitching_summary' do
+        get '/api/v2/stats/pitching_summary',
             params: { user_id: private_user.id },
             headers: auth_headers_for(user)
         expect(response).to have_http_status(:forbidden)

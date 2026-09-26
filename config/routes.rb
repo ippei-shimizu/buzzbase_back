@@ -252,6 +252,7 @@ Rails.application.routes.draw do
         get :pitcher_attribute_summary, on: :member
         get :batting_trend, on: :member
         get :additional_stats, on: :member
+        get :pitching_summary, on: :member
         get :timing_breakdown, on: :member
       end
 
