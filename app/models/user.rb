@@ -125,6 +125,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   after_commit :notify_slack_new_user, on: :create
 
   validates :password, custom_password: true
+  # 確認用が nil だと Devise の validates_confirmation_of はスキップされ、PUT /api/v1/auth から確認無しで設定できてしまう。
+  validates :password_confirmation, presence: true, if: -> { social_account? && !password.nil? }
   validates :user_id, uniqueness: true, allow_blank: true, if: :user_id_changed?
   validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true, if: :user_id_changed?
   validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true, if: :user_id_changed?

@@ -206,6 +206,12 @@ RSpec.describe User, type: :model do
       expect(user.errors[:password]).to include('は半角英数字のみ使用できます')
     end
 
+    it 'rejects a password without the confirmation' do
+      user.password = 'abc12345'
+      expect(user).not_to be_valid
+      expect(user.errors[:password_confirmation]).to be_present
+    end
+
     it 'rejects a mismatched password confirmation' do
       user.password = 'abc12345'
       user.password_confirmation = 'abc99999'
