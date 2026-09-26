@@ -32,7 +32,7 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
     end
 
     # アカウント列挙・認証方式の推測を防ぐため、存在しないメール/Google・Appleアカウント/
-    # メール・パスワードアカウントのいずれも同じ成功レスポンスを返す（メール送信の有無のみ異なる）。
+    # メール・パスワードアカウントのいずれも同じ成功レスポンスを返す（届くメールの有無・内容のみ異なる）。
     context 'with non-existent email' do
       it 'returns success without sending an email' do
         expect do
@@ -49,6 +49,59 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
     context 'with a google account' do
       let(:google_user) { create(:user, :google, email: 'google-user@example.com', uid: 'google-uid-123') }
 
+      it 'returns the same success response and sends a social login guidance email instead of a reset link' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: google_user.email,
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.to change(ActionMailer::Base.deliveries, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        mail = ActionMailer::Base.deliveries.last
+        expect(mail.to).to eq([google_user.email])
+        expect(mail.text_part.decoded).to include('Google')
+        # body.encoded は multipart + base64 で本文の文字列が現れないため、必ず各パートを decode して見る。
+        expect(mail.text_part.decoded).not_to include('password/edit')
+        expect(mail.html_part.decoded).not_to include('password/edit')
+        expect(google_user.reload.reset_password_token).to be_nil
+      end
+    end
+
+    context 'with an apple account' do
+      let(:apple_user) { create(:user, :apple, email: 'apple-user@example.com', uid: 'apple-uid-123') }
+
+      it 'returns the same success response and sends a social login guidance email' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: apple_user.email,
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.to change(ActionMailer::Base.deliveries, :count).by(1)
+
+        expect(response).to have_http_status(:ok)
+        expect(ActionMailer::Base.deliveries.last.text_part.decoded).to include('Apple')
+      end
+    end
+
+    context 'with an apple account using a private relay address' do
+      let(:apple_user) { create(:user, :apple, email: 'relay-user@privaterelay.appleid.com', uid: 'apple-uid-relay') }
+
+      it 'returns the same success response without sending an email' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: apple_user.email,
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.not_to change(ActionMailer::Base.deliveries, :count)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with a soft-deleted google account' do
+      let(:google_user) { create(:user, :google, email: 'deleted-google@example.com', uid: 'google-uid-deleted', deleted_at: Time.current) }
+
       it 'returns the same success response without sending an email' do
         expect do
           post '/api/v1/auth/password', params: {
@@ -61,18 +114,48 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
       end
     end
 
-    context 'with an apple account' do
-      let(:apple_user) { create(:user, :apple, email: 'apple-user@example.com', uid: 'apple-uid-123') }
+    context 'with a suspended google account' do
+      let(:google_user) do
+        create(:user, :google, email: 'suspended-google@example.com', uid: 'google-uid-suspended', suspended_at: Time.current)
+      end
 
       it 'returns the same success response without sending an email' do
         expect do
           post '/api/v1/auth/password', params: {
-            email: apple_user.email,
+            email: google_user.email,
             redirect_url: 'http://localhost:8100/reset-password'
           }
         end.not_to change(ActionMailer::Base.deliveries, :count)
 
         expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with an account of a provider the guidance email does not support' do
+      let(:unsupported_user) { create(:user, provider: 'line', email: 'line-user@example.com', uid: 'line-uid-123') }
+
+      it 'returns the same success response without sending an email' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: unsupported_user.email,
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.not_to change(ActionMailer::Base.deliveries, :count)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
+    context 'with a google account and an email in different case' do
+      before { create(:user, :google, email: 'case-google@example.com', uid: 'google-uid-case') }
+
+      it 'sends the social login guidance email' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: 'Case-Google@Example.com',
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.to change(ActionMailer::Base.deliveries, :count).by(1)
       end
     end
 

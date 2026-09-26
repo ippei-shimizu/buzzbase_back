@@ -65,4 +65,6 @@ end
   - 確認方法: `git checkout origin/<base> -- <対象ファイル>` → rspec → `git checkout HEAD -- <対象ファイル>`（`git stash` は使わない）
 - 落ちない場合、別の層が先にリクエストを止めている可能性を疑う。その層を迂回する経路でテストを書き直す
   - 例: `/api/v1/auth/sign_in` は `provider='email'` で絞るため、パスワードが残っていても 401 になる。provider を見ない `/users/sign_in` なら差が出る
+- **「含まれないこと」を見る assertion（`not_to include(...)`）は、壊れた実装で実際に出力される文字列を比較対象にする**。例: リセットメールが誤送信されたとき本文に出るのはトークンの値であって `reset_password_token` という文字列ではないので、`not_to include('reset_password_token')` は常に通る。`password/edit` のようにリンクに必ず含まれる部分を見る
+  - メールの本文を見るときは `mail.body.encoded` を使わない。multipart + base64 では可読文字列が一切現れず、`include` も `not_to include` も本文を観測できない。`mail.text_part.decoded` / `mail.html_part.decoded` を見る
 - 同じ assertion をユニットとリクエストの両方に置かない。リクエストスペックでは「外から観測できる振る舞い」を見る

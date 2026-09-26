@@ -22,8 +22,16 @@ class CustomPasswordsController < DeviseTokenAuth::PasswordsController
   # このメソッドに到達する（= render_not_found_error は「存在しないメール」と
   # 「email/password 未使用のアカウント」を区別できない）。
   # アカウント列挙・認証方式の推測を防ぐため、どちらの場合も送信成功と同じ
-  # レスポンスを返す。
+  # レスポンスを返す。ソーシャル連携アカウントには本人宛てにログイン方法の案内だけ送る。
   def render_not_found_error
+    send_social_login_guidance
     render_create_success
+  end
+
+  def send_social_login_guidance
+    user = User.active.where(provider: SocialLoginGuidanceMailer::PROVIDER_NAMES.keys).find_by(email: @email)
+    return unless user&.email_deliverable?
+
+    SocialLoginGuidanceMailer.password_reset_requested(user).deliver_now
   end
 end
