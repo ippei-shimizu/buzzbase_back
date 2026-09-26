@@ -70,6 +70,14 @@ RSpec.describe 'Api::V1::Teams', type: :request do
           .with('[teams#index] unscoped request user_agent="BUZZBASE/42 CFNetwork/1498 Darwin/23.6.0" query_keys=[]')
       end
 
+      it 'logs an empty quoted user agent when the client sends none' do
+        allow(Rails.logger).to receive(:warn)
+
+        get '/api/v1/teams', headers: { 'HTTP_USER_AGENT' => nil }
+
+        expect(Rails.logger).to have_received(:warn).with('[teams#index] unscoped request user_agent="" query_keys=[]')
+      end
+
       it 'truncates a long user agent so the log line is not dropped' do
         allow(Rails.logger).to receive(:warn)
 
