@@ -112,6 +112,21 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
       end
     end
 
+    context 'with an account of a provider the guidance email does not support' do
+      let(:unsupported_user) { create(:user, provider: 'line', email: 'line-user@example.com', uid: 'line-uid-123') }
+
+      it 'returns the same success response without sending an email' do
+        expect do
+          post '/api/v1/auth/password', params: {
+            email: unsupported_user.email,
+            redirect_url: 'http://localhost:8100/reset-password'
+          }
+        end.not_to change(ActionMailer::Base.deliveries, :count)
+
+        expect(response).to have_http_status(:ok)
+      end
+    end
+
     context 'with a google account and an email in different case' do
       before { create(:user, :google, email: 'case-google@example.com', uid: 'google-uid-case') }
 

@@ -29,7 +29,7 @@ class CustomPasswordsController < DeviseTokenAuth::PasswordsController
   end
 
   def send_social_login_guidance
-    user = User.active.where.not(provider: 'email').find_by(email: @email)
+    user = User.active.where(provider: SocialLoginGuidanceMailer::PROVIDER_NAMES.keys).find_by(email: @email)
     return unless user&.email_deliverable?
 
     SocialLoginGuidanceMailer.password_reset_requested(user).deliver_now
