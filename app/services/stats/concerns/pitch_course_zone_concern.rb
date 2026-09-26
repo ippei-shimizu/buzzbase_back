@@ -50,6 +50,8 @@ module Stats
         accumulate_strikeout(bucket, result_id, swing_type, count)
       end
 
+      # swing_type は validate で三振 (13) のみ保持でき振り逃げ (14) には入らないため、
+      # swinging + looking は strikeouts に届かず、差分が「内訳未入力」になる。
       def accumulate_strikeout(bucket, result_id, swing_type, count)
         return unless ::Stats::BattingAverageRecalculator::STRIKE_OUT_IDS.include?(result_id)
 
