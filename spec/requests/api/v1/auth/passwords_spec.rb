@@ -337,6 +337,51 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
         post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'oldpassword123' }
         expect(response).to have_http_status(:unauthorized)
       end
+
+      it 'clears allow_password_change left over from a reset link opened before linking' do
+        social_user.update!(allow_password_change: true)
+
+        put '/api/v1/auth/password',
+            headers: auth_headers_for(social_user),
+            params: { password: 'newpassword456', password_confirmation: 'newpassword456' }
+
+        expect(response).to have_http_status(:ok)
+        expect(social_user.reload.allow_password_change).to be false
+      end
+
+      context 'when check_current_password_before_update is enabled' do
+        before { allow(DeviseTokenAuth).to receive(:check_current_password_before_update).and_return(:password) }
+
+        it 'rejects a change without the current password' do
+          put '/api/v1/auth/password',
+              headers: auth_headers_for(social_user),
+              params: { password: 'newpassword456', password_confirmation: 'newpassword456' }
+
+          expect(response).to have_http_status(:unprocessable_entity)
+        end
+
+        it 'accepts a change with the current password' do
+          put '/api/v1/auth/password',
+              headers: auth_headers_for(social_user),
+              params: { password: 'newpassword456', password_confirmation: 'newpassword456', current_password: 'oldpassword123' }
+
+          expect(response).to have_http_status(:ok)
+        end
+      end
+    end
+
+    context 'with a google account that has no password yet when check_current_password_before_update is enabled' do
+      let(:social_user) { create(:user, :google, email: 'first-password@example.com', uid: 'google-uid-first-password') }
+
+      before { allow(DeviseTokenAuth).to receive(:check_current_password_before_update).and_return(:password) }
+
+      it 'still sets the first password without the current password' do
+        put '/api/v1/auth/password',
+            headers: auth_headers_for(social_user),
+            params: { password: 'newpassword456', password_confirmation: 'newpassword456' }
+
+        expect(response).to have_http_status(:ok)
+      end
     end
   end
 end
