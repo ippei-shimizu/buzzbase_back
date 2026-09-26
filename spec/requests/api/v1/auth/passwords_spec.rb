@@ -61,7 +61,9 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
         mail = ActionMailer::Base.deliveries.last
         expect(mail.to).to eq([google_user.email])
         expect(mail.text_part.decoded).to include('Google')
-        expect(mail.body.encoded).not_to include('password/edit')
+        # body.encoded は multipart + base64 で本文の文字列が現れないため、必ず各パートを decode して見る。
+        expect(mail.text_part.decoded).not_to include('password/edit')
+        expect(mail.html_part.decoded).not_to include('password/edit')
         expect(google_user.reload.reset_password_token).to be_nil
       end
     end
