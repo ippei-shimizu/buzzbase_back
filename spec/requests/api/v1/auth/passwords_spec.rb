@@ -267,6 +267,17 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
       end
     end
 
+    context 'with a symbol in the new password' do
+      it 'returns an error like sign up does' do
+        put '/api/v1/auth/password',
+            headers:,
+            params: { password: 'new-password', password_confirmation: 'new-password' }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(user.reload.valid_password?('oldpassword123')).to be true
+      end
+    end
+
     context 'without auth headers' do
       it 'rejects the request as unauthorized' do
         put '/api/v1/auth/password', params: {
