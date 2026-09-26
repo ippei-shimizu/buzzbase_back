@@ -88,13 +88,15 @@ RSpec.describe 'Api::V1::Teams', type: :request do
       end
     end
 
-    context 'with q or limit param' do
-      it 'does not log the request as unscoped' do
-        allow(Rails.logger).to receive(:warn)
+    context 'with q or limit param (scoped branch)' do
+      [{ q: '青葉' }, { limit: 20 }, { q: '青葉', limit: 20 }].each do |scoped_params|
+        it "does not log the request as unscoped with #{scoped_params.keys.join(' and ')}" do
+          allow(Rails.logger).to receive(:warn)
 
-        get '/api/v1/teams', params: { q: '青葉', limit: 20 }
+          get '/api/v1/teams', params: scoped_params
 
-        expect(Rails.logger).not_to have_received(:warn).with(a_string_including('[teams#index] unscoped request'))
+          expect(Rails.logger).not_to have_received(:warn).with(a_string_including('[teams#index] unscoped request'))
+        end
       end
     end
   end
