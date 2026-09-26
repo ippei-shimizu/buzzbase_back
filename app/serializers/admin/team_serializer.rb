@@ -11,7 +11,7 @@ module Admin
     end
 
     def user_name
-      object.user&.name
+      object.users.reject(&:deleted_at).min_by(&:id)&.name
     end
 
     def match_results_count

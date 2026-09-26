@@ -17,7 +17,7 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   has_many :user_subscription_events, dependent: :destroy
   has_many :user_positions, dependent: :destroy
   has_many :positions, through: :user_positions
-  belongs_to :team, foreign_key: 'user_id', primary_key: 'id', optional: true, inverse_of: :user
+  belongs_to :team, optional: true, inverse_of: :users
   has_many :user_awards, dependent: :destroy
   has_many :awards, through: :user_awards
   has_many :active_relationships, class_name: 'Relationship', foreign_key: 'follower_id', dependent: :destroy, inverse_of: :follower
