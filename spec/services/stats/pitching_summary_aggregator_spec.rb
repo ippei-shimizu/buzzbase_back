@@ -28,18 +28,25 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
     end
 
     context 'when the user has multiple appearances' do
+      # 列の取り違えを検出できるよう、各カラムの合計が互いに異なる値になるようにしている
       before do
         build_pitching_game(pitching_attrs: {
-                              win: 1, loss: 0, hold: 0, saves: 0, innings_pitched: 9.0,
+                              win: 4, loss: 0, hold: 0, saves: 0, innings_pitched: 9.0,
                               got_to_the_distance: true, run_allowed: 0, earned_run: 0,
                               hits_allowed: 4, home_runs_hit: 0, strikeouts: 8, base_on_balls: 2,
                               hit_by_pitch: 1, number_of_pitches: 110
                             })
         build_pitching_game(date: '2026-04-08', pitching_attrs: {
-                              win: 0, loss: 1, hold: 0, saves: 0, innings_pitched: 5 + (1.0 / 3),
+                              win: 0, loss: 5, hold: 6, saves: 0, innings_pitched: 5 + (1.0 / 3),
                               got_to_the_distance: false, run_allowed: 4, earned_run: 3,
-                              hits_allowed: 7, home_runs_hit: 1, strikeouts: 4, base_on_balls: 2,
+                              hits_allowed: 7, home_runs_hit: 1, strikeouts: 4, base_on_balls: 3,
                               hit_by_pitch: 0, number_of_pitches: 90
+                            })
+        build_pitching_game(date: '2026-04-15', pitching_attrs: {
+                              win: 0, loss: 0, hold: 0, saves: 7, innings_pitched: 7.0,
+                              got_to_the_distance: true, run_allowed: 8, earned_run: 10,
+                              hits_allowed: 6, home_runs_hit: 8, strikeouts: 9, base_on_balls: 5,
+                              hit_by_pitch: 10, number_of_pitches: 105
                             })
       end
 
@@ -47,24 +54,24 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
         result = described_class.new(user_id: user.id).call
 
         expect(result).to include(
-          appearances: 2, win: 1, loss: 1, hold: 0, saves: 0,
-          complete_games: 1, shutouts: 1, number_of_pitches: 200,
-          hits_allowed: 11, home_runs_hit: 1, strikeouts: 12, base_on_balls: 4,
-          hit_by_pitch: 1, run_allowed: 4, earned_run: 3, innings_pitched: 14.33
+          appearances: 3, win: 4, loss: 5, hold: 6, saves: 7,
+          complete_games: 2, shutouts: 1, number_of_pitches: 305,
+          hits_allowed: 17, home_runs_hit: 9, strikeouts: 21, base_on_balls: 10,
+          hit_by_pitch: 11, run_allowed: 12, earned_run: 13, innings_pitched: 21.33
         )
       end
 
       it 'computes rates from the unrounded innings total' do
         result = described_class.new(user_id: user.id).call
-        innings = 14 + (1.0 / 3)
+        innings = 21 + (1.0 / 3)
 
         aggregate_failures do
-          expect(result[:era]).to eq((3 * 9 / innings).round(2))
-          expect(result[:whip]).to eq((15 / innings).round(3))
-          expect(result[:k_per_nine]).to eq((12 * 9 / innings).round(3))
-          expect(result[:bb_per_nine]).to eq((4 * 9 / innings).round(3))
-          expect(result[:k_bb]).to eq(3.0)
-          expect(result[:win_percentage]).to eq(0.5)
+          expect(result[:era]).to eq((13 * 9 / innings).round(2))
+          expect(result[:whip]).to eq((27 / innings).round(3))
+          expect(result[:k_per_nine]).to eq((21 * 9 / innings).round(3))
+          expect(result[:bb_per_nine]).to eq((10 * 9 / innings).round(3))
+          expect(result[:k_bb]).to eq(2.1)
+          expect(result[:win_percentage]).to eq((4 / 9.0).round(3))
         end
       end
 
@@ -73,6 +80,15 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
 
         expect(result.keys).not_to include(:weighted_earned_run, :weighted_strikeouts, :weighted_base_on_balls)
       end
+    end
+
+    it 'does not let a blank column swallow the totals of other appearances' do
+      build_pitching_game(pitching_attrs: { hold: 2, number_of_pitches: 80 })
+      build_pitching_game(date: '2026-04-08', pitching_attrs: { hold: nil, number_of_pitches: nil })
+
+      result = described_class.new(user_id: user.id).call
+
+      expect(result).to include(appearances: 2, hold: 2, number_of_pitches: 80)
     end
 
     it 'weights ERA by the inning format of each game' do
