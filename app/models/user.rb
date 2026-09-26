@@ -3,6 +3,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   include PlanLimits
   include SubscriptionCallbacks
 
+  SOCIAL_PROVIDERS = %w[google apple].freeze
+
   mount_uploader :image, AvatarUploader
   # CarrierWave の mount が仕掛ける store は after_save（トランザクション内）で実行されるため、
   # users の行ロックと DB コネクションを保持したまま S3 へ転送してしまう。
@@ -130,9 +132,13 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
 
   # ソーシャル連携アカウントはパスワード無しで作成・リンクされるため、パスワードを設定するときだけ検証する。
   def password_required?
-    return !password.nil? || !password_confirmation.nil? if provider.in?(%w[google apple])
+    return !password.nil? || !password_confirmation.nil? if social_account?
 
     super
+  end
+
+  def social_account?
+    provider.in?(SOCIAL_PROVIDERS)
   end
 
   def google_account?
@@ -151,6 +157,7 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   end
 
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
+  scope :social_with_password, -> { where(provider: SOCIAL_PROVIDERS).where.not(encrypted_password: [nil, '']) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }
   scope :not_deleted, -> { where(deleted_at: nil) }
