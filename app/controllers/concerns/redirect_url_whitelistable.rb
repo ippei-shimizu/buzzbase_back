@@ -35,15 +35,24 @@ module RedirectUrlWhitelistable
     default_redirect_url
   end
 
-  def add_query_param(url, key, value)
-    return default_redirect_url if url.blank?
+  # 複数パラメータを1回の URI 組み立てで付与する。
+  # 1件ずつ add_query_param で畳み込むと、途中で InvalidURIError になった時点で
+  # アキュムレータが default_redirect_url に差し替わり、残りのパラメータが
+  # API 自身のホスト上の URL に載ってしまう（認証トークンの付与で問題になる）。
+  # @return [String, nil] 付与後の URL。組み立てに失敗した場合は nil
+  def add_query_params(url, params)
+    return nil if url.blank?
 
     uri = URI.parse(url)
-    query_params = URI.decode_www_form(uri.query || '') << [key, value]
+    query_params = URI.decode_www_form(uri.query || '') + params.map { |key, value| [key.to_s, value.to_s] }
     uri.query = URI.encode_www_form(query_params)
     uri.to_s
   rescue URI::InvalidURIError => e
-    Rails.logger.error("Invalid URL in add_query_param: #{url} - #{e.message}")
-    default_redirect_url
+    Rails.logger.error("Invalid URL in add_query_params: #{url} - #{e.message}")
+    nil
+  end
+
+  def add_query_param(url, key, value)
+    add_query_params(url, key => value) || default_redirect_url
   end
 end
