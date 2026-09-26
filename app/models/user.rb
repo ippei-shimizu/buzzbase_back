@@ -157,7 +157,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   end
 
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
-  scope :social_with_password, -> { where(provider: SOCIAL_PROVIDERS).where.not(encrypted_password: [nil, '']) }
+  scope :social, -> { where(provider: SOCIAL_PROVIDERS) }
+  scope :social_with_password, -> { social.where.not(encrypted_password: [nil, '']) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }
   scope :not_deleted, -> { where(deleted_at: nil) }

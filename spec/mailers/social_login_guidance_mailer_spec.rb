@@ -1,6 +1,10 @@
 require 'rails_helper'
 
 RSpec.describe SocialLoginGuidanceMailer, type: :mailer do
+  it 'has a display name for every social provider the app accepts' do
+    expect(described_class::PROVIDER_NAMES.keys).to match_array(User::SOCIAL_PROVIDERS)
+  end
+
   describe '#password_reset_requested' do
     let(:mail) { described_class.password_reset_requested(user) }
 
