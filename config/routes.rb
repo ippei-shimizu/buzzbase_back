@@ -309,8 +309,8 @@ Rails.application.routes.draw do
     end
   end
 
-  # sessions / passwords / registrations は devise_token_auth の provider スコープを通らず、
-  # ソーシャル連携アカウントでもパスワード認証・再設定が通ってしまうため公開しない。
+  # devise_token_auth が sign_in(:user, ...) で current_user を立てるため :user マッピングは残し、provider スコープを
+  # 通らずソーシャル連携アカウントでもパスワード認証・再設定が通る sessions / passwords / registrations のルートだけ出さない。
   devise_for :users, skip: %i[sessions passwords registrations], controllers: {
     confirmations: 'custom_confirmations'
   }
