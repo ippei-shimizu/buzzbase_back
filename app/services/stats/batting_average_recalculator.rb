@@ -21,6 +21,13 @@ module Stats
     BASE_ON_BALLS_ID = 15
     HIT_BY_PITCH_ID = 16
     ERROR_ID = 5
+    # 塁打の重み。BattingFormulas.total_bases と同じ係数を plate_result_id から引くための表。
+    TOTAL_BASES_BY_RESULT_ID = {
+      SINGLE_HIT_ID => 1,
+      DOUBLE_HIT_ID => 2,
+      TRIPLE_HIT_ID => 3,
+      HOME_RUN_ID => 4
+    }.freeze
 
     # @param game_result_id [Integer]
     # @param user_id [Integer, nil] batting_average を新規作成する際に使用。

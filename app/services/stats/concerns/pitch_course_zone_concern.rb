@@ -14,13 +14,6 @@ module Stats
       # PitcherFaceoffAggregator::MIN_PLATE_APPEARANCES と揃える。
       MIN_AT_BATS = 3
 
-      TOTAL_BASES_BY_RESULT_ID = {
-        ::Stats::BattingAverageRecalculator::SINGLE_HIT_ID => 1,
-        ::Stats::BattingAverageRecalculator::DOUBLE_HIT_ID => 2,
-        ::Stats::BattingAverageRecalculator::TRIPLE_HIT_ID => 3,
-        ::Stats::BattingAverageRecalculator::HOME_RUN_ID => 4
-      }.freeze
-
       # 指標（打率・長打率・三振率など）はクライアントで計算するため、率ではなく生カウントを返す。
       COUNT_KEYS = %i[plate_appearances at_bats hits total_bases strikeouts swinging_strikeouts looking_strikeouts].freeze
 
@@ -52,7 +45,7 @@ module Stats
         bucket[:plate_appearances] += count
         bucket[:at_bats] += count if counted
         bucket[:hits] += count if ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS.include?(result_id)
-        bucket[:total_bases] += TOTAL_BASES_BY_RESULT_ID.fetch(result_id, 0) * count
+        bucket[:total_bases] += ::Stats::BattingAverageRecalculator::TOTAL_BASES_BY_RESULT_ID.fetch(result_id, 0) * count
         accumulate_strikeout(bucket, result_id, swing_type, count)
       end
 
