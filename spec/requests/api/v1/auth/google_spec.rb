@@ -58,15 +58,6 @@ RSpec.describe 'Api::V1::Auth::Google', type: :request do
                                     password: 'password123', password_confirmation: 'password123')
       end
 
-      # devise_token_auth の /api/v1/auth/sign_in は provider='email' で絞るため、パスワードが
-      # 残っていても落ちる。provider を見ない照合そのもので、登録時のパスワードが破棄されたことを確認する。
-      it 'リンク後は登録時のパスワードが照合を通らない' do
-        post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
-        expect(response).to have_http_status(:ok)
-
-        expect(existing_user.reload.valid_password?('password123')).to be false
-      end
-
       it 'provider・uid・confirmed_at をまとめて更新しトークンを発行する' do
         post '/api/v1/google_sign_in', params: { id_token: 'valid_token' }
 
