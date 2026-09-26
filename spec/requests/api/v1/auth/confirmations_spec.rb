@@ -52,6 +52,7 @@ RSpec.describe 'CustomConfirmationsController', type: :request do
         expect(query['access-token']).to be_present
         expect(query['client']).to be_present
         expect(query['uid']).to eq(user.uid)
+        expect(query['expiry']).to eq(user.reload.tokens[query['client']]['expiry'].to_s)
       end
 
       it 'issues auth tokens that authenticate the user' do
