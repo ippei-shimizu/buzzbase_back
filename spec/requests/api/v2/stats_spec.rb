@@ -490,7 +490,13 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       )
     end
 
-    it 'applies the match type filter given as a Japanese label' do
+    it 'converts the Japanese match type label before filtering' do
+      get('/api/v2/stats/pitching_summary', params: { match_type: '公式戦' }, headers:)
+
+      expect(response.parsed_body['appearances']).to eq(1)
+    end
+
+    it 'excludes games of other match types' do
       get('/api/v2/stats/pitching_summary', params: { match_type: 'オープン戦' }, headers:)
 
       expect(response.parsed_body['appearances']).to eq(0)
