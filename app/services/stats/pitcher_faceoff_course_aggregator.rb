@@ -25,7 +25,7 @@ module Stats
     end
 
     # @return [Hash] rows: しきい値以上の投手 [{ id, label, team_name,
-    #   plate_appearances, zones: 必ず 25 要素 }]（対戦多い順 → 投手名昇順）,
+    #   plate_appearances, zones: 必ず 25 要素 }]（対戦多い順 → 投手名昇順 → id 昇順）,
     #   total_target_pa: コースと投手の両方が記録された打席数（しきい値未満の投手も含む）,
     #   min_at_bats: is_reliable のしきい値, min_plate_appearances: セレクタに出す下限
     def call
@@ -38,7 +38,7 @@ module Stats
       pitchers = Pitcher.where(id: eligible_pitcher_ids).includes(:team)
 
       rows = pitchers.map { |pitcher| build_row(pitcher, stats) }
-      rows.sort_by! { |row| [-row[:plate_appearances], row[:label]] }
+      rows.sort_by! { |row| [-row[:plate_appearances], row[:label], row[:id]] }
 
       {
         rows:,
