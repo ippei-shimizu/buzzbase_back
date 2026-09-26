@@ -9,9 +9,9 @@ RSpec.describe Stats::PitchCoursePitchTypeAggregator, type: :service do
   let(:user) { create(:user) }
   let(:game_result) { create(:game_result, user:) }
 
-  def create_pa(pitch_type_id:, pitch_course:, plate_result_id:)
+  def create_pa(pitch_type_id:, pitch_course:, plate_result_id:, swing_type: nil)
     create(:plate_appearance, game_result:, user:, pitch_type_id:, pitch_course:,
-                              plate_result_id:, is_new_format: true)
+                              plate_result_id:, swing_type:, is_new_format: true)
   end
 
   describe '#call' do
@@ -63,6 +63,17 @@ RSpec.describe Stats::PitchCoursePitchTypeAggregator, type: :service do
           # 他セルは 0 のまま
           expect(straight[:zones].sum { |z| z[:plate_appearances] }).to eq(2)
         end
+      end
+
+      it 'returns total_bases and strikeouts split by swing_type per (pitch_type, course)' do
+        create_pa(pitch_type_id: 1, pitch_course: 13, plate_result_id: Stats::BattingAverageRecalculator::HOME_RUN_ID)
+        create_pa(pitch_type_id: 1, pitch_course: 13, plate_result_id: strikeout_result_id, swing_type: :looking)
+
+        result = described_class.new(user_id: user.id).call
+        straight = result[:rows].find { |r| r[:label] == 'ストレート系' }
+        straight_center = straight[:zones].find { |z| z[:course] == 13 }
+
+        expect(straight_center).to include(total_bases: 5, strikeouts: 2, swinging_strikeouts: 0, looking_strikeouts: 1)
       end
     end
 

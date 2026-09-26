@@ -13,9 +13,9 @@ RSpec.describe Stats::PitcherFaceoffCourseAggregator, type: :service do
     Pitcher.create!(name:, team:, created_by_user: user)
   end
 
-  def create_pa(pitcher_id:, pitch_course:, plate_result_id:, game: game_result)
+  def create_pa(pitcher_id:, pitch_course:, plate_result_id:, game: game_result, swing_type: nil)
     create(:plate_appearance, game_result: game, user:, pitcher_id:, pitch_course:,
-                              plate_result_id:, is_new_format: true)
+                              plate_result_id:, swing_type:, is_new_format: true)
   end
 
   describe '#call' do
@@ -70,6 +70,16 @@ RSpec.describe Stats::PitcherFaceoffCourseAggregator, type: :service do
           expect(low_outside).to include(at_bats: 1, hits: 0)
           expect(ace_row[:zones].sum { |zone| zone[:plate_appearances] }).to eq(3)
         end
+      end
+
+      it 'returns total_bases and strikeouts split by swing_type per (pitcher, course)' do
+        create_pa(pitcher_id: ace.id, pitch_course: 13, plate_result_id: strikeout_result_id, swing_type: :swinging)
+
+        result = described_class.new(user_id: user.id).call
+        ace_row = result[:rows].find { |row| row[:id] == ace.id }
+        center = ace_row[:zones].find { |zone| zone[:course] == 13 }
+
+        expect(center).to include(total_bases: 1, strikeouts: 2, swinging_strikeouts: 1, looking_strikeouts: 0)
       end
     end
 

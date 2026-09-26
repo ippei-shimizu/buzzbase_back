@@ -368,7 +368,8 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(json['zones'].length).to eq(25)
       expect(json['zones'].first).to include(
         'course', 'row', 'col', 'is_strike_zone',
-        'plate_appearances', 'at_bats', 'hits', 'batting_average', 'is_reliable'
+        'plate_appearances', 'at_bats', 'hits', 'batting_average', 'is_reliable',
+        'total_bases', 'strikeouts', 'swinging_strikeouts', 'looking_strikeouts'
       )
       expect(json['min_at_bats']).to eq(3)
     end
