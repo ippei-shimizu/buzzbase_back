@@ -12,5 +12,14 @@ RSpec.describe Admin::Analytics::UsersService do
       expect(users.find { |user| user[:id] == member.id }[:team_name]).to eq('BUZZ学園')
       expect(users.find { |user| user[:id] == unaffiliated_user.id }[:team_name]).to be_nil
     end
+
+    it 'excludes soft-deleted users' do
+      deleted_user = create(:user, deleted_at: Time.current)
+
+      result = described_class.new({}).call
+
+      expect(result[:users].pluck(:id)).not_to include(deleted_user.id)
+      expect(result[:total_count]).to eq(2)
+    end
   end
 end

@@ -11,7 +11,7 @@ module Admin
         {
           users: Admin::Analytics::UsersSerializer.serialize(paginated_users),
           pagination: pagination_info,
-          total_count: filtered_users.count
+          total_count:
         }
       end
 
@@ -19,7 +19,7 @@ module Admin
 
       def filtered_users
         @filtered_users ||= begin
-          users = ::User.all
+          users = ::User.not_deleted
           users = users.where('name ILIKE ? OR email ILIKE ?', "%#{@search_term}%", "%#{@search_term}%") if @search_term.present?
           users.order(:created_at)
         end
@@ -29,8 +29,11 @@ module Admin
         @paginated_users ||= filtered_users.includes(:team).limit(@per_page).offset((@page - 1) * @per_page)
       end
 
+      def total_count
+        @total_count ||= filtered_users.count
+      end
+
       def pagination_info
-        total_count = filtered_users.count
         total_pages = (total_count.to_f / @per_page).ceil
 
         {
