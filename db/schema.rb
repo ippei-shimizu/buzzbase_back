@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_09_24_000001) do
+ActiveRecord::Schema[7.1].define(version: 2026_09_26_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_trgm"
   enable_extension "plpgsql"
@@ -1059,6 +1059,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_09_24_000001) do
     t.index ["last_login_at"], name: "index_users_on_last_login_at"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
     t.index ["suspended_at"], name: "index_users_on_suspended_at"
+    t.index ["team_id"], name: "index_users_on_team_id"
     t.index ["uid", "provider"], name: "index_users_on_uid_and_provider", unique: true
     t.index ["user_id"], name: "index_users_on_user_id", unique: true
   end
