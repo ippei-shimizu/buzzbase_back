@@ -19,14 +19,14 @@ module Admin
 
       def filtered_users
         @filtered_users ||= begin
-          users = User.all
+          users = ::User.all
           users = users.where('name ILIKE ? OR email ILIKE ?', "%#{@search_term}%", "%#{@search_term}%") if @search_term.present?
           users.order(:created_at)
         end
       end
 
       def paginated_users
-        @paginated_users ||= filtered_users.limit(@per_page).offset((@page - 1) * @per_page)
+        @paginated_users ||= filtered_users.includes(:team).limit(@per_page).offset((@page - 1) * @per_page)
       end
 
       def pagination_info
