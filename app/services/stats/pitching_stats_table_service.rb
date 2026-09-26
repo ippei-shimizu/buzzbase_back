@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Stats
-  class PitchingStatsTableService # rubocop:disable Metrics/ClassLength
+  class PitchingStatsTableService
     include Concerns::TableServiceConcern
 
     PITCHING_FIELDS = %w[
@@ -137,26 +137,21 @@ module Stats
       row
     end
 
-    def calculate_pitching_rates(stats)
-      innings = stats['innings_pitched'].to_f
-      strikeouts = stats['strikeouts'].to_i
-      walks = stats['base_on_balls'].to_i
-
-      calculate_pitching_rate_values(innings, strikeouts, walks, stats)
-    end
-
     # ERA / K9 / BB9 は試合ごとのイニング制（match_results.inning_format）で加重した分子を投球回で割る。
     # 集計クエリでは aggregate_columns に weighted_* を追加し、個別行（daily）では
     # extract_pitching_stats で当該試合の inning_format を掛けた値を渡す。
-    def calculate_pitching_rate_values(innings, strikeouts, walks, stats)
-      {
-        era: safe_divide(stats['weighted_earned_run'].to_f, innings, 2),
-        whip: safe_divide(walks.to_f + stats['hits_allowed'].to_f, innings),
-        k_per_nine: safe_divide(stats['weighted_strikeouts'].to_f, innings),
-        bb_per_nine: safe_divide(stats['weighted_base_on_balls'].to_f, innings),
-        k_bb: safe_divide(strikeouts.to_f, walks),
-        win_percentage: safe_divide(stats['win'].to_f, stats['win'].to_i + stats['loss'].to_i)
-      }
+    def calculate_pitching_rates(stats)
+      PitchingFormulas.rates(
+        weighted_earned_run: stats['weighted_earned_run'].to_i,
+        weighted_strikeouts: stats['weighted_strikeouts'].to_i,
+        weighted_base_on_balls: stats['weighted_base_on_balls'].to_i,
+        strikeouts: stats['strikeouts'].to_i,
+        base_on_balls: stats['base_on_balls'].to_i,
+        hits_allowed: stats['hits_allowed'].to_i,
+        win: stats['win'].to_i,
+        loss: stats['loss'].to_i,
+        innings: stats['innings_pitched'].to_f
+      )
     end
 
     def empty_row(label)

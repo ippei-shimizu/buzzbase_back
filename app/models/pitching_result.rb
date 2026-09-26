@@ -4,9 +4,6 @@ class PitchingResult < ApplicationRecord
 
   validate :must_have_any_stats
 
-  # 分母 0 のフォールバック値。正常時は round が Float を返すため、型を安定させるよう Float にする。
-  ZERO = 0.0
-
   # 投手集計クエリは ERA / K/9 / BB/9 を「試合のイニング制（match_results.inning_format）で加重平均」する。
   # 従来の `× 9 / 投球回` 固定ではなく、各試合のイニング制（7 or 9）を係数として掛けることで、
   # 7回制の試合では「× 7」で換算され、混在試合でも実力が正しく反映される。
@@ -100,26 +97,30 @@ class PitchingResult < ApplicationRecord
   # @return [Hash{Symbol=>Numeric}] ERA / K9 / BB9 / WHIP 等の計算済み統計
   # ERA・K/9・BB/9 は試合のイニング制で加重した分子（weighted_*）を投球回で割って算出する。
   def self.build_pitching_stats_hash(user_id, stats)
-    ip = stats['innings_pitched'].to_f
-    wins = stats['win'].to_i
-    losses = stats['loss'].to_i
+    rates = Stats::PitchingFormulas.rates(
+      weighted_earned_run: stats['weighted_earned_run'].to_i,
+      weighted_strikeouts: stats['weighted_strikeouts'].to_i,
+      weighted_base_on_balls: stats['weighted_base_on_balls'].to_i,
+      strikeouts: stats['strikeouts'].to_i,
+      base_on_balls: stats['base_on_balls'].to_i,
+      hits_allowed: stats['hits_allowed'].to_i,
+      win: stats['win'].to_i,
+      loss: stats['loss'].to_i,
+      innings: stats['innings_pitched'].to_f
+    )
 
     {
       user_id:,
-      era: safe_divide_round(stats['weighted_earned_run'].to_f, ip, 2),
+      era: rates[:era],
       complete_games: stats['complete_games'].to_i,
       shutouts: stats['shutouts'].to_i,
-      win_percentage: safe_divide_round(wins.to_f, wins + losses, 3),
-      k_per_nine: safe_divide_round(stats['weighted_strikeouts'].to_f, ip, 3),
-      whip: safe_divide_round(stats['base_on_balls'].to_f + stats['hits_allowed'].to_f, ip, 3),
-      bb_per_nine: safe_divide_round(stats['weighted_base_on_balls'].to_f, ip, 3),
-      k_bb: safe_divide_round(stats['strikeouts'].to_f, stats['base_on_balls'].to_i, 3),
+      win_percentage: rates[:win_percentage],
+      k_per_nine: rates[:k_per_nine],
+      whip: rates[:whip],
+      bb_per_nine: rates[:bb_per_nine],
+      k_bb: rates[:k_bb],
       number_of_pitches: stats['number_of_pitches'].to_i
     }
-  end
-
-  def self.safe_divide_round(numerator, denominator, precision)
-    denominator.zero? ? ZERO : (numerator / denominator).round(precision)
   end
 
   private

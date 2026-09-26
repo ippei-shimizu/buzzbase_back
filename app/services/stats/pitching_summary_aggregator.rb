@@ -61,20 +61,11 @@ module Stats
     end
 
     def rates(counts, innings)
-      {
-        era: divide(counts[:weighted_earned_run], innings, 2),
-        whip: divide(counts[:base_on_balls] + counts[:hits_allowed], innings),
-        k_per_nine: divide(counts[:weighted_strikeouts], innings),
-        bb_per_nine: divide(counts[:weighted_base_on_balls], innings),
-        k_bb: divide(counts[:strikeouts], counts[:base_on_balls]),
-        win_percentage: divide(counts[:win], counts[:win] + counts[:loss])
-      }
-    end
-
-    def divide(numerator, denominator, precision = 3)
-      return 0.0 if denominator.to_f.zero?
-
-      (numerator.to_f / denominator).round(precision)
+      PitchingFormulas.rates(
+        **counts.slice(:weighted_earned_run, :weighted_strikeouts, :weighted_base_on_balls,
+                       :strikeouts, :base_on_balls, :hits_allowed, :win, :loss),
+        innings:
+      )
     end
 
     def filtered_scope
