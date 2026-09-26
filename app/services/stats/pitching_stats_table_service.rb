@@ -177,7 +177,7 @@ module Stats
         'SUM(pitching_results.saves) AS saves',
         'SUM(CASE WHEN pitching_results.got_to_the_distance THEN 1 ELSE 0 END) AS complete_games',
         'SUM(CASE WHEN pitching_results.got_to_the_distance = true AND pitching_results.run_allowed = 0 THEN 1 ELSE 0 END) AS shutouts',
-        'ROUND(SUM(pitching_results.innings_pitched)::numeric, 1) AS innings_pitched',
+        'SUM(pitching_results.innings_pitched) AS innings_pitched',
         'SUM(pitching_results.hits_allowed) AS hits_allowed',
         'SUM(pitching_results.home_runs_hit) AS home_runs_hit',
         'SUM(pitching_results.strikeouts) AS strikeouts',
