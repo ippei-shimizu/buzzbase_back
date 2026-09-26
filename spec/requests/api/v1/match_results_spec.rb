@@ -374,6 +374,39 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
         expect(body['match_type']).to be_nil
         expect(body['defensive_position']).to be_nil
         expect(body['batting_order']).to be_nil
+        expect(body['my_team_name']).to be_nil
+      end
+    end
+
+    context 'when the user has a team on the profile' do
+      it 'returns the profile team name as my_team_name regardless of latest match_result' do
+        user.update!(team: create(:team, name: 'BUZZ学園'))
+
+        game_result = create(:game_result, user:)
+        game_result.match_result.update!(
+          date_and_time: Time.zone.local(2025, 6, 1),
+          my_team: create(:team, name: '旧チーム')
+        )
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['my_team_name']).to eq('BUZZ学園')
+      end
+    end
+
+    context 'when the user has no team on the profile but has prior match_results' do
+      it 'falls back to the latest match_result my_team name' do
+        game_result = create(:game_result, user:)
+        game_result.match_result.update!(
+          date_and_time: Time.zone.local(2025, 6, 1),
+          my_team: create(:team, name: '直近のチーム')
+        )
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['my_team_name']).to eq('直近のチーム')
       end
     end
 

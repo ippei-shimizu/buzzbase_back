@@ -146,19 +146,22 @@ module Api
       #     inning_format: Integer,            # 直近試合のイニング制（7/9）。履歴なしは 9
       #     match_type: String|null,           # 直近試合の試合種類（公式戦/オープン戦/それ以外そのまま）。履歴なしは nil
       #     defensive_position: String|null,   # プロフィール最優先 → 直近試合の守備位置 → nil
-      #     batting_order: String|null         # 直近試合の打順。履歴なしは nil
+      #     batting_order: String|null,        # 直近試合の打順。履歴なしは nil
+      #     my_team_name: String|null          # プロフィール最優先 → 直近試合の自チーム名 → nil
       #   }
       def form_defaults
         # 同日付の試合が複数ある場合に「最も新しく作成された試合」を確実に取得するため、
         # date_and_time が等しいときは id 降順（= 直近作成）でタイブレークする。
         latest = current_api_v1_user.match_results.order(date_and_time: :desc, id: :desc).first
         profile_position = current_api_v1_user.positions.first&.name
+        profile_team_name = current_api_v1_user.team&.name
 
         render json: {
           inning_format: latest&.inning_format || 9,
           match_type: humanize_match_type(latest&.match_type),
           defensive_position: profile_position.presence || latest&.defensive_position,
-          batting_order: latest&.batting_order
+          batting_order: latest&.batting_order,
+          my_team_name: profile_team_name.presence || latest&.my_team&.name
         }
       end
 
