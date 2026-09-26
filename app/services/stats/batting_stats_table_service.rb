@@ -68,20 +68,26 @@ module Stats
       game_results = scope.includes(game_result: { match_result: :opponent_team })
                           .order('match_results.date_and_time ASC')
 
-      games_prefix = { 'games' => 1 }
       inside_the_park_counts = InsideTheParkHomeRunCounter.count_by_game_result(scope, user_id: @user_id)
-      rows = game_results.map do |ba|
-        mr = ba.game_result.match_result
-        # 母数を超えないクランプは InsideTheParkHomeRunCounter.count と同じ理由
-        inside_the_park_home_run = [inside_the_park_counts.fetch(ba.game_result_id, 0), ba.home_run.to_i].min
-        row = compose_row(mr.date_and_time.strftime('%m/%d'), games_prefix.merge(extract_int_stats(ba, BATTING_FIELDS)),
-                          inside_the_park_home_run:)
-        row[:opponent] = mr.opponent_team&.name || '不明'
-        row
+      scoring_position_averages = ScoringPositionBattingAverage.calculate_by_game_result(scope, user_id: @user_id)
+      rows = game_results.map do |batting_average|
+        daily_row(batting_average, inside_the_park_counts:, scoring_position_averages:)
       end
 
       rows << build_row(label: '通算', scope:) if rows.size > 1
       rows
+    end
+
+    def daily_row(batting_average, inside_the_park_counts:, scoring_position_averages:)
+      match_result = batting_average.game_result.match_result
+      # 母数を超えないクランプは InsideTheParkHomeRunCounter.count と同じ理由
+      inside_the_park_home_run = [inside_the_park_counts.fetch(batting_average.game_result_id, 0), batting_average.home_run.to_i].min
+      row = compose_row(match_result.date_and_time.strftime('%m/%d'),
+                        { 'games' => 1 }.merge(extract_int_stats(batting_average, BATTING_FIELDS)),
+                        inside_the_park_home_run:,
+                        scoring_position_batting_average: scoring_position_averages[batting_average.game_result_id])
+      row[:opponent] = match_result.opponent_team&.name || '不明'
+      row
     end
 
     # --- helpers ---
@@ -90,11 +96,12 @@ module Stats
       return empty_row(label) unless agg
 
       inside_the_park_home_run = InsideTheParkHomeRunCounter.count(scope, user_id: @user_id, home_run_total: agg.home_run.to_i)
-      compose_row(label, agg.attributes, inside_the_park_home_run:)
+      scoring_position_batting_average = ScoringPositionBattingAverage.calculate(scope, user_id: @user_id)
+      compose_row(label, agg.attributes, inside_the_park_home_run:, scoring_position_batting_average:)
     end
 
     # inside_the_park_home_run は home_run の内数（home_run 自体は走本塁打を含んだ総数のまま）
-    def compose_row(label, stats, inside_the_park_home_run:)
+    def compose_row(label, stats, inside_the_park_home_run:, scoring_position_batting_average:)
       vals = int_values(stats, BATTING_FIELDS)
       derived = calculate_rate_stats(vals)
 
@@ -102,6 +109,7 @@ module Stats
         .merge(vals.transform_keys(&:to_sym))
         .merge(inside_the_park_home_run:)
         .merge(derived)
+        .merge(scoring_position_batting_average:)
     end
 
     def calculate_rate_stats(vals)
@@ -144,7 +152,7 @@ module Stats
       base = { label:, games: 0 }
       zeros = BATTING_SYMBOLS.index_with { 0 }.merge(inside_the_park_home_run: 0)
       rates = { hit: ZERO, batting_average: ZERO, slugging_percentage: ZERO, ops: ZERO,
-                iso: ZERO, bb_per_k: ZERO, babip: ZERO }
+                iso: ZERO, bb_per_k: ZERO, babip: ZERO, scoring_position_batting_average: nil }
       base.merge(zeros).merge(rates)
     end
 

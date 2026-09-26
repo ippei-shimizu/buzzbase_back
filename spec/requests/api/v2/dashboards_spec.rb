@@ -332,6 +332,44 @@ RSpec.describe 'Api::V2::Dashboards', type: :request do
       end
     end
 
+    context '得点圏打率' do
+      def create_scoring_position_game(date:, match_type:, results:)
+        game = create(:game_result, user:)
+        game.match_result.update!(date_and_time: date, match_type:)
+        create(:batting_average, game_result: game, user:, hit: 1, at_bats: 4, times_at_bat: 4)
+        results.each do |plate_result_id, runners_state|
+          create(:plate_appearance, game_result: game, user:, plate_result_id:, runners_state:, is_new_format: true)
+        end
+      end
+
+      it 'calculated に得点圏打率を返し、year / match_type フィルタも効く' do
+        create_scoring_position_game(date: Time.zone.local(2024, 5, 10), match_type: 'regular',
+                                     results: [[7, :second], [13, :third]])
+        create_scoring_position_game(date: Time.zone.local(2025, 5, 10), match_type: 'open',
+                                     results: [[7, :bases_loaded]])
+
+        get '/api/v2/dashboard/batting_stats', headers: auth_headers_for(user)
+        all_games = response.parsed_body['calculated']['scoring_position_batting_average']
+        get '/api/v2/dashboard/batting_stats', params: { year: '2024', match_type: 'regular' },
+                                               headers: auth_headers_for(user)
+        filtered = response.parsed_body['calculated']['scoring_position_batting_average']
+
+        aggregate_failures do
+          expect(all_games).to eq(0.667)
+          expect(filtered).to eq(0.5)
+        end
+      end
+
+      it '得点圏の打数が 0 なら null を返す' do
+        create_scoring_position_game(date: Time.zone.local(2024, 5, 10), match_type: 'regular',
+                                     results: [[7, :no_runner]])
+
+        get '/api/v2/dashboard/batting_stats', headers: auth_headers_for(user)
+
+        expect(response.parsed_body['calculated']).to include('scoring_position_batting_average' => nil)
+      end
+    end
+
     context 'when target user is private and viewer is not a follower' do
       let(:private_user) { create(:user, is_private: true) }
 

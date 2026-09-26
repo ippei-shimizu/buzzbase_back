@@ -102,8 +102,9 @@ module Api
         inside_the_park_home_run = Stats::InsideTheParkHomeRunCounter.count(
           aggregate_scope, user_id: user.id, home_run_total: aggregate.home_run.to_i
         )
+        scoring_position_batting_average = Stats::ScoringPositionBattingAverage.calculate(aggregate_scope, user_id: user.id)
         { aggregate: batting_aggregate_hash(aggregate, inside_the_park_home_run:),
-          calculated: batting_calculated_hash(calculated) }
+          calculated: batting_calculated_hash(calculated, scoring_position_batting_average:) }
       end
 
       def batting_all_zero?(aggregate)
@@ -125,10 +126,11 @@ module Api
           strike_out: agg.strike_out.to_i, error: agg.error.to_i }
       end
 
-      def batting_calculated_hash(calc)
+      def batting_calculated_hash(calc, scoring_position_batting_average:)
         { batting_average: calc[:batting_average], on_base_percentage: calc[:on_base_percentage],
           slugging_percentage: calc[:slugging_percentage], ops: calc[:ops],
-          iso: calc[:iso], bb_per_k: calc[:bb_per_k], isod: calc[:isod] }
+          iso: calc[:iso], bb_per_k: calc[:bb_per_k], isod: calc[:isod],
+          scoring_position_batting_average: }
       end
 
       def build_pitching_stats(user, year: nil, match_type: nil, season_id: nil, tournament_id: nil, start_month: nil, end_month: nil)

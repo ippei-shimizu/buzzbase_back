@@ -156,4 +156,117 @@ RSpec.describe Stats::BattingStatsTableService, type: :service do
       expect(find_row(rows, '2026')).to include(home_run: 1, inside_the_park_home_run: 1)
     end
   end
+
+  describe '得点圏打率' do
+    def create_scoring_position_game(date:, results:)
+      game = create(:game_result, user:)
+      game.match_result.update!(date_and_time: Time.zone.parse("#{date} 12:00:00"), match_type: 'regular')
+      create(:batting_average, game_result: game, user:, hit: 1, at_bats: 4, times_at_bat: 4, total_bases: 1)
+      results.each do |plate_result_id, runners_state|
+        create(:plate_appearance, game_result: game, user:, plate_result_id:, runners_state:, is_new_format: true)
+      end
+      game
+    end
+
+    def find_row(rows, label)
+      rows.find { |row| row[:label] == label }
+    end
+
+    let(:single_hit) { 7 }
+    let(:strike_out) { 13 }
+
+    it '年度行と通算行に得点圏の打席だけで計算した打率を返す' do
+      create_scoring_position_game(date: '2025-05-10', results: [[single_hit, :second], [strike_out, :bases_loaded],
+                                                                 [single_hit, :first]])
+      create_scoring_position_game(date: '2026-05-10', results: [[strike_out, :third]])
+
+      rows = described_class.new(user_id: user.id, mode: :yearly).call
+
+      aggregate_failures do
+        expect(find_row(rows, '2025')[:scoring_position_batting_average]).to eq(0.5)
+        expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(0.0)
+        expect(find_row(rows, '通算')[:scoring_position_batting_average]).to eq(0.333)
+      end
+    end
+
+    it '月別行では月ごとに計算する' do
+      create_scoring_position_game(date: '2026-05-10', results: [[single_hit, :second]])
+      create_scoring_position_game(date: '2026-06-10', results: [[strike_out, :second]])
+
+      rows = described_class.new(user_id: user.id, mode: :monthly, year: 2026).call
+
+      aggregate_failures do
+        expect(find_row(rows, '5月')[:scoring_position_batting_average]).to eq(1.0)
+        expect(find_row(rows, '6月')[:scoring_position_batting_average]).to eq(0.0)
+        expect(find_row(rows, '通算')[:scoring_position_batting_average]).to eq(0.5)
+      end
+    end
+
+    it '日別行では試合ごとに計算する' do
+      create_scoring_position_game(date: '2026-05-10', results: [[single_hit, :second], [strike_out, :third]])
+      create_scoring_position_game(date: '2026-05-11', results: [[single_hit, :first_third]])
+
+      rows = described_class.new(user_id: user.id, mode: :daily, year: 2026).call
+
+      aggregate_failures do
+        expect(find_row(rows, '05/10')[:scoring_position_batting_average]).to eq(0.5)
+        expect(find_row(rows, '05/11')[:scoring_position_batting_average]).to eq(1.0)
+        expect(find_row(rows, '通算')[:scoring_position_batting_average]).to eq(0.667)
+      end
+    end
+
+    it '得点圏の打数が 0 の行は打率 .000 と区別できるよう nil を返す' do
+      create_scoring_position_game(date: '2026-05-10', results: [[single_hit, :no_runner]])
+      old_format_game = create_scoring_position_game(date: '2026-05-11', results: [])
+      create(:plate_appearance, game_result: old_format_game, user:, plate_result_id: single_hit,
+                                is_new_format: false, runners_state: nil)
+
+      yearly = described_class.new(user_id: user.id, mode: :yearly).call
+      daily = described_class.new(user_id: user.id, mode: :daily, year: 2026).call
+
+      aggregate_failures do
+        expect(find_row(yearly, '2026')).to include(scoring_position_batting_average: nil)
+        expect(find_row(daily, '05/10')).to include(scoring_position_batting_average: nil)
+        expect(find_row(daily, '05/11')).to include(scoring_position_batting_average: nil)
+      end
+    end
+
+    it 'season_id フィルタは得点圏打率にも効く' do
+      season = create(:season, user:)
+      season_game = create_scoring_position_game(date: '2026-05-10', results: [[single_hit, :second]])
+      season_game.update!(season_id: season.id)
+      create_scoring_position_game(date: '2026-05-11', results: [[strike_out, :second]])
+
+      rows = described_class.new(user_id: user.id, mode: :yearly, season_id: season.id).call
+
+      expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(1.0)
+    end
+
+    it '他ユーザーの得点圏打席は母数に入らない' do
+      create_scoring_position_game(date: '2026-05-10', results: [[strike_out, :second]])
+      other_user = create(:user)
+      other_game = create(:game_result, user: other_user)
+      other_game.match_result.update!(date_and_time: Time.zone.parse('2026-05-10 12:00:00'), match_type: 'regular')
+      create(:batting_average, game_result: other_game, user: other_user, hit: 1, at_bats: 4, times_at_bat: 4, total_bases: 1)
+      create(:plate_appearance, game_result: other_game, user: other_user, plate_result_id: single_hit,
+                                runners_state: :second, is_new_format: true)
+
+      rows = described_class.new(user_id: user.id, mode: :yearly).call
+
+      expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(0.0)
+    end
+
+    it 'batting_average が無い試合の得点圏打席は母数に入らない' do
+      create_scoring_position_game(date: '2026-05-10', results: [[strike_out, :second]])
+      game_without_batting_average = create(:game_result, user:)
+      game_without_batting_average.match_result.update!(date_and_time: Time.zone.parse('2026-05-11 12:00:00'),
+                                                        match_type: 'regular')
+      create(:plate_appearance, game_result: game_without_batting_average, user:, plate_result_id: single_hit,
+                                runners_state: :second, is_new_format: true)
+
+      rows = described_class.new(user_id: user.id, mode: :yearly).call
+
+      expect(find_row(rows, '2026')[:scoring_position_batting_average]).to eq(0.0)
+    end
+  end
 end
