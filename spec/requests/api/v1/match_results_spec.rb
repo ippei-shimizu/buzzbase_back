@@ -374,6 +374,67 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
         expect(body['match_type']).to be_nil
         expect(body['defensive_position']).to be_nil
         expect(body['batting_order']).to be_nil
+        expect(body['my_team_id']).to be_nil
+        expect(body['my_team_name']).to be_nil
+      end
+    end
+
+    context 'when the user has a team on the profile' do
+      it 'returns the profile team as my_team_id / my_team_name regardless of latest match_result' do
+        profile_team = create(:team, name: 'BUZZ学園')
+        user.update!(team: profile_team)
+
+        game_result = create(:game_result, user:)
+        game_result.match_result.update!(
+          date_and_time: Time.zone.local(2025, 6, 1),
+          my_team: create(:team, name: '旧チーム')
+        )
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['my_team_id']).to eq(profile_team.id)
+        expect(body['my_team_name']).to eq('BUZZ学園')
+      end
+    end
+
+    context 'when the user has a team on the profile but no match_results' do
+      it 'returns the profile team as my_team_id / my_team_name' do
+        profile_team = create(:team, name: 'BUZZ学園')
+        user.update!(team: profile_team)
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['my_team_id']).to eq(profile_team.id)
+        expect(body['my_team_name']).to eq('BUZZ学園')
+        expect(body['match_type']).to be_nil
+      end
+    end
+
+    context 'when the user has no team on the profile but has prior match_results' do
+      it 'falls back to the my_team of the latest match_result' do
+        old_game_result = create(:game_result, user:)
+        old_game_result.match_result.update!(
+          date_and_time: Time.zone.local(2024, 1, 1),
+          my_team: create(:team, name: '昔のチーム')
+        )
+
+        latest_team = create(:team, name: '直近のチーム')
+        latest_game_result = create(:game_result, user:)
+        latest_game_result.match_result.update!(
+          date_and_time: Time.zone.local(2025, 6, 1),
+          my_team: latest_team
+        )
+
+        get '/api/v1/match_results/form_defaults', headers: auth_headers_for(user)
+
+        expect(response).to have_http_status(:ok)
+        body = response.parsed_body
+        expect(body['my_team_id']).to eq(latest_team.id)
+        expect(body['my_team_name']).to eq('直近のチーム')
       end
     end
 
@@ -433,13 +494,17 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
     end
 
     context 'when multiple match_results share the same date_and_time' do
+      let(:newer_team) { create(:team, name: '後から作った試合のチーム') }
+
       before do
         # 同じ日付の試合を順番に作る。最後に作成（id 最大）したのが直近の試合として返るべき。
         old_gr = create(:game_result, user:)
-        old_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'open', inning_format: 7)
+        old_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'open', inning_format: 7,
+                                    my_team: create(:team, name: '先に作った試合のチーム'))
 
         new_gr = create(:game_result, user:)
-        new_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'regular', inning_format: 9)
+        new_gr.match_result.update!(date_and_time: Time.zone.local(2025, 6, 1), match_type: 'regular', inning_format: 9,
+                                    my_team: newer_team)
       end
 
       it 'returns the most recently created match_result (tie-broken by id desc)' do
@@ -449,6 +514,7 @@ RSpec.describe 'Api::V1::MatchResults', type: :request do
         body = response.parsed_body
         expect(body['match_type']).to eq('公式戦')
         expect(body['inning_format']).to eq(9)
+        expect(body['my_team_name']).to eq('後から作った試合のチーム')
       end
     end
 
