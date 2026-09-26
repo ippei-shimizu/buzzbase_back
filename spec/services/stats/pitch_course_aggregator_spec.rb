@@ -11,8 +11,8 @@ RSpec.describe Stats::PitchCourseAggregator, type: :service do
   let(:user) { create(:user) }
   let(:game_result) { create(:game_result, user:) }
 
-  def create_pa(pitch_course:, plate_result_id:, is_new_format: true)
-    create(:plate_appearance, game_result:, user:, pitch_course:, plate_result_id:, is_new_format:)
+  def create_pa(pitch_course:, plate_result_id:, is_new_format: true, swing_type: nil)
+    create(:plate_appearance, game_result:, user:, pitch_course:, plate_result_id:, is_new_format:, swing_type:)
   end
 
   describe '#call' do
@@ -103,12 +103,11 @@ RSpec.describe Stats::PitchCourseAggregator, type: :service do
         create_pa(pitch_course: 13, plate_result_id: single_result_id)
         create_pa(pitch_course: 13, plate_result_id: double_result_id)
         create_pa(pitch_course: 13, plate_result_id: home_run_result_id)
-        create(:plate_appearance, game_result:, user:, pitch_course: 13, plate_result_id: strikeout_result_id,
-                                  swing_type: :swinging, is_new_format: true)
-        create(:plate_appearance, game_result:, user:, pitch_course: 13, plate_result_id: strikeout_result_id,
-                                  swing_type: :looking, is_new_format: true)
+        create_pa(pitch_course: 13, plate_result_id: strikeout_result_id, swing_type: :swinging)
+        create_pa(pitch_course: 13, plate_result_id: strikeout_result_id, swing_type: :looking)
         create_pa(pitch_course: 13, plate_result_id: strikeout_result_id)
         create_pa(pitch_course: 13, plate_result_id: dropped_third_strike_result_id)
+        create_pa(pitch_course: 13, plate_result_id: walk_result_id)
         create_pa(pitch_course: 1, plate_result_id: home_run_result_id)
       end
 
@@ -117,7 +116,7 @@ RSpec.describe Stats::PitchCourseAggregator, type: :service do
         center = result[:zones].find { |z| z[:course] == 13 }
 
         expect(center).to include(
-          plate_appearances: 7, at_bats: 7, hits: 3, total_bases: 7,
+          plate_appearances: 8, at_bats: 7, hits: 3, total_bases: 7,
           strikeouts: 4, swinging_strikeouts: 1, looking_strikeouts: 1
         )
       end
