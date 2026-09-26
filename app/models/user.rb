@@ -274,6 +274,14 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
 
   private
 
+  # ソーシャル連携アカウントはメールでのリセットを使えず、漏れたトークンで設定されたパスワードに気付く手段が他に無い。
+  # リンク時にパスワードを破棄する更新（空文字）では送らない。
+  def send_password_change_notification?
+    return super unless social_account?
+
+    devise_saved_change_to_encrypted_password? && encrypted_password.present?
+  end
+
   # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
   # 直前の識別子へ戻してから例外を再送出する。
   def store_image_after_commit

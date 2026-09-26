@@ -220,6 +220,39 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe 'password change notification' do
+    before { ActionMailer::Base.deliveries.clear }
+
+    let(:password_change_mails) do
+      ActionMailer::Base.deliveries.select { |mail| mail.subject == I18n.t('devise.mailer.password_change.subject') }
+    end
+
+    it 'notifies a social account when its password is set' do
+      user = create(:user, :google, email: 'notify-social@example.com', uid: 'google-uid-notify')
+
+      user.update!(password: 'abc12345', password_confirmation: 'abc12345')
+
+      expect(password_change_mails.map(&:to)).to eq([['notify-social@example.com']])
+      expect(password_change_mails.first.body.decoded).to include('パスワードが設定されました')
+    end
+
+    it 'does not notify when linking discards the password' do
+      user = create(:user, provider: 'email', email: 'notify-link@example.com', uid: 'notify-link@example.com')
+
+      user.update!(provider: 'google', uid: 'google-uid-link', encrypted_password: '')
+
+      expect(password_change_mails).to be_empty
+    end
+
+    it 'does not notify an email account (the global setting stays off)' do
+      user = create(:user, email: 'notify-email@example.com', uid: 'notify-email@example.com')
+
+      user.update!(password: 'abc12345', password_confirmation: 'abc12345')
+
+      expect(password_change_mails).to be_empty
+    end
+  end
+
   describe 'scopes' do
     let!(:active_user) { create(:user) }
     let!(:suspended_user) { create(:user, suspended_at: Time.current, suspended_reason: 'test') }
