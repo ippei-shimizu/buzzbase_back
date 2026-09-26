@@ -8,7 +8,7 @@ module Api
         MAX_PER_PAGE = 100
 
         def index
-          teams = Team.includes(:category, :prefecture, :user).order(created_at: :desc)
+          teams = Team.includes(:category, :prefecture, :users).order(created_at: :desc)
           total_count = teams.count
           page = [params[:page].to_i, 1].max
           per_page = params[:per_page].to_i.between?(1, MAX_PER_PAGE) ? params[:per_page].to_i : DEFAULT_PER_PAGE

@@ -144,6 +144,21 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe '#team' do
+    it 'resolves the team referenced by team_id' do
+      team = create(:team, name: 'BUZZ学園')
+      user = create(:user, user_id: 'player_one', team_id: team.id)
+
+      expect(user.team&.name).to eq('BUZZ学園')
+    end
+
+    it 'returns nil without team_id' do
+      user = create(:user, team_id: nil)
+
+      expect(user.team).to be_nil
+    end
+  end
+
   describe 'introduction validations' do
     it 'allows save! when legacy introduction exceeds 100 chars and unchanged' do
       user = create(:user)

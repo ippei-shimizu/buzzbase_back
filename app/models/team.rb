@@ -1,7 +1,7 @@
 class Team < ApplicationRecord
   belongs_to :category, class_name: 'BaseballCategory', optional: true
   belongs_to :prefecture, optional: true
-  has_one :user, foreign_key: 'user_id', primary_key: 'id', dependent: :destroy, inverse_of: :team
+  has_many :users, dependent: :nullify, inverse_of: :team
 
   # 部分一致のチーム名検索。LIKE メタ文字 (% _ \) はリテラルとして扱う。
   scope :search_by_name, ->(q) { where('teams.name ILIKE ?', "%#{sanitize_sql_like(q)}%") }
