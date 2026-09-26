@@ -54,10 +54,10 @@ module Stats
 
     # 投球回は 1/3 回を 0.333... の float で保存しているため、率の分母には丸める前の合計を使う。
     def aggregate
-      row = filtered_scope.pick(*COUNT_COLUMNS.values.map { |sql| Arel.sql(sql) }, Arel.sql(INNINGS_COLUMN))
-      values = Array.wrap(row)
-      counts = COUNT_COLUMNS.keys.zip(values.first(COUNT_COLUMNS.size).map(&:to_i)).to_h
-      [counts, values.last.to_f]
+      columns = COUNT_COLUMNS.merge(innings_pitched: INNINGS_COLUMN)
+      values = filtered_scope.pick(*columns.values.map { |sql| Arel.sql(sql) })
+      row = columns.keys.zip(values).to_h
+      [row.except(:innings_pitched).transform_values(&:to_i), row[:innings_pitched].to_f]
     end
 
     def rates(counts, innings)
