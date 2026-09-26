@@ -12,6 +12,7 @@ module Stats
 
       # 打数がこの値未満のコースは is_reliable: false（参考値表示）。
       # PitcherFaceoffAggregator::MIN_PLATE_APPEARANCES と揃える。
+      # 打数ベースの指標（打率・長打率）向けのしきい値で、分母が打席の三振率には流用できない。
       MIN_AT_BATS = 3
 
       # 指標（打率・長打率・三振率など）はクライアントで計算するため、率ではなく生カウントを返す。
