@@ -205,14 +205,14 @@ RSpec.describe 'Rack::Attack throttling', type: :request do
     end
   end
 
-  describe 'GET /users/password/edit' do
+  describe 'GET /users/confirmation' do
     it 'throttles the bare Devise route as well' do
       20.times do |i|
-        get "/users/password/edit?reset_password_token=token#{i}",
+        get "/users/confirmation?confirmation_token=token#{i}",
             headers: { 'X-Forwarded-For' => '203.0.113.51' }
       end
 
-      get '/users/password/edit?reset_password_token=token20',
+      get '/users/confirmation?confirmation_token=token20',
           headers: { 'X-Forwarded-For' => '203.0.113.51' }
 
       expect(response).to have_http_status(:too_many_requests)

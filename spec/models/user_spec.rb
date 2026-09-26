@@ -144,6 +144,21 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe '#team' do
+    it 'resolves the team referenced by team_id' do
+      team = create(:team, name: 'BUZZ学園')
+      user = create(:user, user_id: 'player_one', team_id: team.id)
+
+      expect(user.team&.name).to eq('BUZZ学園')
+    end
+
+    it 'returns nil without team_id' do
+      user = create(:user, team_id: nil)
+
+      expect(user.team).to be_nil
+    end
+  end
+
   describe 'introduction validations' do
     it 'allows save! when legacy introduction exceeds 100 chars and unchanged' do
       user = create(:user)
@@ -158,6 +173,83 @@ RSpec.describe User, type: :model do
       user.introduction = 'a' * 101
       expect(user).not_to be_valid
       expect(user.errors[:introduction]).to be_present
+    end
+  end
+
+  describe 'password validations for social accounts' do
+    let(:user) { create(:user, :google, email: 'social@example.com', uid: 'google-uid-social') }
+
+    it 'saves without a password' do
+      user.name = '山田'
+      expect(user).to be_valid
+    end
+
+    it 'sets a password that satisfies the rules' do
+      user.password = 'abc12345'
+      user.password_confirmation = 'abc12345'
+      user.save!
+
+      expect(user.reload.valid_password?('abc12345')).to be true
+    end
+
+    it 'rejects a password shorter than the minimum length' do
+      user.password = 'ab12'
+      user.password_confirmation = 'ab12'
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to be_present
+    end
+
+    it 'rejects a password with non-alphanumeric characters' do
+      user.password = 'abc-1234'
+      user.password_confirmation = 'abc-1234'
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include('は半角英数字のみ使用できます')
+    end
+
+    it 'rejects a password without the confirmation' do
+      user.password = 'abc12345'
+      expect(user).not_to be_valid
+      expect(user.errors[:password_confirmation]).to be_present
+    end
+
+    it 'rejects a mismatched password confirmation' do
+      user.password = 'abc12345'
+      user.password_confirmation = 'abc99999'
+      expect(user).not_to be_valid
+      expect(user.errors[:password_confirmation]).to be_present
+    end
+  end
+
+  describe 'password change notification' do
+    before { ActionMailer::Base.deliveries.clear }
+
+    let(:password_change_mails) do
+      ActionMailer::Base.deliveries.select { |mail| mail.subject == I18n.t('devise.mailer.password_change.subject') }
+    end
+
+    it 'notifies a social account when its password is set' do
+      user = create(:user, :google, email: 'notify-social@example.com', uid: 'google-uid-notify')
+
+      user.update!(password: 'abc12345', password_confirmation: 'abc12345')
+
+      expect(password_change_mails.map(&:to)).to eq([['notify-social@example.com']])
+      expect(password_change_mails.first.body.decoded).to include('パスワードが設定されました')
+    end
+
+    it 'does not notify when linking discards the password' do
+      user = create(:user, provider: 'email', email: 'notify-link@example.com', uid: 'notify-link@example.com')
+
+      user.update!(provider: 'google', uid: 'google-uid-link', encrypted_password: '')
+
+      expect(password_change_mails).to be_empty
+    end
+
+    it 'does not notify an email account (the global setting stays off)' do
+      user = create(:user, email: 'notify-email@example.com', uid: 'notify-email@example.com')
+
+      user.update!(password: 'abc12345', password_confirmation: 'abc12345')
+
+      expect(password_change_mails).to be_empty
     end
   end
 

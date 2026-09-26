@@ -44,3 +44,6 @@ ja:
       subject: "【BUZZ BASE Pro】返金が完了しました"
     recovered:
       subject: "【BUZZ BASE Pro】決済が完了し Pro 機能を再開しました"
+  social_login_guidance_mailer:
+    password_reset_requested:
+      subject: "ログイン方法のご案内 - BUZZ BASE"

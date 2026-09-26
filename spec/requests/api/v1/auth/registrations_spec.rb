@@ -87,4 +87,15 @@ RSpec.describe 'Api::V1::Auth::Registrations', type: :request do
       end
     end
   end
+
+  describe 'PUT /api/v1/auth' do
+    let(:social_user) { create(:user, :google, email: 'registrations-update@example.com', uid: 'google-uid-registrations') }
+
+    it 'does not set a password for a social account without the confirmation' do
+      put '/api/v1/auth', headers: auth_headers_for(social_user), params: { password: 'newpassword456' }
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(social_user.reload.encrypted_password).to be_blank
+    end
+  end
 end

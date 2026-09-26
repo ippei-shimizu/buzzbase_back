@@ -63,7 +63,7 @@ module Users
     end
 
     # 未確認アカウントのパスワードは、被害者のメールアドレスで第三者が先に登録したものである
-    # 可能性がある。confirmed_at を立てると素の Devise ルート（/users/sign_in）でそのパスワードの
+    # 可能性がある。confirmed_at を立てると、provider を見ないパスワード照合でそのパスワードの
     # 認証が通るようになるため、同時に破棄する。リンク後は provider が google/apple になり
     # User#password_required? が false を返すので、パスワード無しの状態を保存できる。
     def link_provider!(user)

@@ -4,7 +4,7 @@ RSpec.describe Team, type: :model do
   describe 'associations' do
     it { should belong_to(:category).class_name('BaseballCategory').optional }
     it { should belong_to(:prefecture).optional }
-    it { should have_one(:user).dependent(:destroy) }
+    it { should have_many(:users).dependent(:nullify) }
   end
 
   describe 'validations' do
@@ -52,6 +52,16 @@ RSpec.describe Team, type: :model do
       team = described_class.new(name: 'テスト', category_id: missing_id)
       expect(team).not_to be_valid
       expect(team.errors[:category_id]).to include('は存在しないカテゴリです')
+    end
+  end
+
+  describe '#destroy' do
+    let(:team) { create(:team) }
+    let!(:member) { create(:user, team_id: team.id) }
+
+    it 'keeps member users and clears their team_id' do
+      expect { team.destroy! }.not_to change(User, :count)
+      expect(member.reload.team_id).to be_nil
     end
   end
 end

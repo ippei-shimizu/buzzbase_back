@@ -6,7 +6,8 @@ Rails.application.routes.draw do
       mount_devise_token_auth_for 'User', at: 'auth', controllers: {
         registrations: 'api/v1/auth/registrations',
         confirmations: 'custom_confirmations',
-        passwords: 'custom_passwords'
+        passwords: 'custom_passwords',
+        sessions: 'custom_sessions'
       }
       namespace :admin do
         post 'sign_in', to: 'sessions#create'
@@ -309,7 +310,9 @@ Rails.application.routes.draw do
     end
   end
 
-  devise_for :users, controllers: {
+  # devise_token_auth が sign_in(:user, ...) で current_user を立てるため :user マッピングは残し、provider スコープを
+  # 通らずソーシャル連携アカウントでもパスワード認証・再設定が通る sessions / passwords / registrations のルートだけ出さない。
+  devise_for :users, skip: %i[sessions passwords registrations], controllers: {
     confirmations: 'custom_confirmations'
   }
 end
