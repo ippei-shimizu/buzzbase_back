@@ -277,5 +277,66 @@ RSpec.describe 'Api::V1::Auth::Passwords', type: :request do
         expect(response).to have_http_status(:unauthorized)
       end
     end
+
+    context 'with a google account that has no password yet' do
+      let(:social_user) { create(:user, :google, email: 'set-password@example.com', uid: 'google-uid-set-password') }
+      let(:social_headers) { auth_headers_for(social_user) }
+
+      it 'sets the password without the current password, and the account can sign in with it' do
+        put '/api/v1/auth/password',
+            headers: social_headers,
+            params: { password: 'newpassword456', password_confirmation: 'newpassword456' }
+
+        expect(response).to have_http_status(:ok)
+        expect(social_user.reload.provider).to eq('google')
+
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'newpassword456' }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'rejects a password with non-alphanumeric characters' do
+        put '/api/v1/auth/password',
+            headers: social_headers,
+            params: { password: 'new-password', password_confirmation: 'new-password' }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(social_user.reload.encrypted_password).to be_blank
+      end
+
+      it 'rejects mismatching passwords' do
+        put '/api/v1/auth/password',
+            headers: social_headers,
+            params: { password: 'newpassword456', password_confirmation: 'different456' }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(social_user.reload.encrypted_password).to be_blank
+      end
+
+      it 'rejects a request without the password confirmation' do
+        put '/api/v1/auth/password',
+            headers: social_headers,
+            params: { password: 'newpassword456' }
+
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+    end
+
+    context 'with a google account that already has a password' do
+      let(:social_user) do
+        create(:user, :google, email: 'change-password@example.com', uid: 'google-uid-change-password',
+                               password: 'oldpassword123', password_confirmation: 'oldpassword123')
+      end
+
+      it 'changes the password without the current password' do
+        put '/api/v1/auth/password',
+            headers: auth_headers_for(social_user),
+            params: { password: 'newpassword456', password_confirmation: 'newpassword456' }
+
+        expect(response).to have_http_status(:ok)
+
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'oldpassword123' }
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
   end
 end

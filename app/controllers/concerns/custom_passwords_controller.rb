@@ -1,6 +1,23 @@
 class CustomPasswordsController < DeviseTokenAuth::PasswordsController
   include RedirectUrlWhitelistable
 
+  # 標準実装は provider='email' 以外を 422 で弾くため、ソーシャル連携アカウントはここで更新する。
+  # email アカウントと同じく現在のパスワードは求めない（check_current_password_before_update が false）。
+  def update
+    @resource = set_user_by_token
+    return super unless @resource&.social_account?
+
+    unless password_resource_params[:password] && password_resource_params[:password_confirmation]
+      return render_update_error_missing_password
+    end
+
+    if @resource.update(password_resource_params.slice(:password, :password_confirmation))
+      render_update_success
+    else
+      render_update_error
+    end
+  end
+
   private
 
   # 標準実装は redirect_url 欠落/不許可ホストをエラーで弾くが、フロント/モバイルは常に
