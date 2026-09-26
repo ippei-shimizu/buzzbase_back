@@ -44,6 +44,11 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
     }
 
     add_query_params(redirect_url, auth_params) || confirmation_success_url(redirect_url)
+  rescue ActiveRecord::RecordInvalid => e
+    # トークン付与はベストエフォート。confirm_by_token のコミット後にここで 422 を返すと、
+    # 確認済みのユーザーが成功画面へ到達する手段を失う（再タップは already_confirmed になる）。
+    Sentry.capture_exception(e, tags: { source: 'confirmation_auth_token' }, extra: { user_id: @resource.id })
+    confirmation_success_url(redirect_url)
   end
 
   def confirmation_success_url(redirect_url)
