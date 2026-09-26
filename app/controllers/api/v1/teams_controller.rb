@@ -19,6 +19,7 @@ module Api
           # チーム名解決・サジェスト）との互換のために当面残す。teams は単調増加する
           # マスタでレスポンスが肥大し続けるため、クライアントの q / limit 移行が
           # 浸透したらこの分岐を削除して常に limit を適用する。
+          log_unscoped_index_request
           render json: Team.all
         end
       end
@@ -64,6 +65,15 @@ module Api
       end
 
       private
+
+      # 全件返却分岐の削除判断の根拠になるため、log_level を絞っても消えない warn で残す（高頻度なので Sentry は使わない）。
+      # iOS の User-Agent にはビルド番号が入る。
+      def log_unscoped_index_request
+        Rails.logger.warn(
+          "[teams#index] unscoped request user_agent=#{request.user_agent.to_s.truncate(200).inspect} " \
+          "query_keys=#{request.query_parameters.keys.sort.inspect}"
+        )
+      end
 
       # 未認証で叩けるエンドポイントのため、配列やハッシュを渡されても 500 にせず無視する。
       def search_query

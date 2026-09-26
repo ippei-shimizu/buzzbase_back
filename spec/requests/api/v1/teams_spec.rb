@@ -60,6 +60,52 @@ RSpec.describe 'Api::V1::Teams', type: :request do
 
         expect(response.parsed_body.size).to eq(3)
       end
+
+      it 'logs the request with its user agent so remaining callers can be measured' do
+        allow(Rails.logger).to receive(:warn)
+
+        get '/api/v1/teams', headers: { 'User-Agent' => 'BUZZBASE/42 CFNetwork/1498 Darwin/23.6.0' }
+
+        expect(Rails.logger).to have_received(:warn)
+          .with('[teams#index] unscoped request user_agent="BUZZBASE/42 CFNetwork/1498 Darwin/23.6.0" query_keys=[]')
+      end
+
+      it 'logs an empty quoted user agent when the client sends none' do
+        allow(Rails.logger).to receive(:warn)
+
+        get '/api/v1/teams', headers: { 'HTTP_USER_AGENT' => nil }
+
+        expect(Rails.logger).to have_received(:warn).with('[teams#index] unscoped request user_agent="" query_keys=[]')
+      end
+
+      it 'truncates a long user agent so the log line is not dropped' do
+        allow(Rails.logger).to receive(:warn)
+
+        get '/api/v1/teams', headers: { 'User-Agent' => 'A' * 5000 }
+
+        expect(Rails.logger).to have_received(:warn)
+          .with("[teams#index] unscoped request user_agent=\"#{'A' * 197}...\" query_keys=[]")
+      end
+
+      it 'records blank q separately from a request without any params' do
+        allow(Rails.logger).to receive(:warn)
+
+        get '/api/v1/teams', params: { q: '' }
+
+        expect(Rails.logger).to have_received(:warn).with(a_string_ending_with('query_keys=["q"]'))
+      end
+    end
+
+    context 'with q or limit param (scoped branch)' do
+      [{ q: '青葉' }, { limit: 20 }, { q: '青葉', limit: 20 }].each do |scoped_params|
+        it "does not log the request as unscoped with #{scoped_params.keys.join(' and ')}" do
+          allow(Rails.logger).to receive(:warn)
+
+          get '/api/v1/teams', params: scoped_params
+
+          expect(Rails.logger).not_to have_received(:warn).with(a_string_including('[teams#index] unscoped request'))
+        end
+      end
     end
   end
 
