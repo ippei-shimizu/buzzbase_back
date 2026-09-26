@@ -145,6 +145,31 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
         expect(result).to include(appearances: 2, strikeouts: 12)
       end
 
+      it 'filters by season' do
+        season = create(:season, user:)
+        build_pitching_game(date: '2026-08-01', pitching_attrs: { strikeouts: 9 }).update!(season_id: season.id)
+
+        result = described_class.new(user_id: user.id, season_id: season.id).call
+
+        expect(result).to include(appearances: 1, strikeouts: 9)
+      end
+
+      it 'filters by tournament' do
+        tournament = create(:tournament)
+        game_result = build_pitching_game(date: '2026-08-01', pitching_attrs: { strikeouts: 9 })
+        game_result.match_result.update!(tournament_id: tournament.id)
+
+        result = described_class.new(user_id: user.id, tournament_id: tournament.id).call
+
+        expect(result).to include(appearances: 1, strikeouts: 9)
+      end
+
+      it 'filters by the year-month range' do
+        result = described_class.new(user_id: user.id, start_month: '2026-06', end_month: '2026-06').call
+
+        expect(result).to include(appearances: 1, strikeouts: 7)
+      end
+
       it 'combines year and match type filters' do
         result = described_class.new(user_id: user.id, year: '2026', match_type: 'open').call
 
