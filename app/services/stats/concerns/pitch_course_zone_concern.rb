@@ -3,7 +3,7 @@
 module Stats
   module Concerns
     # 投球コース（5x5 グリッド、捕手目線）集計の共通ロジック。
-    # PitchCourseAggregator / PitchCoursePitchTypeAggregator で共有する。
+    # PitchCourseAggregator / PitchCoursePitchTypeAggregator / PitcherFaceoffCourseAggregator で共有する。
     #
     # 「打っていないコース」自体が情報になるため、母数の少ないセルも行を落とさず
     # is_reliable フラグを付けて返し、表示上の扱いはクライアントに委ねる。

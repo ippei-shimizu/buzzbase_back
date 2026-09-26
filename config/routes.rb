@@ -247,6 +247,7 @@ Rails.application.routes.draw do
         get :pitcher_faceoffs, on: :member
         get :pitch_courses, on: :member
         get :pitch_course_pitch_types, on: :member
+        get :pitcher_faceoff_courses, on: :member
         get :pitcher_attribute_summary, on: :member
         get :batting_trend, on: :member
         get :additional_stats, on: :member

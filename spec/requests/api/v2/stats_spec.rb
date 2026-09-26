@@ -397,6 +397,26 @@ RSpec.describe 'Api::V2::Stats', type: :request do
     end
   end
 
+  describe 'GET /api/v2/stats/pitcher_faceoff_courses' do
+    it 'returns 401 when not authenticated' do
+      get '/api/v2/stats/pitcher_faceoff_courses'
+      expect(response).to have_http_status(:unauthorized)
+    end
+
+    it 'returns 403 for a free user' do
+      get('/api/v2/stats/pitcher_faceoff_courses', headers:)
+      expect(response).to have_http_status(:forbidden)
+    end
+
+    it 'returns 200 with rows and thresholds for a Pro user' do
+      make_pro(user)
+      get('/api/v2/stats/pitcher_faceoff_courses', headers:)
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to include('rows', 'total_target_pa', 'min_at_bats', 'min_plate_appearances')
+    end
+  end
+
   describe 'GET /api/v2/stats/batting_trend' do
     it 'returns 401 when not authenticated' do
       get '/api/v2/stats/batting_trend'
