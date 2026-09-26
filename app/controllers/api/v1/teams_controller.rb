@@ -69,7 +69,10 @@ module Api
       # 全件返却分岐の削除判断の根拠になるため、log_level を絞っても消えない warn で残す（高頻度なので Sentry は使わない）。
       # iOS の User-Agent にはビルド番号が入る。
       def log_unscoped_index_request
-        Rails.logger.warn("[teams#index] unscoped request user_agent=#{request.user_agent.inspect}")
+        Rails.logger.warn(
+          "[teams#index] unscoped request user_agent=#{request.user_agent.to_s.truncate(200).inspect} " \
+          "query_keys=#{request.query_parameters.keys.sort.inspect}"
+        )
       end
 
       # 未認証で叩けるエンドポイントのため、配列やハッシュを渡されても 500 にせず無視する。
