@@ -408,12 +408,24 @@ RSpec.describe 'Api::V2::Stats', type: :request do
       expect(response).to have_http_status(:forbidden)
     end
 
-    it 'returns 200 with rows and thresholds for a Pro user' do
+    it 'returns 200 with 25 zones per pitcher at or above the threshold for a Pro user' do
       make_pro(user)
+      pitcher = Pitcher.create!(name: 'エース投手', created_by_user: user)
+      game_result = create(:game_result, user:)
+      3.times do
+        create(:plate_appearance, game_result:, user:, pitcher_id: pitcher.id, pitch_course: 13,
+                                  plate_result_id: 7, is_new_format: true)
+      end
+
       get('/api/v2/stats/pitcher_faceoff_courses', headers:)
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body).to include('rows', 'total_target_pa', 'min_at_bats', 'min_plate_appearances')
+      json = response.parsed_body
+      aggregate_failures do
+        expect(json['min_plate_appearances']).to eq(3)
+        expect(json['rows'].pluck('label')).to eq(['エース投手'])
+        expect(json['rows'].first['zones'].length).to eq(25)
+      end
     end
   end
 
@@ -506,6 +518,15 @@ RSpec.describe 'Api::V2::Stats', type: :request do
             params: { user_id: private_user.id },
             headers: auth_headers_for(user)
         expect(response).to have_http_status(:forbidden)
+      end
+
+      it 'returns 403 for pitcher_faceoff_courses even for a Pro viewer' do
+        make_pro(user)
+        get '/api/v2/stats/pitcher_faceoff_courses',
+            params: { user_id: private_user.id },
+            headers: auth_headers_for(user)
+        expect(response).to have_http_status(:forbidden)
+        expect(response.parsed_body['error']).not_to eq('この機能は Pro プラン限定です')
       end
     end
 
