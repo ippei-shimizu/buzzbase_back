@@ -71,6 +71,17 @@ RSpec.describe Stats::PitcherFaceoffCourseAggregator, type: :service do
           expect(ace_row[:zones].sum { |zone| zone[:plate_appearances] }).to eq(3)
         end
       end
+
+      it 'returns total_bases and strikeouts split by swing_type per (pitcher, course)' do
+        create(:plate_appearance, game_result:, user:, pitcher_id: ace.id, pitch_course: 13,
+                                  plate_result_id: strikeout_result_id, swing_type: :swinging, is_new_format: true)
+
+        result = described_class.new(user_id: user.id).call
+        ace_row = result[:rows].find { |row| row[:id] == ace.id }
+        center = ace_row[:zones].find { |zone| zone[:course] == 13 }
+
+        expect(center).to include(total_bases: 1, strikeouts: 2, swinging_strikeouts: 1, looking_strikeouts: 0)
+      end
     end
 
     context "with another user's plate appearances" do

@@ -4,7 +4,7 @@ module Stats
   # 投球コース（plate_appearances.pitch_course、1〜25）別の打席集計サービス。
   #
   # pitch_course が記録された新仕様 PA を対象に、コースごとの
-  # plate_appearances / at_bats / hits / batting_average を返す。
+  # 生カウント（PitchCourseZoneConcern::COUNT_KEYS）と batting_average を返す。
   # 母数 0 のコースも行を落とさず、zones は必ず 25 要素で返して
   # クライアント側でヒートマップを安定して描画できるようにする。
   #
@@ -25,7 +25,8 @@ module Stats
     end
 
     # @return [Hash] zones: 必ず 25 要素 [{ course, row, col, is_strike_zone,
-    #   plate_appearances, at_bats, hits, batting_average, is_reliable }],
+    #   plate_appearances, at_bats, hits, total_bases, strikeouts,
+    #   swinging_strikeouts, looking_strikeouts, batting_average, is_reliable }],
     #   strike_zone / ball_zone: ゾーン単位の集計,
     #   total_target_pa: 対象打席数, min_at_bats: is_reliable のしきい値
     def call
@@ -49,12 +50,12 @@ module Stats
     def aggregate_stats
       cross = filtered_scope.joins(:plate_result)
                             .group(:pitch_course, :plate_result_id,
-                                   'plate_results.counted_in_at_bats')
+                                   'plate_results.counted_in_at_bats', :swing_type)
                             .count
 
       stats = Hash.new { |h, k| h[k] = empty_zone_bucket }
-      cross.each do |(pitch_course, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
-        accumulate_zone(stats[pitch_course], result_id, counted, cnt)
+      cross.each do |(pitch_course, result_id, counted, swing_type), cnt| # rubocop:disable Style/HashEachMethods
+        accumulate_zone(stats[pitch_course], result_id, counted, swing_type, cnt)
       end
       stats
     end

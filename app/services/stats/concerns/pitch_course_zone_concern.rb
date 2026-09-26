@@ -14,47 +14,58 @@ module Stats
       # PitcherFaceoffAggregator::MIN_PLATE_APPEARANCES と揃える。
       MIN_AT_BATS = 3
 
+      TOTAL_BASES_BY_RESULT_ID = {
+        ::Stats::BattingAverageRecalculator::SINGLE_HIT_ID => 1,
+        ::Stats::BattingAverageRecalculator::DOUBLE_HIT_ID => 2,
+        ::Stats::BattingAverageRecalculator::TRIPLE_HIT_ID => 3,
+        ::Stats::BattingAverageRecalculator::HOME_RUN_ID => 4
+      }.freeze
+
+      # 指標（打率・長打率・三振率など）はクライアントで計算するため、率ではなく生カウントを返す。
+      COUNT_KEYS = %i[plate_appearances at_bats hits total_bases strikeouts swinging_strikeouts looking_strikeouts].freeze
+
       private
 
       # @param course [Integer] 1〜25（捕手目線・行優先）
-      # @param bucket [Hash] plate_appearances / at_bats / hits の集計値
+      # @param bucket [Hash] COUNT_KEYS の集計値
       # @return [Hash] グリッド1セル分の集計行
       def build_zone(course, bucket)
-        at_bats = bucket[:at_bats]
-        hits = bucket[:hits]
         {
           course:,
           row: ((course - 1) / 5) + 1,
           col: ((course - 1) % 5) + 1,
           is_strike_zone: PlateAppearance::STRIKE_ZONE_COURSES.include?(course),
-          plate_appearances: bucket[:plate_appearances],
-          at_bats:,
-          hits:,
-          batting_average: safe_divide(hits, at_bats),
-          is_reliable: at_bats >= MIN_AT_BATS
+          **bucket.slice(*COUNT_KEYS),
+          batting_average: safe_divide(bucket[:hits], bucket[:at_bats]),
+          is_reliable: bucket[:at_bats] >= MIN_AT_BATS
         }
       end
 
       # ストライクゾーン / ボールゾーンなど、複数セルをまとめた集計。
       def zone_summary(zones)
-        at_bats = zones.sum { |z| z[:at_bats] }
-        hits = zones.sum { |z| z[:hits] }
-        {
-          plate_appearances: zones.sum { |z| z[:plate_appearances] },
-          at_bats:,
-          hits:,
-          batting_average: safe_divide(hits, at_bats)
-        }
+        counts = COUNT_KEYS.index_with { |key| zones.sum { |zone| zone[key] } }
+        counts.merge(batting_average: safe_divide(counts[:hits], counts[:at_bats]))
       end
 
-      def accumulate_zone(bucket, result_id, counted, cnt)
-        bucket[:plate_appearances] += cnt
-        bucket[:at_bats] += cnt if counted
-        bucket[:hits] += cnt if ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS.include?(result_id)
+      # @param swing_type [String, nil] enum label（'swinging' / 'looking'）。三振 (id=13) のときだけ入る
+      def accumulate_zone(bucket, result_id, counted, swing_type, count)
+        bucket[:plate_appearances] += count
+        bucket[:at_bats] += count if counted
+        bucket[:hits] += count if ::Stats::BattingAverageRecalculator::HIT_RESULT_IDS.include?(result_id)
+        bucket[:total_bases] += TOTAL_BASES_BY_RESULT_ID.fetch(result_id, 0) * count
+        accumulate_strikeout(bucket, result_id, swing_type, count)
+      end
+
+      def accumulate_strikeout(bucket, result_id, swing_type, count)
+        return unless ::Stats::BattingAverageRecalculator::STRIKE_OUT_IDS.include?(result_id)
+
+        bucket[:strikeouts] += count
+        bucket[:swinging_strikeouts] += count if swing_type == 'swinging'
+        bucket[:looking_strikeouts] += count if swing_type == 'looking'
       end
 
       def empty_zone_bucket
-        { plate_appearances: 0, at_bats: 0, hits: 0 }
+        COUNT_KEYS.index_with(0)
       end
     end
   end

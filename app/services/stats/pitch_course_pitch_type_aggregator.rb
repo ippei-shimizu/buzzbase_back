@@ -51,12 +51,12 @@ module Stats
     def aggregate_stats
       cross = filtered_scope.joins(:plate_result)
                             .group(:pitch_type_id, :pitch_course, :plate_result_id,
-                                   'plate_results.counted_in_at_bats')
+                                   'plate_results.counted_in_at_bats', :swing_type)
                             .count
 
       stats = Hash.new { |h, k| h[k] = empty_zone_bucket }
-      cross.each do |(pitch_type_id, pitch_course, result_id, counted), cnt| # rubocop:disable Style/HashEachMethods
-        accumulate_zone(stats[[pitch_type_id, pitch_course]], result_id, counted, cnt)
+      cross.each do |(pitch_type_id, pitch_course, result_id, counted, swing_type), cnt| # rubocop:disable Style/HashEachMethods
+        accumulate_zone(stats[[pitch_type_id, pitch_course]], result_id, counted, swing_type, cnt)
       end
       stats
     end

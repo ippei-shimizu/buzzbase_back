@@ -64,6 +64,19 @@ RSpec.describe Stats::PitchCoursePitchTypeAggregator, type: :service do
           expect(straight[:zones].sum { |z| z[:plate_appearances] }).to eq(2)
         end
       end
+
+      it 'returns total_bases and strikeouts split by swing_type per (pitch_type, course)' do
+        create(:plate_appearance, game_result:, user:, pitch_type_id: 1, pitch_course: 13,
+                                  plate_result_id: Stats::BattingAverageRecalculator::HOME_RUN_ID, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, pitch_type_id: 1, pitch_course: 13,
+                                  plate_result_id: strikeout_result_id, swing_type: :looking, is_new_format: true)
+
+        result = described_class.new(user_id: user.id).call
+        straight = result[:rows].find { |r| r[:label] == 'ストレート系' }
+        straight_center = straight[:zones].find { |z| z[:course] == 13 }
+
+        expect(straight_center).to include(total_bases: 5, strikeouts: 2, swinging_strikeouts: 0, looking_strikeouts: 1)
+      end
     end
 
     context 'with year filter' do

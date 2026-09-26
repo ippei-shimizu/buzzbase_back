@@ -94,6 +94,44 @@ RSpec.describe Stats::PitchCourseAggregator, type: :service do
       end
     end
 
+    context 'with extra-base hits and strikeouts' do
+      let(:double_result_id) { Stats::BattingAverageRecalculator::DOUBLE_HIT_ID }
+      let(:home_run_result_id) { Stats::BattingAverageRecalculator::HOME_RUN_ID }
+      let(:dropped_third_strike_result_id) { 14 } # 振り逃げ
+
+      before do
+        create_pa(pitch_course: 13, plate_result_id: single_result_id)
+        create_pa(pitch_course: 13, plate_result_id: double_result_id)
+        create_pa(pitch_course: 13, plate_result_id: home_run_result_id)
+        create(:plate_appearance, game_result:, user:, pitch_course: 13, plate_result_id: strikeout_result_id,
+                                  swing_type: :swinging, is_new_format: true)
+        create(:plate_appearance, game_result:, user:, pitch_course: 13, plate_result_id: strikeout_result_id,
+                                  swing_type: :looking, is_new_format: true)
+        create_pa(pitch_course: 13, plate_result_id: strikeout_result_id)
+        create_pa(pitch_course: 13, plate_result_id: dropped_third_strike_result_id)
+        create_pa(pitch_course: 1, plate_result_id: home_run_result_id)
+      end
+
+      it 'returns total_bases and strikeouts split by swing_type per course' do
+        result = described_class.new(user_id: user.id).call
+        center = result[:zones].find { |z| z[:course] == 13 }
+
+        expect(center).to include(
+          plate_appearances: 7, at_bats: 7, hits: 3, total_bases: 7,
+          strikeouts: 4, swinging_strikeouts: 1, looking_strikeouts: 1
+        )
+      end
+
+      it 'sums the raw counts into strike_zone / ball_zone summaries' do
+        result = described_class.new(user_id: user.id).call
+
+        aggregate_failures do
+          expect(result[:strike_zone]).to include(total_bases: 7, strikeouts: 4, swinging_strikeouts: 1, looking_strikeouts: 1)
+          expect(result[:ball_zone]).to include(total_bases: 4, strikeouts: 0, swinging_strikeouts: 0, looking_strikeouts: 0)
+        end
+      end
+    end
+
     context 'with is_reliable boundary (MIN_AT_BATS = 3)' do
       it 'marks at_bats 2 as not reliable and at_bats 3 as reliable' do
         2.times { create_pa(pitch_course: 7, plate_result_id: strikeout_result_id) }
