@@ -66,10 +66,10 @@ module Api
 
       private
 
-      # 全件返却分岐を削除してよいかを実測で判断するため、残存リクエストと送信元を記録する。
-      # 高頻度で来うるので Sentry のイベント枠は使わずログに残す。iOS の User-Agent にはビルド番号が入る。
+      # 全件返却分岐の削除判断の根拠になるため、log_level を絞っても消えない warn で残す（高頻度なので Sentry は使わない）。
+      # iOS の User-Agent にはビルド番号が入る。
       def log_unscoped_index_request
-        Rails.logger.info("[teams#index] unscoped request user_agent=#{request.user_agent.inspect}")
+        Rails.logger.warn("[teams#index] unscoped request user_agent=#{request.user_agent.inspect}")
       end
 
       # 未認証で叩けるエンドポイントのため、配列やハッシュを渡されても 500 にせず無視する。

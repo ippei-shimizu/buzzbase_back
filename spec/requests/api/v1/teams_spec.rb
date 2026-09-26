@@ -62,22 +62,22 @@ RSpec.describe 'Api::V1::Teams', type: :request do
       end
 
       it 'logs the request with its user agent so remaining callers can be measured' do
-        allow(Rails.logger).to receive(:info)
+        allow(Rails.logger).to receive(:warn)
 
         get '/api/v1/teams', headers: { 'User-Agent' => 'BUZZBASE/42 CFNetwork/1498 Darwin/23.6.0' }
 
-        expect(Rails.logger).to have_received(:info)
+        expect(Rails.logger).to have_received(:warn)
           .with('[teams#index] unscoped request user_agent="BUZZBASE/42 CFNetwork/1498 Darwin/23.6.0"')
       end
     end
 
     context 'with q or limit param' do
       it 'does not log the request as unscoped' do
-        allow(Rails.logger).to receive(:info)
+        allow(Rails.logger).to receive(:warn)
 
         get '/api/v1/teams', params: { q: '青葉', limit: 20 }
 
-        expect(Rails.logger).not_to have_received(:info).with(a_string_including('[teams#index] unscoped request'))
+        expect(Rails.logger).not_to have_received(:warn).with(a_string_including('[teams#index] unscoped request'))
       end
     end
   end
