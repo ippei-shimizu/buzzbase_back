@@ -3,6 +3,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   include PlanLimits
   include SubscriptionCallbacks
 
+  SOCIAL_PROVIDERS = %w[google apple].freeze
+
   mount_uploader :image, AvatarUploader
   # CarrierWave の mount が仕掛ける store は after_save（トランザクション内）で実行されるため、
   # users の行ロックと DB コネクションを保持したまま S3 へ転送してしまう。
@@ -122,16 +124,23 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
 
   after_commit :notify_slack_new_user, on: :create
 
-  validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
+  validates :password, custom_password: true
+  # 確認用が nil だと Devise の validates_confirmation_of はスキップされ、PUT /api/v1/auth から確認無しで設定できてしまう。
+  validates :password_confirmation, presence: true, if: -> { social_account? && !password.nil? }
   validates :user_id, uniqueness: true, allow_blank: true, if: :user_id_changed?
   validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true, if: :user_id_changed?
   validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true, if: :user_id_changed?
   validates :introduction, length: { maximum: 100 }, if: :introduction_changed?
 
+  # ソーシャル連携アカウントはパスワード無しで作成・リンクされるため、パスワードを設定するときだけ検証する。
   def password_required?
-    return false if provider.in?(%w[google apple])
+    return !password.nil? || !password_confirmation.nil? if social_account?
 
     super
+  end
+
+  def social_account?
+    provider.in?(SOCIAL_PROVIDERS)
   end
 
   def google_account?
@@ -150,6 +159,8 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   end
 
   scope :active, -> { where(suspended_at: nil, deleted_at: nil) }
+  scope :social, -> { where(provider: SOCIAL_PROVIDERS) }
+  scope :social_with_password, -> { social.where.not(encrypted_password: [nil, '']) }
   scope :suspended, -> { where.not(suspended_at: nil).where(deleted_at: nil) }
   scope :soft_deleted, -> { where.not(deleted_at: nil) }
   scope :not_deleted, -> { where(deleted_at: nil) }
@@ -262,6 +273,14 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
   delegate :in_trial?, to: :subscription_or_default
 
   private
+
+  # ソーシャル連携アカウントはメールでのリセットを使えず、漏れたトークンで設定されたパスワードに気付く手段が他に無い。
+  # リンク時にパスワードを破棄する更新（空文字）では送らない。
+  def send_password_change_notification?
+    return super unless social_account?
+
+    devise_saved_change_to_encrypted_password? && encrypted_password.present?
+  end
 
   # COMMIT 後の転送失敗は行ごと巻き戻せないため、実体の無いファイル名がカラムに残らないよう
   # 直前の識別子へ戻してから例外を再送出する。

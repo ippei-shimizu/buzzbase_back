@@ -6,7 +6,8 @@ Rails.application.routes.draw do
       mount_devise_token_auth_for 'User', at: 'auth', controllers: {
         registrations: 'api/v1/auth/registrations',
         confirmations: 'custom_confirmations',
-        passwords: 'custom_passwords'
+        passwords: 'custom_passwords',
+        sessions: 'custom_sessions'
       }
       namespace :admin do
         post 'sign_in', to: 'sessions#create'

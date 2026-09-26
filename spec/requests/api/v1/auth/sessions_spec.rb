@@ -48,6 +48,54 @@ RSpec.describe 'Api::V1::Auth::Sessions', type: :request do
         expect(response).to have_http_status(:unauthorized)
       end
     end
+
+    context 'with a google account that has set a password' do
+      let!(:social_user) do
+        create(:user, :google, email: 'social-signin@example.com', uid: 'google-uid-signin',
+                               password: 'password123', password_confirmation: 'password123')
+      end
+
+      it 'signs in with the password without changing the provider, and the issued token works' do
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'password123' }
+
+        expect(response).to have_http_status(:ok)
+        expect(response.headers['uid']).to eq('google-uid-signin')
+        expect(social_user.reload.provider).to eq('google')
+
+        auth_headers = response.headers.slice('access-token', 'client', 'uid')
+        get '/api/v1/user', headers: auth_headers
+        expect(response).to have_http_status(:ok)
+      end
+
+      it 'returns unauthorized with a wrong password' do
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'wrong_password' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'with a google account that has not set a password' do
+      let!(:social_user) { create(:user, :google, email: 'no-password@example.com', uid: 'google-uid-no-password') }
+
+      it 'returns unauthorized' do
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'password123' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'with a suspended google account that has set a password' do
+      let!(:social_user) do
+        create(:user, :google, email: 'suspended-social@example.com', uid: 'google-uid-suspended',
+                               password: 'password123', password_confirmation: 'password123', suspended_at: Time.current)
+      end
+
+      it 'returns unauthorized' do
+        post '/api/v1/auth/sign_in', params: { email: social_user.email, password: 'password123' }
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
   end
 
   describe 'DELETE /api/v1/auth/sign_out' do
