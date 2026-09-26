@@ -176,6 +176,44 @@ RSpec.describe User, type: :model do
     end
   end
 
+  describe 'password validations for social accounts' do
+    let(:user) { create(:user, :google, email: 'social@example.com', uid: 'google-uid-social') }
+
+    it 'saves without a password' do
+      user.name = '山田'
+      expect(user).to be_valid
+    end
+
+    it 'sets a password that satisfies the rules' do
+      user.password = 'abc12345'
+      user.password_confirmation = 'abc12345'
+      user.save!
+
+      expect(user.reload.valid_password?('abc12345')).to be true
+    end
+
+    it 'rejects a password shorter than the minimum length' do
+      user.password = 'ab12'
+      user.password_confirmation = 'ab12'
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to be_present
+    end
+
+    it 'rejects a password with non-alphanumeric characters' do
+      user.password = 'abc-1234'
+      user.password_confirmation = 'abc-1234'
+      expect(user).not_to be_valid
+      expect(user.errors[:password]).to include('は半角英数字のみ使用できます')
+    end
+
+    it 'rejects a mismatched password confirmation' do
+      user.password = 'abc12345'
+      user.password_confirmation = 'abc99999'
+      expect(user).not_to be_valid
+      expect(user.errors[:password_confirmation]).to be_present
+    end
+  end
+
   describe 'scopes' do
     let!(:active_user) { create(:user) }
     let!(:suspended_user) { create(:user, suspended_at: Time.current, suspended_reason: 'test') }

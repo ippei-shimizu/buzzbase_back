@@ -122,14 +122,15 @@ class User < ActiveRecord::Base # rubocop:disable Metrics/ClassLength
 
   after_commit :notify_slack_new_user, on: :create
 
-  validates :password, custom_password: true, on: :create, unless: -> { provider.in?(%w[google apple]) }
+  validates :password, custom_password: true
   validates :user_id, uniqueness: true, allow_blank: true, if: :user_id_changed?
   validates :user_id, format: { with: /\A[A-Za-z0-9_-]+\z/ }, allow_blank: true, if: :user_id_changed?
   validates :user_id, length: { minimum: 3, maximum: 30 }, allow_blank: true, if: :user_id_changed?
   validates :introduction, length: { maximum: 100 }, if: :introduction_changed?
 
+  # ソーシャル連携アカウントはパスワード無しで作成・リンクされるため、パスワードを設定するときだけ検証する。
   def password_required?
-    return false if provider.in?(%w[google apple])
+    return !password.nil? || !password_confirmation.nil? if provider.in?(%w[google apple])
 
     super
   end
