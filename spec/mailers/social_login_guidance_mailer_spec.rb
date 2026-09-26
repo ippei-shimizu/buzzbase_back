@@ -23,6 +23,20 @@ RSpec.describe SocialLoginGuidanceMailer, type: :mailer do
       end
     end
 
+    context 'with a google account that has set a password' do
+      let(:user) do
+        create(:user, :google, email: 'google-password@example.com', uid: 'google-uid-password',
+                               password: 'password123', password_confirmation: 'password123')
+      end
+
+      it 'tells the user to log in with Google and set the password again, in both text and html parts' do
+        [mail.text_part.decoded, mail.html_part.decoded].each do |body|
+          expect(body).to include('設定画面からパスワードを設定し直してください')
+          expect(body).not_to include('パスワードでのログインおよびパスワードの再設定はご利用いただけません')
+        end
+      end
+    end
+
     context 'with an apple account' do
       let(:user) { create(:user, :apple, email: 'apple-user@example.com', uid: 'apple-uid-123') }
 

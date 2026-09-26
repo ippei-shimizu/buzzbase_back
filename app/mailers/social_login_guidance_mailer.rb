@@ -9,6 +9,7 @@ class SocialLoginGuidanceMailer < ApplicationMailer
   def password_reset_requested(user)
     @user = user
     @provider_name = PROVIDER_NAMES.fetch(user.provider)
+    @password_set = user.encrypted_password.present?
     mail to: user.email
   end
 end
