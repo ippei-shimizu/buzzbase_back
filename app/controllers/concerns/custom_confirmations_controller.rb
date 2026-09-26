@@ -24,19 +24,28 @@ class CustomConfirmationsController < DeviseTokenAuth::ConfirmationsController
   # 確認成功時は認証トークンを発行し、リダイレクト URL のクエリに載せる。
   # front / mobile がこれを読んでそのままログイン状態にするため、メール確認後の手動再ログインが不要になる。
   # gem 既定の show はサインイン済みのときだけトークンを発行するので、メールリンク経由では発行されない。
+  #
+  # 付与には build_auth_url ではなく add_query_param を使う。build_auth_url が内部で呼ぶ
+  # DeviseTokenAuth::Url.generate は scheme と host から URL を組み直すため、
+  # CONFIRM_SUCCESS_URL 未設定時のフォールバック先である相対パス '/signin' が ':///signin' に壊れる。
   # @param redirect_url [String] ホワイトリスト検証済みのリダイレクト先
   # @return [String] 認証トークンと account_confirmation_success を含む URL
   def success_redirect_url(redirect_url)
     token = @resource.create_token
     @resource.save!
 
-    redirect_headers = build_redirect_headers(
+    auth_params = build_redirect_headers(
       token.token,
       token.client,
       { account_confirmation_success: true }
-    ).compact
+    ).compact.merge(
+      uid: @resource.uid,
+      expiry: @resource.tokens[token.client]['expiry']
+    )
 
-    @resource.build_auth_url(redirect_url, redirect_headers)
+    auth_params.reduce(redirect_url) do |url, (key, value)|
+      add_query_param(url, key.to_s, value.to_s)
+    end
   end
 
   def your_custom_path(_resource)

@@ -71,6 +71,24 @@ RSpec.describe 'CustomConfirmationsController', type: :request do
       end
     end
 
+    context 'when it falls back to the relative default redirect URL' do
+      it 'keeps the path intact and still carries the auth tokens' do
+        allow(ENV).to receive(:[]).and_call_original
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:[]).with('CONFIRM_SUCCESS_URL').and_return(nil)
+        allow(ENV).to receive(:fetch).with('CONFIRM_SUCCESS_URL', nil).and_return(nil)
+        allow(ENV).to receive(:fetch).with('FRONTEND_URL', nil).and_return(nil)
+
+        get '/api/v1/auth/confirmation', params: { confirmation_token: user.confirmation_token }
+
+        location = URI.parse(response.location)
+        expect(location.path).to eq('/signin')
+        query = Rack::Utils.parse_query(location.query)
+        expect(query['access-token']).to be_present
+        expect(query['uid']).to eq(user.uid)
+      end
+    end
+
     context 'with unauthorized redirect_url scheme' do
       it 'falls back to the default redirect URL' do
         get '/api/v1/auth/confirmation', params: {
