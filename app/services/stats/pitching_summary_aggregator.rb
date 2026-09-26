@@ -3,13 +3,13 @@
 module Stats
   # stats 投球タブの主要スタッツ / その他数値カード用に、投球成績の累計と率指標を返す Aggregator。
   #
-  # 集計対象・計算式は PitchingStatsTableService の通算行に揃える（投球回 0 の試合は登板に数えない、
-  # ERA / K/9 / BB/9 は試合ごとのイニング制で加重する）。フィルタは打撃の HeadlineStatsAggregator と同じ。
+  # 投球回 0 の試合は登板に数えないが、アウトを取れず降板した試合の失点・自責点は累計と ERA に含める
+  # （PitchingResult.pitching_aggregate_columns と同じ数え方）。フィルタは打撃の HeadlineStatsAggregator と同じ。
   class PitchingSummaryAggregator
     include Concerns::FilterableConcern
 
     COUNT_COLUMNS = {
-      appearances: 'COUNT(*)',
+      appearances: 'SUM(CASE WHEN pitching_results.innings_pitched > 0 THEN 1 ELSE 0 END)',
       win: 'SUM(COALESCE(pitching_results.win, 0))',
       loss: 'SUM(COALESCE(pitching_results.loss, 0))',
       hold: 'SUM(COALESCE(pitching_results.hold, 0))',
@@ -71,7 +71,6 @@ module Stats
     def filtered_scope
       scope = PitchingResult.joins(game_result: :match_result)
                             .where(pitching_results: { user_id: @user_id })
-                            .where('pitching_results.innings_pitched > 0')
       scope = apply_year_filter(scope)
       scope = apply_match_type_filter(scope)
       scope = apply_season_filter(scope)

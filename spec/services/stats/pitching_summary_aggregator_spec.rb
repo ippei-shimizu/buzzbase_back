@@ -91,15 +91,13 @@ RSpec.describe Stats::PitchingSummaryAggregator, type: :service do
       expect(result).to include(complete_games: 1, shutouts: 0)
     end
 
-    it 'does not count games with zero innings pitched as appearances' do
-      build_pitching_game(pitching_attrs: { innings_pitched: 0.0, earned_run: 3 })
+    it 'keeps runs of a zero-inning outing in the totals without counting it as an appearance' do
+      build_pitching_game(pitching_attrs: { innings_pitched: 9.0, earned_run: 1 })
+      build_pitching_game(date: '2026-04-08', pitching_attrs: { innings_pitched: 0.0, earned_run: 3 })
 
       result = described_class.new(user_id: user.id).call
 
-      aggregate_failures do
-        expect(result[:appearances]).to eq(0)
-        expect(result[:earned_run]).to eq(0)
-      end
+      expect(result).to include(appearances: 1, earned_run: 4, era: 4.0)
     end
 
     it 'does not include other users pitching results' do
