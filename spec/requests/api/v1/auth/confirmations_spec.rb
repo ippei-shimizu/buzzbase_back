@@ -71,6 +71,25 @@ RSpec.describe 'CustomConfirmationsController', type: :request do
       end
     end
 
+    context 'with an already confirmed token' do
+      it 'does not include auth tokens in the redirect URL' do
+        confirmation_token = user.confirmation_token
+        get '/api/v1/auth/confirmation', params: {
+          confirmation_token:,
+          redirect_url: 'buzzbase://confirmation-success'
+        }
+
+        get '/api/v1/auth/confirmation', params: {
+          confirmation_token:,
+          redirect_url: 'buzzbase://confirmation-success'
+        }
+
+        expect(response.location).to include('account_confirmation_success=false')
+        query = Rack::Utils.parse_query(URI.parse(response.location).query)
+        expect(query['access-token']).to be_nil
+      end
+    end
+
     context 'when it falls back to the relative default redirect URL' do
       it 'keeps the path intact and still carries the auth tokens' do
         allow(ENV).to receive(:[]).and_call_original
